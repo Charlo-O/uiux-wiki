@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vite/
+.npm-cache/
+.env
+.env.*
+dev-server*.log
+qa-*.png
+*.tmp
