@@ -14,12 +14,15 @@ import {
   CornerDownRight,
   Copy,
   Download,
+  ExternalLink,
   Grid2X2,
   Info,
   LayoutGrid,
   Link2,
   MessageCircle,
   MousePointer2,
+  MoreHorizontal,
+  MoreVertical,
   PanelLeft,
   PenTool,
   Play,
@@ -29,12 +32,14 @@ import {
   SlidersHorizontal,
   Sparkles,
   SquareCheck,
+  Star,
   Type,
   UserRound,
   X,
 } from "lucide-react";
 import {
   categoryDescriptions,
+  docModules,
   findItem,
   quickQuestions,
   sections,
@@ -67,6 +72,7 @@ const radiusLabels = {
 const headerSections = [
   { id: "all", label: "全部" },
   { id: "components", label: "组件" },
+  { id: "mobile", label: "移动端" },
   { id: "comparisons", label: "常见对比" },
   { id: "patterns", label: "交互" },
   { id: "dictionary", label: "状态" },
@@ -380,7 +386,7 @@ const mobileComponents = [
     group: "navigation",
     summary: "在同一页面切换视图或范围。",
     usage: "适合订单状态、榜单周期、内容类型切换。",
-    preview: "navbar",
+    preview: "segmented",
   },
   {
     id: "mobile-floating-action",
@@ -389,7 +395,7 @@ const mobileComponents = [
     group: "navigation",
     summary: "浮在内容上方的高频主操作。",
     usage: "适合发布、创建、扫码、快速编辑。",
-    preview: "product",
+    preview: "fab",
   },
   {
     id: "mobile-date-picker",
@@ -398,7 +404,7 @@ const mobileComponents = [
     group: "input",
     summary: "移动端日期、时间或范围选择。",
     usage: "适合预约、出行、订单筛选和报表范围。",
-    preview: "sheet",
+    preview: "picker",
   },
   {
     id: "mobile-stepper",
@@ -407,7 +413,7 @@ const mobileComponents = [
     group: "input",
     summary: "用加减按钮调整数字。",
     usage: "适合数量、人数、库存和评分项。",
-    preview: "actions",
+    preview: "stepper",
   },
   {
     id: "mobile-form-row",
@@ -416,7 +422,7 @@ const mobileComponents = [
     group: "input",
     summary: "移动端设置项、资料项和输入项。",
     usage: "适合个人资料、地址、设置和偏好。",
-    preview: "search",
+    preview: "form",
   },
   {
     id: "mobile-empty-state",
@@ -425,7 +431,7 @@ const mobileComponents = [
     group: "feedback",
     summary: "解释当前没有内容并引导下一步。",
     usage: "适合搜索无结果、列表为空、首次使用。",
-    preview: "toast",
+    preview: "empty",
   },
   {
     id: "mobile-skeleton",
@@ -434,7 +440,7 @@ const mobileComponents = [
     group: "feedback",
     summary: "数据加载时保持布局稳定。",
     usage: "适合列表、卡片、详情页和 feed 加载。",
-    preview: "refresh",
+    preview: "skeleton",
   },
   {
     id: "mobile-carousel",
@@ -443,7 +449,7 @@ const mobileComponents = [
     group: "gesture",
     summary: "横向滑动浏览图片或卡片。",
     usage: "适合 banner、商品图、教程页和作品集。",
-    preview: "swipe",
+    preview: "carousel",
   },
   {
     id: "mobile-image-viewer",
@@ -452,7 +458,7 @@ const mobileComponents = [
     group: "gesture",
     summary: "支持缩放、滑动和关闭的媒体查看。",
     usage: "适合相册、商品详情、聊天图片。",
-    preview: "product",
+    preview: "image",
   },
   {
     id: "mobile-checkout-bar",
@@ -461,7 +467,7 @@ const mobileComponents = [
     group: "commerce",
     summary: "固定底部展示金额和主操作。",
     usage: "适合购物车、订单确认、课程购买。",
-    preview: "tabbar",
+    preview: "checkout",
   },
   {
     id: "mobile-coupon",
@@ -470,7 +476,7 @@ const mobileComponents = [
     group: "commerce",
     summary: "展示优惠信息、领取状态和使用条件。",
     usage: "适合营销活动、会员权益、结算页。",
-    preview: "actions",
+    preview: "coupon",
   },
   {
     id: "mobile-order-card",
@@ -479,7 +485,7 @@ const mobileComponents = [
     group: "commerce",
     summary: "聚合订单状态、商品和操作按钮。",
     usage: "适合订单列表、售后、物流状态。",
-    preview: "product",
+    preview: "order",
   },
 ];
 
@@ -496,6 +502,10 @@ function itemMatchesQuery(entry, query) {
     entry.summary,
     entry.plain,
     entry.group,
+    entry.moduleLabel,
+    entry.moduleName,
+    entry.secondLevelLabel,
+    entry.secondLevelName,
     ...entry.aliases,
     ...entry.tags,
     ...entry.useCases,
@@ -667,7 +677,20 @@ function findRelatedItemsForAi(input) {
 
   const scored = uiItems
     .map((entry) => {
-      const fields = [entry.title, entry.english, entry.summary, entry.plain, entry.group, ...entry.aliases, ...entry.tags, ...entry.useCases];
+      const fields = [
+        entry.title,
+        entry.english,
+        entry.summary,
+        entry.plain,
+        entry.group,
+        entry.moduleLabel,
+        entry.moduleName,
+        entry.secondLevelLabel,
+        entry.secondLevelName,
+        ...entry.aliases,
+        ...entry.tags,
+        ...entry.useCases,
+      ];
       const score =
         (boostedIds.has(entry.id) ? 8 : 0) +
         fields.reduce((sum, field) => {
@@ -1252,12 +1275,28 @@ export function App() {
     setActiveSection(sectionId);
     setQuery("");
     setPreviewModalId("");
+    if (sectionId === "mobile") {
+      setDeviceMode("mobile");
+      return;
+    }
     if (sectionId === "workspace" || sectionId === "comparisons") return;
     const first =
       sectionId === "home" || sectionId === "all"
         ? uiItems[0]
         : uiItems.find((entry) => entry.category === sectionId);
     if (first) setSelectedId(first.id);
+  }
+
+  function chooseDeviceMode(mode) {
+    const nextMode = deviceModes.some((item) => item.id === mode) ? mode : "desktop";
+    setDeviceMode(nextMode);
+    setPreviewModalId("");
+    if (nextMode === "mobile") {
+      setActiveSection("mobile");
+      setQuery("");
+    } else if (activeSection === "mobile") {
+      setActiveSection("all");
+    }
   }
 
   function chooseItem(entry) {
@@ -1317,6 +1356,7 @@ export function App() {
 
   const isHomePage = activeSection === "home";
   const isAllPage = activeSection === "all";
+  const isMobilePage = activeSection === "mobile";
   const isWorkspacePage = activeSection === "workspace";
   const isComparisonsPage = activeSection === "comparisons";
 
@@ -1326,11 +1366,9 @@ export function App() {
         activeSection={activeSection}
         onSection={chooseSection}
         deviceMode={deviceMode}
-        onDeviceMode={(mode) => setDeviceMode(deviceModes.some((item) => item.id === mode) ? mode : "desktop")}
+        onDeviceMode={chooseDeviceMode}
         aiReady={Boolean(aiConfig.apiKey && aiConfig.model)}
         onAiOpen={() => setAiPanelOpen(true)}
-        onSearchFocus={() => document.getElementById("atlas-search")?.focus()}
-        onAbout={() => setNotice("uiux.wiki 是一站式 UI 图鉴参考平台")}
         currentUser={currentUser}
         onAuthOpen={() => setAuthPanelOpen(true)}
       />
@@ -1364,6 +1402,8 @@ export function App() {
             deviceMode={deviceMode}
           />
         </>
+      ) : isMobilePage ? (
+        <MobileComponentsPage onNotice={setNotice} />
       ) : isWorkspacePage ? (
         <AiWorkspacePage
           config={{ ...aiConfigDefaults, ...aiConfig }}
@@ -1975,20 +2015,71 @@ async function copyTextToClipboard(text) {
   if (!text) return false;
 
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return true;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the textarea fallback when browser clipboard permission is blocked.
+    }
+  }
+
+  let copiedWithCopyEvent = false;
+  const copyHandler = (event) => {
+    event.clipboardData?.setData("text/plain", text);
+    event.preventDefault();
+    copiedWithCopyEvent = true;
+  };
+
+  try {
+    document.addEventListener("copy", copyHandler);
+    document.execCommand("copy");
+    if (copiedWithCopyEvent) return true;
+  } finally {
+    document.removeEventListener("copy", copyHandler);
   }
 
   const textarea = document.createElement("textarea");
+  const activeElement = document.activeElement;
   textarea.value = text;
-  textarea.setAttribute("readonly", "");
+  textarea.contentEditable = "true";
+  textarea.setAttribute("aria-hidden", "true");
   textarea.style.position = "fixed";
-  textarea.style.left = "-9999px";
+  textarea.style.top = "12px";
+  textarea.style.left = "12px";
+  textarea.style.width = "2px";
+  textarea.style.height = "24px";
+  textarea.style.fontSize = "16px";
+  textarea.style.opacity = "0.01";
+  textarea.style.pointerEvents = "auto";
+  textarea.style.zIndex = "-1";
   document.body.appendChild(textarea);
+  textarea.focus();
   textarea.select();
+  textarea.setSelectionRange(0, text.length);
   const copied = document.execCommand("copy");
   document.body.removeChild(textarea);
-  return copied;
+  if (activeElement instanceof HTMLElement) activeElement.focus({ preventScroll: true });
+  if (copied) return true;
+
+  const rangeTarget = document.createElement("span");
+  rangeTarget.textContent = text;
+  rangeTarget.setAttribute("aria-hidden", "true");
+  rangeTarget.style.position = "fixed";
+  rangeTarget.style.top = "0";
+  rangeTarget.style.left = "0";
+  rangeTarget.style.opacity = "0";
+  rangeTarget.style.pointerEvents = "none";
+  document.body.appendChild(rangeTarget);
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(rangeTarget);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  const copiedFromRange = document.execCommand("copy");
+  selection?.removeAllRanges();
+  document.body.removeChild(rangeTarget);
+  if (activeElement instanceof HTMLElement) activeElement.focus({ preventScroll: true });
+  return copiedFromRange;
 }
 
 function downloadTextFile(filename, content, type = "text/plain;charset=utf-8") {
@@ -3298,69 +3389,178 @@ function MobileComponentsPage({ onNotice }) {
 
 function MobilePreview({ type }) {
   return (
-    <div className={`mobile-preview-phone mobile-preview-${type}`} aria-hidden="true">
-      <div className="mobile-phone-top" />
-      <div className="mobile-phone-screen">
+    <div className={`mobile-ui-preview mobile-preview-${type}`} aria-hidden="true">
+      <div className="mobile-ui-stage">
         {type === "tabbar" && (
           <>
-            <i className="mobile-hero-block" />
-            <i /><i /><i />
-            <div className="mobile-tabbar"><b /><b /><b /><b /></div>
+            <div className="mobile-ui-appbar"><strong>发现</strong><Search size={13} /></div>
+            <div className="mobile-feed-card strong"><b>今日推荐</b><span>3 个新内容</span></div>
+            <div className="mobile-feed-card"><b>组件图鉴</b><span>刚刚更新</span></div>
+            <div className="mobile-tabbar">
+              <span className="active">首页</span><span>分类</span><span>消息</span><span>我的</span>
+            </div>
           </>
         )}
         {type === "navbar" && (
           <>
-            <div className="mobile-navbar"><b /><span /><b /></div>
-            <i className="mobile-hero-block" /><i /><i />
+            <div className="mobile-navbar">
+              <ChevronRight className="mobile-back-icon" size={14} />
+              <strong>订单详情</strong>
+              <Search size={13} />
+            </div>
+            <div className="mobile-feed-card strong"><b>待发货</b><span>预计明天送达</span></div>
+            <div className="mobile-feed-card"><b>收货信息</b><span>上海市静安区</span></div>
           </>
         )}
         {type === "sheet" && (
           <>
-            <i /><i /><i />
-            <div className="mobile-sheet"><b /><span /><span /><i /></div>
+            <div className="mobile-feed-card"><b>全部商品</b><span>128 条结果</span></div>
+            <div className="mobile-feed-card"><b>价格区间</b><span>可筛选</span></div>
+            <div className="mobile-sheet">
+              <b />
+              <strong>筛选</strong>
+              <span>品牌</span><span className="active">现货</span><em>完成</em>
+            </div>
           </>
         )}
         {type === "actions" && (
           <>
-            <i className="mobile-hero-block" />
-            <div className="mobile-action-sheet"><span /><span /><span className="danger" /></div>
+            <div className="mobile-feed-card strong"><b>设计文件.fig</b><span>12 MB</span></div>
+            <div className="mobile-action-sheet">
+              <span>分享</span><span>复制链接</span><span className="danger">删除</span>
+            </div>
           </>
         )}
         {type === "search" && (
           <>
-            <div className="mobile-search-preview"><Search size={13} /><span /></div>
-            <i /><i /><i />
+            <div className="mobile-search-preview"><Search size={13} /><span>搜索组件</span><X size={12} /></div>
+            <div className="mobile-chip-row"><span>按钮</span><span>弹窗</span></div>
+            <div className="mobile-feed-card"><b>Search Bar</b><span>输入建议</span></div>
           </>
         )}
         {type === "otp" && (
           <>
-            <i className="mobile-hero-block" />
-            <div className="mobile-otp-row"><b /><b /><b /><b /></div>
+            <div className="mobile-feed-card strong"><b>验证码</b><span>已发送至手机</span></div>
+            <div className="mobile-otp-row"><b>8</b><b>2</b><b>6</b><b /></div>
+            <div className="mobile-primary-pill">验证</div>
           </>
         )}
         {type === "refresh" && (
           <>
-            <div className="mobile-refresh-dot" />
-            <i /><i /><i /><i />
+            <div className="mobile-refresh-dot">刷新</div>
+            <div className="mobile-feed-card"><b>消息提醒</b><span>刚刚</span></div>
+            <div className="mobile-feed-card"><b>系统通知</b><span>2 分钟前</span></div>
           </>
         )}
         {type === "swipe" && (
           <>
-            <div className="mobile-swipe-row"><span /><b>删</b></div>
-            <i /><i />
+            <div className="mobile-swipe-row"><span><b>未读消息</b><em>向左滑动</em></span><strong>置顶</strong><b>删</b></div>
+            <div className="mobile-feed-card"><b>产品更新</b><span>今天</span></div>
           </>
         )}
         {type === "toast" && (
           <>
-            <i /><i />
+            <div className="mobile-feed-card"><b>资料设置</b><span>昵称、头像、简介</span></div>
+            <div className="mobile-feed-card"><b>偏好同步</b><span>已开启</span></div>
             <div className="mobile-toast-preview">已保存</div>
           </>
         )}
         {type === "product" && (
           <>
             <div className="mobile-product-img" />
-            <i /><i />
-            <i className="mobile-product-button" />
+            <div className="mobile-product-copy"><b>界面模板套装</b><span>¥128</span></div>
+            <div className="mobile-product-button">加入购物车</div>
+          </>
+        )}
+        {type === "segmented" && (
+          <>
+            <div className="mobile-segmented"><span className="active">全部</span><span>待处理</span><span>已完成</span></div>
+            <div className="mobile-feed-card strong"><b>本周任务</b><span>12 项</span></div>
+            <div className="mobile-feed-card"><b>设计评审</b><span>今天 16:00</span></div>
+          </>
+        )}
+        {type === "fab" && (
+          <>
+            <div className="mobile-feed-card"><b>灵感记录</b><span>3 条草稿</span></div>
+            <div className="mobile-feed-card"><b>今日待办</b><span>5 项</span></div>
+            <div className="mobile-fab">+</div>
+          </>
+        )}
+        {type === "picker" && (
+          <>
+            <div className="mobile-feed-card"><b>预约时间</b><span>请选择</span></div>
+            <div className="mobile-picker-sheet">
+              <b />
+              <strong>选择日期</strong>
+              <div><span>6月</span><span className="active">20日</span><span>18:30</span></div>
+            </div>
+          </>
+        )}
+        {type === "stepper" && (
+          <>
+            <div className="mobile-cart-line"><span>座位数量</span><div><b>-</b><strong>2</strong><b>+</b></div></div>
+            <div className="mobile-cart-line"><span>儿童票</span><div><b>-</b><strong>0</strong><b>+</b></div></div>
+          </>
+        )}
+        {type === "form" && (
+          <>
+            <div className="mobile-form-row"><span>昵称</span><b>Alex</b><ChevronRight size={13} /></div>
+            <div className="mobile-form-row"><span>手机号</span><b>已绑定</b><ChevronRight size={13} /></div>
+            <div className="mobile-form-row"><span>消息通知</span><b>开启</b><ChevronRight size={13} /></div>
+          </>
+        )}
+        {type === "empty" && (
+          <>
+            <div className="mobile-empty-mark">0</div>
+            <strong className="mobile-empty-title">暂无收藏</strong>
+            <span className="mobile-empty-copy">添加常用组件后会显示在这里</span>
+            <div className="mobile-primary-pill">去添加</div>
+          </>
+        )}
+        {type === "skeleton" && (
+          <>
+            <div className="mobile-skeleton-hero" />
+            <div className="mobile-skeleton-line" /><div className="mobile-skeleton-line short" />
+            <div className="mobile-skeleton-card" />
+          </>
+        )}
+        {type === "carousel" && (
+          <>
+            <div className="mobile-carousel-row">
+              <span className="active">新品</span><span>教程</span><span>案例</span>
+            </div>
+            <div className="mobile-carousel-dots"><b /><b /><b /></div>
+          </>
+        )}
+        {type === "image" && (
+          <>
+            <div className="mobile-image-viewer">
+              <X size={14} /><span>2 / 8</span><Check size={14} />
+            </div>
+            <div className="mobile-image-canvas" />
+          </>
+        )}
+        {type === "checkout" && (
+          <>
+            <div className="mobile-feed-card"><b>模板套装</b><span>¥128 × 1</span></div>
+            <div className="mobile-feed-card"><b>优惠券</b><span>- ¥20</span></div>
+            <div className="mobile-checkout-bar"><span>合计 ¥108</span><b>结算</b></div>
+          </>
+        )}
+        {type === "coupon" && (
+          <>
+            <div className="mobile-coupon-card"><strong>¥20</strong><span>满 99 可用</span><b>领取</b></div>
+            <div className="mobile-coupon-card muted"><strong>9折</strong><span>会员专享</span><b>已领</b></div>
+          </>
+        )}
+        {type === "order" && (
+          <>
+            <div className="mobile-order-card">
+              <span>待收货</span>
+              <strong>UI 组件课程</strong>
+              <em>物流已揽收</em>
+              <b>查看物流</b>
+            </div>
           </>
         )}
       </div>
@@ -3419,7 +3619,7 @@ function SearchComposer({ query, setQuery, onSubmit, showQuickQuestions = true }
   );
 }
 
-function Header({ activeSection, onSection, deviceMode, onDeviceMode, aiReady, onAiOpen, onSearchFocus, onAbout, currentUser, onAuthOpen }) {
+function Header({ activeSection, onSection, deviceMode, onDeviceMode, aiReady, onAiOpen, currentUser, onAuthOpen }) {
   return (
     <header className="topbar">
       <div className="brand-zone">
@@ -3468,14 +3668,6 @@ function Header({ activeSection, onSection, deviceMode, onDeviceMode, aiReady, o
         <button type="button" className="header-tool account-trigger" onClick={onAuthOpen}>
           <UserRound size={18} strokeWidth={2.1} />
           {currentUser ? currentUser.name : "登录"}
-        </button>
-        <button type="button" className="header-tool" onClick={onSearchFocus}>
-          <Search size={20} strokeWidth={2.1} />
-          搜索
-        </button>
-        <button type="button" className="header-tool" onClick={onAbout}>
-          <Info size={19} strokeWidth={2.1} />
-          关于
         </button>
       </div>
     </header>
@@ -3628,36 +3820,151 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
 }
 
 function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "desktop" }) {
-  const grouped = sections
-    .map((section) => ({
-      ...section,
-      items: items.filter((entry) => entry.category === section.id),
-    }))
-    .filter((section) => !query || section.items.length > 0);
+  const [activeModuleId, setActiveModuleId] = useState("all");
+  const [activeGroupId, setActiveGroupId] = useState("all");
+  const itemBuckets = useMemo(() => {
+    const byGroup = new Map();
+    items.forEach((entry) => {
+      if (!byGroup.has(entry.secondLevelId)) byGroup.set(entry.secondLevelId, []);
+      byGroup.get(entry.secondLevelId).push(entry);
+    });
+    return byGroup;
+  }, [items]);
+  const grouped = useMemo(() => docModules
+    .map((module) => {
+      const groups = module.groups
+        .map((group) => ({
+          ...group,
+          items: itemBuckets.get(group.id) || [],
+        }))
+        .filter((group) => !query || group.items.length > 0);
+      return {
+        ...module,
+        groups,
+        itemCount: groups.reduce((total, group) => total + group.items.length, 0),
+      };
+    })
+    .filter((module) => module.itemCount > 0), [itemBuckets, query]);
+  const visibleGroupCount = grouped.reduce((total, module) => total + module.groups.length, 0);
+  const visibleItemCount = grouped.reduce((total, module) => total + module.itemCount, 0);
+  const normalizedModuleId = grouped.some((module) => module.id === activeModuleId) ? activeModuleId : "all";
+  const activeModule = normalizedModuleId === "all" ? null : grouped.find((module) => module.id === normalizedModuleId);
+  const normalizedGroupId = activeModule?.groups.some((group) => group.id === activeGroupId) ? activeGroupId : "all";
+  const displayedModules = normalizedModuleId === "all"
+    ? grouped
+    : activeModule
+      ? [{
+          ...activeModule,
+          groups: normalizedGroupId === "all"
+            ? activeModule.groups
+            : activeModule.groups.filter((group) => group.id === normalizedGroupId),
+          itemCount: normalizedGroupId === "all"
+            ? activeModule.itemCount
+            : activeModule.groups.find((group) => group.id === normalizedGroupId)?.items.length || 0,
+        }]
+      : [];
+  const displayedGroupCount = displayedModules.reduce((total, module) => total + module.groups.length, 0);
+  const displayedItemCount = displayedModules.reduce((total, module) => total + module.itemCount, 0);
+
+  useEffect(() => {
+    setActiveGroupId("all");
+  }, [activeModuleId, query]);
 
   return (
     <section className="all-components-page" aria-labelledby="all-components-title">
       <div className="all-page-heading">
-        <span className="panel-kicker">全部展示</span>
-        <h1 id="all-components-title">全部组件</h1>
+        <div>
+          <span className="panel-kicker">全部展示</span>
+          <h1 id="all-components-title">全部组件</h1>
+        </div>
+        <div className="all-page-metrics" aria-label="文档分类统计">
+          <span>{displayedModules.length || grouped.length} 一级模块</span>
+          <span>{displayedGroupCount || visibleGroupCount} 二级分类</span>
+          <span>{displayedItemCount || visibleItemCount} 条目</span>
+        </div>
       </div>
+      <div className="doc-category-tabs" role="tablist" aria-label="一级模块分类">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={normalizedModuleId === "all"}
+          className={normalizedModuleId === "all" ? "active" : ""}
+          onClick={() => setActiveModuleId("all")}
+        >
+          <span>全部</span>
+          <small>{visibleItemCount}</small>
+        </button>
+        {grouped.map((module) => (
+          <button
+            key={module.id}
+            type="button"
+            role="tab"
+            aria-selected={normalizedModuleId === module.id}
+            className={normalizedModuleId === module.id ? "active" : ""}
+            onClick={() => setActiveModuleId(module.id)}
+          >
+            <span>{module.label}</span>
+            <small>{module.itemCount}</small>
+          </button>
+        ))}
+      </div>
+      {activeModule ? (
+        <div className="doc-subcategory-tabs" role="tablist" aria-label={`${activeModule.label} 二级分类`}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={normalizedGroupId === "all"}
+            className={normalizedGroupId === "all" ? "active" : ""}
+            onClick={() => setActiveGroupId("all")}
+          >
+            <span>全部二级</span>
+            <small>{activeModule.itemCount}</small>
+          </button>
+          {activeModule.groups.map((group) => (
+            <button
+              key={group.id}
+              type="button"
+              role="tab"
+              aria-selected={normalizedGroupId === group.id}
+              className={normalizedGroupId === group.id ? "active" : ""}
+              onClick={() => setActiveGroupId(group.id)}
+            >
+              <span>{group.label}</span>
+              <small>{group.items.length}</small>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="all-component-groups">
-        {grouped.length > 0 ? grouped.map((section) => (
-          <section key={section.id} className="all-component-group" aria-labelledby={`${section.id}-showcase-title`}>
+        {displayedModules.length > 0 ? displayedModules.map((module) => (
+          <section key={module.id} className="all-component-group" aria-labelledby={`${module.id}-showcase-title`}>
             <div className="all-component-group-heading">
-              <h2 id={`${section.id}-showcase-title`}>{section.label}</h2>
-              <span>{section.items.length}</span>
+              <div>
+                <h2 id={`${module.id}-showcase-title`}>{module.label}</h2>
+                <p>{module.groups.length} 二级分类 · {module.itemCount} 条目</p>
+              </div>
+              <span>{module.itemCount}</span>
             </div>
-            <div className="component-showcase-grid">
-              {section.items.map((entry, index) => (
-                <ComponentTile
-                  key={entry.id}
-                  entry={entry}
-                  index={index}
-                  active={entry.id === selectedId}
-                  onChoose={() => onChoose(entry)}
-                  deviceMode={deviceMode}
-                />
+            <div className="all-subgroup-list">
+              {module.groups.map((group) => (
+                <section key={group.id} className="all-subgroup" aria-labelledby={`${group.id}-showcase-title`}>
+                  <div className="all-subgroup-heading">
+                    <h3 id={`${group.id}-showcase-title`}>{group.label}</h3>
+                    <span>{group.items.length}</span>
+                  </div>
+                  <div className="component-showcase-grid">
+                    {group.items.map((entry, index) => (
+                      <ComponentTile
+                        key={entry.id}
+                        entry={entry}
+                        index={index}
+                        active={entry.id === selectedId}
+                        onChoose={() => onChoose(entry)}
+                        deviceMode={deviceMode}
+                      />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </section>
@@ -3670,9 +3977,9 @@ function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "d
 }
 
 function CommonComparisonsPage({ deviceMode = "desktop", onChoose }) {
-  const coverage = sections.map((section) => ({
-    ...section,
-    count: uiItems.filter((entry) => entry.category === section.id).length,
+  const coverage = docModules.map((module) => ({
+    ...module,
+    count: uiItems.filter((entry) => entry.moduleId === module.id).length,
   }));
   const pairs = comparisonPairs
     .map((pair) => ({
@@ -3714,7 +4021,7 @@ function CommonComparisonsPage({ deviceMode = "desktop", onChoose }) {
             <div className="comparison-side-grid">
               {[pair.left, pair.right].map((entry) => (
                 <button key={entry.id} type="button" onClick={() => onChoose(entry)}>
-                  <span>{entry.group}</span>
+                  <span>{entry.secondLevelName || entry.group}</span>
                   <strong>{entry.title}</strong>
                   <em>{entry.english}</em>
                   <div className="comparison-preview-stage">
@@ -3780,17 +4087,18 @@ function ComponentTile({ entry, index, active, onChoose, deviceMode = "desktop" 
     <button
       className={`component-tile ${active ? "active" : ""} ${deviceMode === "mobile" ? "mobile-mode" : ""}`}
       type="button"
+      data-entry-id={entry.id}
       aria-label={`预览 ${entry.title} ${entry.english}`}
       aria-current={active ? "true" : undefined}
       onClick={onChoose}
     >
       <span className="component-tile-topline">
         <span>{String(index + 1).padStart(2, "0")}</span>
-        <small>{sectionLabelById.get(entry.category) || entry.group}</small>
+        <small>{entry.moduleName || sectionLabelById.get(entry.category) || entry.group}</small>
       </span>
       <span className="component-tile-preview">
         {deviceMode === "mobile" ? (
-          <span className="tile-phone-preview">
+          <span className="tile-mobile-surface">
             <MiniPreview type={entry.preview} />
           </span>
         ) : (
@@ -3800,7 +4108,7 @@ function ComponentTile({ entry, index, active, onChoose, deviceMode = "desktop" 
       <span className="component-tile-copy">
         <strong>{entry.title}</strong>
         <em>{entry.english}</em>
-        <span>{entry.group}</span>
+        <span>{entry.secondLevelName || entry.group}</span>
       </span>
     </button>
   );
@@ -3811,6 +4119,7 @@ function EntryRow({ entry, index, active, onChoose }) {
     <button
       className={`entry-row ${active ? "active" : ""}`}
       type="button"
+      data-entry-id={entry.id}
       aria-label={`预览 ${entry.title} ${entry.english}`}
       aria-current={active ? "true" : undefined}
       onClick={onChoose}
@@ -3823,7 +4132,7 @@ function EntryRow({ entry, index, active, onChoose }) {
           <em>{entry.english}</em>
         </strong>
         <span>
-          <b>{entry.group}</b>
+          <b>{entry.secondLevelName || entry.group}</b>
           {entry.summary}
         </span>
       </span>
@@ -3842,6 +4151,19 @@ function EmptyList({ activeSection }) {
       <span>
         {`试试切换到「${fallbackLabel}」的其他关键词。`}
       </span>
+    </div>
+  );
+}
+
+function ClassificationPath({ selected, compact = false }) {
+  const moduleLabel = selected.moduleLabel || sectionLabelById.get(selected.category) || selected.group;
+  const secondLevelLabel = selected.secondLevelLabel || selected.group;
+
+  return (
+    <div className={`entry-path ${compact ? "compact" : ""}`} aria-label="文档分类路径">
+      <span>{moduleLabel}</span>
+      <ChevronRight size={15} strokeWidth={1.8} />
+      <span>{secondLevelLabel}</span>
     </div>
   );
 }
@@ -3873,6 +4195,7 @@ function DetailPanel({
             {selected.title}
             <span>{selected.english}</span>
           </h2>
+          <ClassificationPath selected={selected} />
           <p>{selected.plain}</p>
         </div>
       </div>
@@ -3936,7 +4259,7 @@ function PreviewModal({ selected, playground, setPlayground, activeVariant, onVa
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="component-detail-dialog-heading">
-          <span className="panel-kicker">{sectionLabelById.get(selected.category) || selected.group}</span>
+          <span className="panel-kicker">{selected.moduleLabel || sectionLabelById.get(selected.category) || selected.group}</span>
           <button type="button" aria-label="关闭预览弹窗" onClick={onClose}>
             <X size={20} />
           </button>
@@ -3944,6 +4267,7 @@ function PreviewModal({ selected, playground, setPlayground, activeVariant, onVa
             {selected.title}
             <span>{selected.english}</span>
           </h2>
+          <ClassificationPath selected={selected} compact />
           <p>{selected.plain}</p>
         </div>
 
@@ -3971,6 +4295,9 @@ function PreviewModal({ selected, playground, setPlayground, activeVariant, onVa
             </ul>
           </div>
         </div>
+        <div className="component-detail-dialog-info">
+          <InfoGrid selected={selected} />
+        </div>
       </section>
     </div>
   );
@@ -3985,14 +4312,7 @@ function LivePreview({ selected, playground, variant, deviceMode = "desktop" }) 
   else if (selected.category === "motion") preview = <MotionLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "patterns") preview = <PatternLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "dictionary") {
-    const related = findItem(selected.related[0] || "button");
-    preview = (
-      <ComponentLivePreview
-        selected={related.id === selected.id ? selected : related}
-        term={selected}
-        variant={variant}
-      />
-    );
+    preview = <ComponentLivePreview selected={selected} term={selected} variant={variant} />;
   } else {
     preview = <ComponentLivePreview selected={selected} variant={variant} />;
   }
@@ -4012,14 +4332,20 @@ function LivePreview({ selected, playground, variant, deviceMode = "desktop" }) 
 
 function MobileLiveFrame({ selected, children }) {
   return (
-    <div className="mobile-live-frame" aria-label={`${selected.title} 移动端预览`}>
-      <div className="mobile-live-top">
-        <span />
+    <div className="mobile-live-surface" aria-label={`${selected.title} 移动端预览`}>
+      <div className="mobile-live-appbar">
+        <ChevronRight className="mobile-back-icon" size={17} />
+        <strong>{selected.title}</strong>
+        <Search size={16} />
       </div>
       <div className="mobile-live-screen">
         {children}
       </div>
-      <div className="mobile-live-home" />
+      <div className="mobile-live-nav" aria-hidden="true">
+        <span className="active">首页</span>
+        <span>组件</span>
+        <span>收藏</span>
+      </div>
     </div>
   );
 }
@@ -4038,8 +4364,1892 @@ function VariantPreviewShell({ selected, variant, index, children }) {
   );
 }
 
+const semanticPreviewTypes = new Set([
+  "text-body-preview",
+  "heading-hierarchy-preview",
+  "subtitle-support-preview",
+  "paragraph-reading-preview",
+  "caption-annotation-preview",
+  "helper-text-field-preview",
+  "description-summary-preview",
+  "label-binding-preview",
+  "required-mark-indicator-preview",
+  "optional-mark-indicator-preview",
+  "link-navigation-preview",
+  "external-link-disclosure-preview",
+  "icon-semantics-preview",
+  "decorative-icon-hidden-preview",
+  "status-icon-state-preview",
+  "status-dot-presence-preview",
+  "status-badge-feedback-preview",
+  "tag-taxonomy-preview",
+  "chip-token-preview",
+  "close-button-dismiss-preview",
+  "more-button-overflow-preview",
+  "help-button-guidance-preview",
+  "info-button-facts-preview",
+  "copy-button-clipboard-preview",
+  "share-button-distribution-preview",
+  "favorite-button-collection-preview",
+  "brand-icon-identity-preview",
+  "badge-label-preview",
+  "count-badge-counter-preview",
+  "typography-block",
+  "icon-signal",
+  "structure-block",
+  "chart-panel",
+  "editor-panel",
+  "map-panel",
+  "a11y-panel",
+  "i18n-panel",
+  "ai-panel",
+  "security-panel",
+  "settings-panel",
+  "support-panel",
+  "metric-panel",
+]);
+
+const componentTemplatePreviewTypes = new Set([
+  "button",
+  "text",
+  "textarea",
+  "search",
+  "password-field",
+  "autocomplete",
+  "modal",
+  "confirmation",
+  "toast",
+  "notification",
+  "success-state",
+  "error-state",
+  "alert",
+  "table",
+  "data-grid",
+  "card",
+  "skeleton",
+  "empty",
+  "empty-state",
+  "floating-action-button",
+  "progress",
+  "spinner",
+  "file-upload",
+  "slider",
+  "date-picker",
+  "calendar",
+  "form",
+  "checkbox",
+  "radio",
+  "switch",
+  "menu",
+  "dropdown",
+  "select",
+  "context-menu",
+  "link",
+  "breadcrumb",
+  "icon-button",
+  "top-navigation",
+  "sidebar",
+  "pagination",
+  "stepper",
+  "bottom-navigation",
+  "back-button",
+  "accordion",
+  "drawer",
+  "popover",
+  "tooltip",
+  "carousel",
+  "tabs",
+  "list",
+  "timeline",
+  "rating",
+  "chat-bubble",
+  "comment-box",
+  "badge",
+  "avatar",
+  "tag",
+  "filter-panel",
+  "sort-control",
+  "command-palette",
+  "media-player",
+  "shopping-cart",
+  "toolbar",
+]);
+
+function SemanticComponentPreview({ selected, variantClass }) {
+  const type = selected.preview;
+  const [selectedTagFilters, setSelectedTagFilters] = useState(() => new Set(["表单"]));
+  const [visibleTagLabels, setVisibleTagLabels] = useState(["可访问性", "响应式"]);
+  const [selectedChipChoices, setSelectedChipChoices] = useState(() => new Set(["负责人"]));
+  const [visibleChipTokens, setVisibleChipTokens] = useState(["林青", "API 权限"]);
+
+  const [visibleCloseTargets, setVisibleCloseTargets] = useState(() => new Set(["panel", "toast", "inline"]));
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [moreMenuAction, setMoreMenuAction] = useState("尚未选择菜单项");
+  const [helpPanelOpen, setHelpPanelOpen] = useState(false);
+  const [infoTooltipOpen, setInfoTooltipOpen] = useState(false);
+  const [copyButtonStatus, setCopyButtonStatus] = useState({ target: null, result: "idle", message: "尚未复制" });
+  const [sharePanelOpen, setSharePanelOpen] = useState(false);
+  const [favoriteItems, setFavoriteItems] = useState(() => new Set(["system-kit"]));
+  const [favoriteStatus, setFavoriteStatus] = useState({ target: null, result: "idle", message: "尚未调整收藏" });
+  const [shareButtonStatus, setShareButtonStatus] = useState({ target: null, result: "idle", message: "尚未分享" });
+
+  function toggleTagFilter(label) {
+    setSelectedTagFilters((current) => {
+      const next = new Set(current);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  }
+
+  function removeTagLabel(label) {
+    setVisibleTagLabels((current) => current.filter((item) => item !== label));
+  }
+
+  function toggleChipChoice(label) {
+    setSelectedChipChoices((current) => {
+      const next = new Set(current);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  }
+
+  function removeChipToken(label) {
+    setVisibleChipTokens((current) => current.filter((item) => item !== label));
+  }
+
+  function closePreviewTarget(id) {
+    setVisibleCloseTargets((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleMoreMenu() {
+    setMoreMenuOpen((current) => !current);
+  }
+
+  function selectMoreAction(label) {
+    setMoreMenuAction(label);
+    setMoreMenuOpen(false);
+  }
+
+  function toggleHelpPanel() {
+    setHelpPanelOpen((current) => !current);
+  }
+
+  function toggleInfoTooltip() {
+    setInfoTooltipOpen((current) => !current);
+  }
+
+  async function triggerCopyButton(target, value, label) {
+    setCopyButtonStatus({ target, result: "pending", message: `正在复制${label}` });
+
+    try {
+      const copied = await copyTextToClipboard(value);
+      setCopyButtonStatus({
+        target,
+        result: copied ? "success" : "error",
+        message: copied ? `已复制${label}` : `${label}复制失败`,
+      });
+    } catch {
+      setCopyButtonStatus({ target, result: "error", message: `${label}复制失败` });
+    }
+  }
+
+  function toggleSharePanel() {
+    setSharePanelOpen((current) => !current);
+    setShareButtonStatus((current) => current.result === "idle" ? current : { target: current.target, result: "idle", message: "分享面板已打开" });
+  }
+
+  function closeSharePanel(message = "已取消分享") {
+    setSharePanelOpen(false);
+    setShareButtonStatus({ target: "cancel", result: "cancel", message });
+  }
+
+  function completeShare(target, label) {
+    setSharePanelOpen(false);
+    setShareButtonStatus({ target, result: "success", message: `已分享给${label}` });
+  }
+
+  async function fallbackShareLink() {
+    setShareButtonStatus({ target: "link", result: "pending", message: "正在复制邀请链接" });
+
+    try {
+      const copied = await copyTextToClipboard("https://kandong.app/share/design-system-kit");
+      setShareButtonStatus({
+        target: "link",
+        result: copied ? "fallback" : "error",
+        message: copied ? "系统分享不可用，已复制邀请链接" : "邀请链接复制失败",
+      });
+      if (copied) setSharePanelOpen(false);
+    } catch {
+      setShareButtonStatus({ target: "link", result: "error", message: "邀请链接复制失败" });
+    }
+  }
+
+  function toggleFavoriteItem(target, label) {
+    let nextIsFavorite = false;
+    setFavoriteItems((current) => {
+      const next = new Set(current);
+      if (next.has(target)) {
+        next.delete(target);
+      } else {
+        next.add(target);
+        nextIsFavorite = true;
+      }
+      return next;
+    });
+    setFavoriteStatus({
+      target,
+      result: nextIsFavorite ? "added" : "removed",
+      message: nextIsFavorite ? `已收藏${label}` : `已取消收藏${label}`,
+    });
+  }
+
+  function simulateFavoriteFailure(target, label) {
+    setFavoriteStatus({ target, result: "error", message: `${label}收藏失败，请稍后重试` });
+  }
+
+  if (type === "text-body-preview") {
+    return (
+      <div className={`live-audited-text-card body-text ${variantClass}`}>
+        <header>
+          <span><Type size={17} /> Body text</span>
+          <b>16 / 24</b>
+        </header>
+        <article>
+          <p className="audited-text-lead">正文文本用于承载可阅读的说明、描述和内容句子。</p>
+          <p>它需要稳定的行高、清晰的对比度，以及在窄屏下仍然自然换行的宽度控制。</p>
+          <p className="audited-text-truncate">这是一条会被单行截断的长文本，用来检查省略号、提示入口和信息完整性</p>
+        </article>
+        <div className="audited-text-states" aria-label="Text states">
+          <span>默认</span>
+          <span className="selected">选中</span>
+          <span className="muted">辅助</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "heading-hierarchy-preview") {
+    return (
+      <div className={`live-audited-heading-card hierarchy ${variantClass}`}>
+        <header>
+          <span><Type size={17} /> Heading system</span>
+          <b>H1 to H3</b>
+        </header>
+        <section className="audited-heading-scale">
+          <div className="heading-level primary">
+            <em>H1</em>
+            <h2>组件基础元素</h2>
+            <p>页面主标题建立当前视图的最高层级。</p>
+          </div>
+          <div className="heading-level section">
+            <em>H2</em>
+            <strong>文字与可读性</strong>
+            <button type="button" aria-label="复制文字与可读性章节链接"><Link2 size={14} /></button>
+          </div>
+          <div className="heading-level card">
+            <em>H3</em>
+            <span>卡片标题允许更紧凑，但仍然要比正文更醒目</span>
+          </div>
+        </section>
+        <footer>
+          <span>默认</span>
+          <span className="focus">锚点聚焦</span>
+          <span className="wrap">长标题换行</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "subtitle-support-preview") {
+    return (
+      <div className={`live-audited-subtitle-card support-copy ${variantClass}`}>
+        <header>
+          <span><BookOpen size={17} /> Subtitle role</span>
+          <b>Heading + context</b>
+        </header>
+        <section className="audited-subtitle-composition">
+          <span className="subtitle-eyebrow">组件覆盖</span>
+          <h2>新增条目逐项审计</h2>
+          <p className="subtitle-copy">副标题解释标题的范围、状态和用户接下来能期待什么，不承担主标题层级。</p>
+          <div className="subtitle-context-row">
+            <span>范围说明</span>
+            <strong>基础元素 / Primitives</strong>
+            <em>持续核对中</em>
+          </div>
+        </section>
+        <footer>
+          <span>默认</span>
+          <span className="soft">弱化</span>
+          <span className="accent">强调</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "paragraph-reading-preview") {
+    return (
+      <div className={`live-audited-paragraph-card reading ${variantClass}`}>
+        <header>
+          <span><BookOpen size={17} /> Paragraph</span>
+          <b>45-75ch</b>
+        </header>
+        <article className="audited-paragraph-page">
+          <p>段落用于连续阅读，应该让用户自然扫过多句内容，而不是在过长行宽里来回寻找下一行。</p>
+          <p>稳定的行高、清晰的段间距和适当的最大宽度，会直接影响帮助文档、协议条款和详情说明的理解成本。</p>
+          <div className="paragraph-rhythm-row">
+            <span>行高 1.55</span>
+            <span>段距 16</span>
+            <span>最大 65ch</span>
+          </div>
+        </article>
+        <footer>
+          <span>默认</span>
+          <span className="selected">选中文本</span>
+          <span className="collapsed">折叠预览</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "caption-annotation-preview") {
+    return (
+      <div className={`live-audited-caption-card annotation ${variantClass}`}>
+        <header>
+          <span><BookOpen size={17} /> Caption</span>
+          <b>figcaption</b>
+        </header>
+        <figure className="audited-caption-figure">
+          <div className="caption-media-surface">
+            <span>16:9</span>
+          </div>
+          <figcaption>
+            <b>图 1</b>
+            <span>说明文本紧贴对象，补充来源、时间范围或限制条件。</span>
+            <a href="#caption-source" onClick={(event) => event.preventDefault()}>来源</a>
+          </figcaption>
+        </figure>
+        <footer>
+          <span>默认</span>
+          <span className="muted">弱化</span>
+          <span className="danger">错误说明</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "helper-text-field-preview") {
+    return (
+      <div className={`live-audited-helper-card field-help ${variantClass}`}>
+        <header>
+          <span><CircleHelp size={17} /> Helper Text</span>
+          <b>aria-describedby</b>
+        </header>
+        <section className="audited-helper-field">
+          <label htmlFor="helper-preview-field">邮箱地址</label>
+          <div className="helper-input-wrap">
+            <input
+              id="helper-preview-field"
+              type="email"
+              defaultValue="alex@"
+              aria-invalid="true"
+              aria-describedby="helper-preview-neutral helper-preview-error helper-preview-count"
+            />
+            <span>12 / 40</span>
+          </div>
+          <p id="helper-preview-neutral" className="helper-line neutral"><CircleHelp size={14} />请输入常用邮箱，用于接收订单通知。</p>
+          <p id="helper-preview-error" className="helper-line error"><X size={14} />邮箱缺少完整域名，例如 alex@example.com。</p>
+          <p id="helper-preview-count" className="helper-line success"><Check size={14} />规则说明、错误原因和字数提示都绑定到同一个字段。</p>
+        </section>
+        <footer>
+          <span>中性帮助</span>
+          <span className="error">错误</span>
+          <span className="success">成功</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "description-summary-preview") {
+    return (
+      <div className={`live-audited-description-card summary ${variantClass}`}>
+        <header>
+          <span><BookOpen size={17} /> Description</span>
+          <b>2 lines + more</b>
+        </header>
+        <article className="audited-description-object">
+          <div className="description-object-mark">D</div>
+          <section>
+            <span className="description-kicker">组件卡片</span>
+            <h2>对象描述文本</h2>
+            <p>描述文本概括对象用途、状态和价值，帮助用户在进入详情前判断它是否相关。</p>
+            <div className="description-meta-row">
+              <span>更新时间：今天</span>
+              <span>摘要 2 行</span>
+              <button type="button">展开</button>
+            </div>
+          </section>
+        </article>
+        <footer>
+          <span>默认</span>
+          <span className="truncate">截断</span>
+          <span className="empty">空描述</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "label-binding-preview") {
+    return (
+      <div className={`live-audited-label-card binding ${variantClass}`}>
+        <header>
+          <span><Type size={17} /> Label</span>
+          <b>htmlFor + id</b>
+        </header>
+        <section className="audited-label-form">
+          <div className="label-field-row top">
+            <label htmlFor="label-preview-name">项目名称 <em>必填</em></label>
+            <input id="label-preview-name" defaultValue="Kandong UI" />
+          </div>
+          <div className="label-field-row inline">
+            <label htmlFor="label-preview-mode">展示模式</label>
+            <select id="label-preview-mode" defaultValue="compact">
+              <option value="compact">紧凑</option>
+              <option value="comfortable">舒展</option>
+            </select>
+          </div>
+          <div className="label-binding-note">
+            <span>点击 Label 应聚焦对应控件</span>
+            <strong>placeholder 不替代 Label</strong>
+          </div>
+        </section>
+        <footer>
+          <span>默认</span>
+          <span className="focus">聚焦字段</span>
+          <span className="disabled">禁用同步</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "required-mark-indicator-preview") {
+    return (
+      <div className={`live-audited-required-card indicator ${variantClass}`}>
+        <header>
+          <span><X size={17} /> Required Mark</span>
+          <b>required + aria</b>
+        </header>
+        <section className="audited-required-form">
+          <label htmlFor="required-preview-address">
+            收货地址
+            <span className="required-symbol" aria-hidden="true">*</span>
+            <em>必填</em>
+          </label>
+          <input
+            id="required-preview-address"
+            required
+            aria-required="true"
+            aria-invalid="true"
+            aria-describedby="required-preview-error"
+            defaultValue=""
+            placeholder="请输入详细地址"
+          />
+          <p id="required-preview-error"><X size={14} />请填写收货地址，不能只标红星。</p>
+          <div className="required-state-row">
+            <span>视觉标记</span>
+            <span>字段语义</span>
+            <span>错误说明</span>
+          </div>
+        </section>
+        <footer>
+          <span>默认</span>
+          <span className="error">未填写错误</span>
+          <span className="valid">已填写通过</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "optional-mark-indicator-preview") {
+    return (
+      <div className={`live-audited-optional-card indicator ${variantClass}`}>
+        <header>
+          <span><CircleHelp size={17} /> Optional Mark</span>
+          <b>aria-required=false</b>
+        </header>
+        <section className="audited-optional-form">
+          <label htmlFor="optional-preview-company">
+            公司名称
+            <em>可选</em>
+          </label>
+          <div className="optional-input-row">
+            <input
+              id="optional-preview-company"
+              aria-required="false"
+              aria-describedby="optional-preview-hint"
+              defaultValue=""
+              placeholder="可不填写"
+            />
+            <button type="button">稍后</button>
+          </div>
+          <p id="optional-preview-hint"><CircleHelp size={14} />不影响继续，填写后便于发票抬头自动补全。</p>
+          <div className="optional-choice-row">
+            <span>未填写可继续</span>
+            <span>填写后增强</span>
+            <span>不设置 required</span>
+          </div>
+        </section>
+        <footer>
+          <span>默认</span>
+          <span className="skipped">已跳过</span>
+          <span className="filled">已填写</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "link-navigation-preview") {
+    return (
+      <div className={`live-audited-link-card navigation ${variantClass}`}>
+        <header>
+          <span><Link2 size={17} /> Link</span>
+          <b>anchor + href</b>
+        </header>
+        <nav className="audited-link-list" aria-label="链接状态预览">
+          <a id="link-preview-primary" href="#link-primary" onClick={(event) => event.preventDefault()} className="primary">
+            帮助中心
+            <ChevronRight size={15} />
+          </a>
+          <a id="link-preview-visited" href="#link-visited" onClick={(event) => event.preventDefault()} className="visited">
+            更新日志
+          </a>
+          <a id="link-preview-focus" href="#link-focus" onClick={(event) => event.preventDefault()} className="focus">
+            键盘焦点链接
+          </a>
+          <span className="disabled" aria-disabled="true">已停用的链接</span>
+        </nav>
+        <p>链接承担导航，操作型控件应使用 Button；禁用链接不保留可跳转 href。</p>
+        <footer>
+          <span>默认</span>
+          <span className="visited">访问过</span>
+          <span className="focus">聚焦</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "external-link-disclosure-preview") {
+    return (
+      <div className={`live-audited-external-link-card disclosure ${variantClass}`}>
+        <header>
+          <span><ExternalLink size={17} /> External Link</span>
+          <b>target + rel</b>
+        </header>
+        <section className="audited-external-link-panel" aria-label="外部链接状态预览">
+          <a
+            id="external-link-preview-docs"
+            href="https://developer.mozilla.org/"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="打开 MDN 文档，新窗口，外部网站"
+            onClick={(event) => event.preventDefault()}
+            className="primary"
+          >
+            MDN 文档
+            <ExternalLink size={15} aria-hidden="true" />
+          </a>
+          <a
+            id="external-link-preview-partner"
+            href="https://example.com/partner"
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.preventDefault()}
+            className="partner"
+          >
+            合作方控制台
+            <span>example.com</span>
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+          <div className="external-link-safety-note">
+            <Check size={14} />
+            <span>新窗口打开，已设置 rel=&quot;noreferrer&quot;</span>
+          </div>
+          <span className="disabled" aria-disabled="true">外部资源暂不可用</span>
+        </section>
+        <footer>
+          <span>外部目标</span>
+          <span className="window">新窗口</span>
+          <span className="safe">安全 rel</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "icon-semantics-preview") {
+    return (
+      <div className={`live-audited-icon-card semantics ${variantClass}`}>
+        <header>
+          <span><Sparkles size={17} aria-hidden="true" /> Icon</span>
+          <b>size + aria</b>
+        </header>
+        <section className="audited-icon-grid" aria-label="图标语义预览">
+          <figure className="audited-icon-token named">
+            <Search size={24} strokeWidth={2} aria-hidden="true" />
+            <figcaption>
+              <strong>Search</strong>
+              <span>命名功能图标</span>
+            </figcaption>
+          </figure>
+          <figure className="audited-icon-token semantic" role="img" aria-label="同步成功">
+            <Check size={24} strokeWidth={2.2} aria-hidden="true" />
+            <figcaption>
+              <strong>同步成功</strong>
+              <span>role=img + aria-label</span>
+            </figcaption>
+          </figure>
+          <figure className="audited-icon-token danger" role="img" aria-label="上传失败">
+            <X size={24} strokeWidth={2.2} aria-hidden="true" />
+            <figcaption>
+              <strong>上传失败</strong>
+              <span>状态不能只靠颜色</span>
+            </figcaption>
+          </figure>
+          <figure className="audited-icon-token decorative">
+            <Sparkles size={24} strokeWidth={1.8} aria-hidden="true" focusable="false" />
+            <figcaption>
+              <strong>装饰隐藏</strong>
+              <span>aria-hidden=true</span>
+            </figcaption>
+          </figure>
+        </section>
+        <footer>
+          <span>统一 24px</span>
+          <span className="semantic">可读语义</span>
+          <span className="decorative">装饰隐藏</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "decorative-icon-hidden-preview") {
+    return (
+      <div className={`live-audited-decorative-icon-card hidden ${variantClass}`}>
+        <header>
+          <span><Sparkles size={17} aria-hidden="true" focusable="false" /> Decorative Icon</span>
+          <b>aria-hidden</b>
+        </header>
+        <section className="audited-decorative-icon-panel" aria-label="装饰图标隐藏预览">
+          <article className="decorative-copy-card">
+            <span className="decorative-icon-mark" aria-hidden="true">
+              <Sparkles size={26} aria-hidden="true" focusable="false" />
+            </span>
+            <div>
+              <strong>账单已整理</strong>
+              <p>真实含义由文字表达，装饰图标移除后仍能理解。</p>
+            </div>
+          </article>
+          <div className="decorative-icon-watermark" aria-hidden="true">
+            <Sparkles size={22} aria-hidden="true" focusable="false" />
+            <CircleHelp size={24} aria-hidden="true" focusable="false" />
+            <Sparkles size={18} aria-hidden="true" focusable="false" />
+          </div>
+          <p className="decorative-access-note">
+            <Check size={14} aria-hidden="true" focusable="false" />
+            <span>读屏只读文字，不朗读装饰 SVG。</span>
+          </p>
+        </section>
+        <footer>
+          <span>可移除</span>
+          <span className="hidden">读屏隐藏</span>
+          <span className="quiet">无交互</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "status-icon-state-preview") {
+    return (
+      <div className={`live-audited-status-icon-card state ${variantClass}`}>
+        <header>
+          <span><Check size={17} aria-hidden="true" /> Status Icon</span>
+          <b>shape + text</b>
+        </header>
+        <section className="audited-status-icon-list" aria-label="状态图标预览">
+          <div className="status-icon-row success" role="status" aria-label="同步成功">
+            <Check size={22} aria-hidden="true" />
+            <span>同步成功</span>
+            <small>成功</small>
+          </div>
+          <div className="status-icon-row warning" role="status" aria-label="需要确认">
+            <CircleHelp size={22} aria-hidden="true" />
+            <span>需要确认</span>
+            <small>警告</small>
+          </div>
+          <div className="status-icon-row danger" role="status" aria-label="上传失败">
+            <X size={22} aria-hidden="true" />
+            <span>上传失败</span>
+            <small>错误</small>
+          </div>
+          <div className="status-icon-row pending" role="status" aria-label="正在同步">
+            <RefreshCcw size={22} aria-hidden="true" />
+            <span>正在同步</span>
+            <small>进行中</small>
+          </div>
+        </section>
+        <p className="status-icon-note">状态图标必须配合文字或 aria 状态；颜色只是辅助，不是唯一线索。</p>
+        <footer>
+          <span className="success">成功</span>
+          <span className="warning">警告</span>
+          <span className="danger">错误</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "status-dot-presence-preview") {
+    return (
+      <div className={`live-audited-status-dot-card presence ${variantClass}`}>
+        <header>
+          <span><i className="status-dot-header-dot" aria-hidden="true" /> Status Dot</span>
+          <b>dot + label</b>
+        </header>
+        <section className="audited-status-dot-list" aria-label="状态点预览" aria-live="polite">
+          <div className="status-dot-row online" role="status" aria-label="林青在线，可接收消息">
+            <span className="status-dot-avatar"><UserRound size={18} aria-hidden="true" /></span>
+            <span className="audited-status-dot online" aria-hidden="true" />
+            <div>
+              <strong>林青</strong>
+              <small>在线，可接收消息</small>
+            </div>
+            <em>在线</em>
+          </div>
+          <div className="status-dot-row busy" role="status" aria-label="周敏忙碌，请勿打扰">
+            <span className="status-dot-avatar initial" aria-hidden="true">M</span>
+            <span className="audited-status-dot busy" aria-hidden="true" />
+            <div>
+              <strong>周敏</strong>
+              <small>忙碌，请勿打扰</small>
+            </div>
+            <em>忙碌</em>
+          </div>
+          <div className="status-dot-row syncing" role="status" aria-label="账单 API 正在同步">
+            <span className="status-dot-avatar initial" aria-hidden="true">API</span>
+            <span className="audited-status-dot syncing" aria-hidden="true" />
+            <div>
+              <strong>账单 API</strong>
+              <small>正在同步，24 秒前更新</small>
+            </div>
+            <em>同步中</em>
+          </div>
+          <div className="status-dot-row offline" role="status" aria-label="NAS 设备离线">
+            <span className="status-dot-avatar initial" aria-hidden="true">NAS</span>
+            <span className="audited-status-dot offline" aria-hidden="true" />
+            <div>
+              <strong>NAS 设备</strong>
+              <small>离线，最后在线 2 小时前</small>
+            </div>
+            <em>离线</em>
+          </div>
+        </section>
+        <p className="status-dot-note">状态点只做轻量提示；完整含义必须由对象、文字或外层 aria 状态补足。</p>
+        <footer>
+          <span className="online">在线</span>
+          <span className="syncing">同步中</span>
+          <span className="offline">离线</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "status-badge-feedback-preview") {
+    return (
+      <div className={`live-audited-status-badge-card feedback ${variantClass}`}>
+        <header>
+          <span><Check size={17} aria-hidden="true" /> Status Badge</span>
+          <b>state pill</b>
+        </header>
+        <section className="audited-status-badge-list" aria-label="状态徽章预览" aria-live="polite">
+          <div className="status-badge-row success">
+            <div>
+              <strong>付款校验</strong>
+              <small>网关返回已确认</small>
+            </div>
+            <span className="audited-status-badge success" role="status" aria-label="付款校验已通过">
+              <Check size={13} aria-hidden="true" />
+              已通过
+            </span>
+          </div>
+          <div className="status-badge-row warning">
+            <div>
+              <strong>合同审批</strong>
+              <small>等待法务确认</small>
+            </div>
+            <span className="audited-status-badge warning" role="status" aria-label="合同审批待确认">
+              <CircleHelp size={13} aria-hidden="true" />
+              待确认
+            </span>
+          </div>
+          <div className="status-badge-row danger">
+            <div>
+              <strong>备份任务</strong>
+              <small>最近一次执行失败</small>
+            </div>
+            <span className="audited-status-badge danger" role="status" aria-label="备份任务失败">
+              <X size={13} aria-hidden="true" />
+              失败
+            </span>
+          </div>
+          <div className="status-badge-row pending">
+            <div>
+              <strong>库存同步</strong>
+              <small>正在同步 4 个仓库</small>
+            </div>
+            <span className="audited-status-badge pending" role="status" aria-label="库存同步进行中">
+              <RefreshCcw size={13} aria-hidden="true" />
+              同步中
+            </span>
+          </div>
+        </section>
+        <p className="status-badge-note">状态徽章必须自带状态文字；图标和颜色只辅助扫描，不替代语义。</p>
+        <footer>
+          <span className="success">成功</span>
+          <span className="warning">警告</span>
+          <span className="danger">错误</span>
+          <span className="pending">进行中</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "tag-taxonomy-preview") {
+    return (
+      <div className={`live-audited-tag-card taxonomy ${variantClass}`}>
+        <header>
+          <span><Bookmark size={17} aria-hidden="true" /> Tag</span>
+          <b>taxonomy</b>
+        </header>
+        <section className="audited-tag-board" aria-label="标签预览">
+          <div className="tag-context-row" aria-label="内容分类标签">
+            <div>
+              <strong>组件手册</strong>
+              <small>静态 Tag 只表达分类，不承担点击行为。</small>
+            </div>
+            <span className="audited-tag plain">设计系统</span>
+            <span className="audited-tag topic">表单体验</span>
+          </div>
+          <div className="tag-filter-row" role="group" aria-label="筛选标签">
+            <button
+              type="button"
+              className={`audited-tag selectable ${selectedTagFilters.has("表单") ? "selected" : ""}`}
+              aria-pressed={selectedTagFilters.has("表单")}
+              onClick={() => toggleTagFilter("表单")}
+            >
+              表单
+            </button>
+            <button
+              type="button"
+              className={`audited-tag selectable ${selectedTagFilters.has("动效") ? "selected" : ""}`}
+              aria-pressed={selectedTagFilters.has("动效")}
+              onClick={() => toggleTagFilter("动效")}
+            >
+              动效
+            </button>
+            <span className="audited-tag disabled" aria-disabled="true">归档</span>
+          </div>
+          <div className="tag-removable-row" aria-label="已选标签">
+            {visibleTagLabels.length === 0 ? (
+              <span className="tag-empty-note">已清空可移除标签</span>
+            ) : visibleTagLabels.map((label) => (
+              <span key={label} className={`audited-tag removable ${label === "响应式" ? "violet" : ""}`}>
+                <span>{label}</span>
+                <button type="button" aria-label={`移除标签 ${label}`} onClick={() => removeTagLabel(label)}>
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+        <p className="tag-rule-note">Tag 用于分类、筛选和移除已选条件；版本贴纸用 Badge，任务状态用 Status Badge。</p>
+        <footer>
+          <span>分类</span>
+          <span>筛选</span>
+          <span>可移除</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "chip-token-preview") {
+    return (
+      <div className={`live-audited-chip-card token ${variantClass}`}>
+        <header>
+          <span><UserRound size={17} aria-hidden="true" /> Chip</span>
+          <b>input token</b>
+        </header>
+        <section className="audited-chip-board" aria-label="Chip 预览">
+          <div className="chip-input-shell">
+            <label htmlFor="audited-chip-input">成员选择</label>
+            <div className="chip-input-line">
+              {visibleChipTokens.length === 0 ? (
+                <span className="chip-empty-note">暂无已选 token</span>
+              ) : visibleChipTokens.map((label) => (
+                <span key={label} className={`audited-chip tokenized ${label === "API 权限" ? "violet" : ""}`}>
+                  <span className="chip-avatar" aria-hidden="true">{label === "API 权限" ? "API" : "林"}</span>
+                  <span>{label}</span>
+                  <button type="button" aria-label={`移除 Chip ${label}`} onClick={() => removeChipToken(label)}>
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+              <input id="audited-chip-input" aria-label="添加成员 Chip" placeholder="输入成员或权限" />
+            </div>
+          </div>
+          <div className="chip-choice-row" role="group" aria-label="选择 Chip">
+            <button
+              type="button"
+              className={`audited-chip choice ${selectedChipChoices.has("负责人") ? "selected" : ""}`}
+              aria-pressed={selectedChipChoices.has("负责人")}
+              onClick={() => toggleChipChoice("负责人")}
+            >
+              <SquareCheck size={14} aria-hidden="true" />
+              负责人
+            </button>
+            <button
+              type="button"
+              className={`audited-chip choice ${selectedChipChoices.has("评审人") ? "selected" : ""}`}
+              aria-pressed={selectedChipChoices.has("评审人")}
+              onClick={() => toggleChipChoice("评审人")}
+            >
+              <UserRound size={14} aria-hidden="true" />
+              评审人
+            </button>
+            <span className="audited-chip disabled" aria-disabled="true">
+              <UserRound size={14} aria-hidden="true" />
+              访客
+            </span>
+          </div>
+        </section>
+        <p className="chip-rule-note">Chip 表示已选对象、输入 token 或紧凑选择；分类用 Tag，版本贴纸用 Badge，任务状态用 Status Badge。</p>
+        <footer>
+          <span>对象 token</span>
+          <span>可选择</span>
+          <span>可移除</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "close-button-dismiss-preview") {
+    return (
+      <div className={`live-audited-close-button-card dismiss ${variantClass}`}>
+        <header>
+          <span><X size={17} aria-hidden="true" focusable="false" /> Close Button</span>
+          <b>targeted dismiss</b>
+        </header>
+        <section className="audited-close-board" aria-label="Close Button 预览">
+          {visibleCloseTargets.has("panel") ? (
+            <article className="close-target-card panel" data-close-target="panel">
+              <div className="close-target-copy">
+                <span className="close-target-icon" aria-hidden="true"><PanelLeft size={16} /></span>
+                <div>
+                  <strong>设置面板</strong>
+                  <small>局部表面退出后，背景内容保持。</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="audited-close-button panel"
+                aria-label="关闭设置面板"
+                onClick={() => closePreviewTarget("panel")}
+              >
+                <X size={18} aria-hidden="true" focusable="false" />
+              </button>
+            </article>
+          ) : null}
+          {visibleCloseTargets.has("toast") ? (
+            <article className="close-target-card notice" data-close-target="toast">
+              <div className="close-target-copy">
+                <span className="close-target-icon" aria-hidden="true"><MessageCircle size={16} /></span>
+                <div>
+                  <strong>同步提示</strong>
+                  <small>轻提示可以被单独关闭。</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="audited-close-button notice"
+                aria-label="关闭同步提示"
+                onClick={() => closePreviewTarget("toast")}
+              >
+                <X size={18} aria-hidden="true" focusable="false" />
+              </button>
+            </article>
+          ) : null}
+          {visibleCloseTargets.has("inline") ? (
+            <article className="close-target-card inline" data-close-target="inline">
+              <div className="close-target-copy">
+                <span className="close-target-icon" aria-hidden="true"><CircleHelp size={16} /></span>
+                <div>
+                  <strong>权限说明</strong>
+                  <small>只让这一条说明从界面退出。</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="audited-close-button inline"
+                aria-label="关闭权限说明"
+                onClick={() => closePreviewTarget("inline")}
+              >
+                <X size={18} aria-hidden="true" focusable="false" />
+              </button>
+            </article>
+          ) : null}
+          <article className="close-target-card locked" data-close-target="locked">
+            <div className="close-target-copy">
+              <span className="close-target-icon" aria-hidden="true"><Check size={16} /></span>
+              <div>
+                <strong>受控提示</strong>
+                <small>当前流程完成前不可关闭。</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-close-button locked"
+              aria-label="关闭已锁定提示"
+              disabled
+            >
+              <X size={18} aria-hidden="true" focusable="false" />
+            </button>
+          </article>
+          {visibleCloseTargets.size === 0 ? (
+            <p className="close-empty-note">所有可关闭表面都已退出。</p>
+          ) : null}
+        </section>
+        <p className="close-rule-note">每个 X 都指向自己的表面；命中区域、焦点环和禁用态必须清楚可见。</p>
+        <footer>
+          <span>type=button</span>
+          <span>aria-label</span>
+          <span>44px target</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "more-button-overflow-preview") {
+    return (
+      <div
+        className={`live-audited-more-button-card overflow ${variantClass}`}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setMoreMenuOpen(false);
+        }}
+      >
+        <header>
+          <span><MoreHorizontal size={17} aria-hidden="true" focusable="false" /> More Button</span>
+          <b>overflow menu</b>
+        </header>
+        <section className="audited-more-board" aria-label="More Button 预览">
+          <article className="more-target-card active" data-more-target="asset">
+            <div className="more-target-copy">
+              <span className="more-target-icon" aria-hidden="true"><BookOpen size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>设计稿资产</strong>
+                <small>主动作已露出，低频动作收进菜单。</small>
+              </div>
+            </div>
+            <div className="more-trigger-wrap">
+              <button
+                type="button"
+                className={`audited-more-button trigger ${moreMenuOpen ? "open" : ""}`}
+                aria-label="打开设计稿资产更多操作"
+                aria-haspopup="menu"
+                aria-expanded={moreMenuOpen}
+                aria-controls="audited-more-menu"
+                onClick={toggleMoreMenu}
+              >
+                <MoreHorizontal size={20} aria-hidden="true" focusable="false" />
+              </button>
+              {moreMenuOpen ? (
+                <div id="audited-more-menu" className="audited-more-menu" role="menu" aria-label="设计稿资产更多操作">
+                  <button type="button" role="menuitem" onClick={() => selectMoreAction("查看详情")}>
+                    <BookOpen size={14} aria-hidden="true" focusable="false" />
+                    查看详情
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => selectMoreAction("复制链接")}>
+                    <Copy size={14} aria-hidden="true" focusable="false" />
+                    复制链接
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => selectMoreAction("分享权限")}>
+                    <Share2 size={14} aria-hidden="true" focusable="false" />
+                    分享权限
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => selectMoreAction("导出记录")}>
+                    <Download size={14} aria-hidden="true" focusable="false" />
+                    导出记录
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </article>
+          <article className="more-target-card locked" data-more-target="locked">
+            <div className="more-target-copy">
+              <span className="more-target-icon" aria-hidden="true"><MoreVertical size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>锁定账单行</strong>
+                <small>无可用溢出操作时保持禁用。</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-more-button disabled"
+              aria-label="锁定账单行更多操作不可用"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              disabled
+            >
+              <MoreVertical size={20} aria-hidden="true" focusable="false" />
+            </button>
+          </article>
+          <p className="more-action-note" aria-live="polite">最近菜单项：{moreMenuAction}</p>
+        </section>
+        <p className="more-rule-note">More Button 只负责打开溢出菜单；查看、复制、分享、导出等具体动作必须放在菜单项里。</p>
+        <footer>
+          <span>aria-haspopup</span>
+          <span>aria-expanded</span>
+          <span>role=menu</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "help-button-guidance-preview") {
+    return (
+      <div
+        className={`live-audited-help-button-card guidance ${variantClass}`}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && helpPanelOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            setHelpPanelOpen(false);
+          }
+        }}
+      >
+        <header>
+          <span><CircleHelp size={17} aria-hidden="true" focusable="false" /> Help Button</span>
+          <b>context help</b>
+        </header>
+        <section className="audited-help-board" aria-label="Help Button 预览">
+          <article className="help-context-card active" data-help-target="api-name">
+            <div className="help-target-copy">
+              <span className="help-target-icon" aria-hidden="true"><BookOpen size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>API 密钥命名</strong>
+                <small>需要理解字段规则时，打开局部帮助。</small>
+              </div>
+            </div>
+            <div className="help-trigger-wrap">
+              <button
+                type="button"
+                className={`audited-help-button trigger ${helpPanelOpen ? "open" : ""}`}
+                aria-label="打开 API 密钥命名帮助"
+                aria-haspopup="dialog"
+                aria-expanded={helpPanelOpen}
+                aria-controls="audited-help-panel"
+                aria-describedby={helpPanelOpen ? "audited-help-panel-copy" : undefined}
+                onClick={toggleHelpPanel}
+              >
+                <CircleHelp size={21} aria-hidden="true" focusable="false" />
+              </button>
+              {helpPanelOpen ? (
+                <div id="audited-help-panel" className="audited-help-panel" role="dialog" aria-label="API 密钥命名帮助">
+                  <strong>命名帮助</strong>
+                  <p id="audited-help-panel-copy">使用环境前缀、用途和轮换日期；不要把密钥值写进名称。</p>
+                  <ul aria-label="帮助要点">
+                    <li><Check size={13} aria-hidden="true" focusable="false" />示例：prod-billing-2026q2</li>
+                    <li><Check size={13} aria-hidden="true" focusable="false" />用于识别，不用于存储敏感值</li>
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </article>
+          <article className="help-context-card locked" data-help-target="disabled">
+            <div className="help-target-copy">
+              <span className="help-target-icon" aria-hidden="true"><CircleHelp size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>离线同步规则</strong>
+                <small>帮助内容未加载时保持禁用，不给空面板。</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-help-button disabled"
+              aria-label="离线同步规则帮助暂不可用"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              disabled
+            >
+              <CircleHelp size={21} aria-hidden="true" focusable="false" />
+            </button>
+          </article>
+          <p className="help-action-note" aria-live="polite">帮助面板：{helpPanelOpen ? "已展开 API 密钥命名帮助" : "未展开"}</p>
+        </section>
+        <p className="help-rule-note">Help Button 只回答当前上下文的做法、规则和示例；静态事实用 Info Button，操作集合用 More Button。</p>
+        <footer>
+          <span>aria-haspopup=dialog</span>
+          <span>aria-expanded</span>
+          <span>context help</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "info-button-facts-preview") {
+    return (
+      <div
+        className={`live-audited-info-button-card facts ${variantClass}`}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && infoTooltipOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            setInfoTooltipOpen(false);
+          }
+        }}
+      >
+        <header>
+          <span><Info size={17} aria-hidden="true" focusable="false" /> Info Button</span>
+          <b>static facts</b>
+        </header>
+        <section className="audited-info-board" aria-label="Info Button 预览">
+          <article className="info-fact-card active" data-info-target="metric">
+            <div className="info-target-copy">
+              <span className="info-target-icon" aria-hidden="true"><ChartPie size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>转化率</strong>
+                <small>34.8% · 最近 7 天</small>
+              </div>
+            </div>
+            <div className="info-trigger-wrap">
+              <button
+                type="button"
+                className={`audited-info-button trigger ${infoTooltipOpen ? "open" : ""}`}
+                aria-label="查看转化率口径信息"
+                aria-expanded={infoTooltipOpen}
+                aria-controls="audited-info-tooltip"
+                aria-describedby={infoTooltipOpen ? "audited-info-tooltip-copy" : undefined}
+                onClick={toggleInfoTooltip}
+              >
+                <Info size={21} aria-hidden="true" focusable="false" />
+              </button>
+              {infoTooltipOpen ? (
+                <div id="audited-info-tooltip" className="audited-info-tooltip" role="tooltip" aria-label="转化率口径信息">
+                  <strong>口径说明</strong>
+                  <p id="audited-info-tooltip-copy">转化率 = 完成订单用户 / 访问结算页用户；数据每 15 分钟刷新。</p>
+                  <span>来源：Analytics v3</span>
+                </div>
+              ) : null}
+            </div>
+          </article>
+          <article className="info-fact-card locked" data-info-target="disabled">
+            <div className="info-target-copy">
+              <span className="info-target-icon" aria-hidden="true"><Info size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>实验置信度</strong>
+                <small>样本量不足时，不展示说明气泡。</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-info-button disabled"
+              aria-label="实验置信度信息暂不可用"
+              aria-expanded="false"
+              disabled
+            >
+              <Info size={21} aria-hidden="true" focusable="false" />
+            </button>
+          </article>
+          <p className="info-action-note" aria-live="polite">信息气泡：{infoTooltipOpen ? "已展开转化率口径信息" : "未展开"}</p>
+        </section>
+        <p className="info-rule-note">Info Button 只展示口径、来源、公式和更新时间等静态事实；操作步骤用 Help Button，操作集合用 More Button。</p>
+        <footer>
+          <span>role=tooltip</span>
+          <span>aria-describedby</span>
+          <span>static fact</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "copy-button-clipboard-preview") {
+    const invoiceCopied = copyButtonStatus.target === "invoice" && copyButtonStatus.result === "success";
+    const inviteCopied = copyButtonStatus.target === "invite" && copyButtonStatus.result === "success";
+    const copyPending = copyButtonStatus.result === "pending";
+
+    return (
+      <div className={`live-audited-copy-button-card clipboard ${variantClass}`}>
+        <header>
+          <span><Copy size={17} aria-hidden="true" focusable="false" /> Copy Button</span>
+          <b>clipboard action</b>
+        </header>
+        <section className="audited-copy-board" aria-label="Copy Button 预览">
+          <article className={`copy-target-card invoice ${invoiceCopied ? "copied" : ""}`} data-copy-target="invoice">
+            <div className="copy-target-copy">
+              <span className="copy-target-icon" aria-hidden="true"><Code2 size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>发票号</strong>
+                <code id="audited-copy-source-invoice">INV-2026-0842</code>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`audited-copy-button trigger ${invoiceCopied ? "copied" : ""}`}
+              aria-label={invoiceCopied ? "已复制发票号 INV-2026-0842，可再次复制" : "复制发票号 INV-2026-0842"}
+              aria-describedby="audited-copy-source-invoice audited-copy-feedback"
+              onClick={() => {
+                void triggerCopyButton("invoice", "INV-2026-0842", "发票号");
+              }}
+            >
+              {invoiceCopied ? <Check size={18} aria-hidden="true" focusable="false" /> : <Copy size={18} aria-hidden="true" focusable="false" />}
+              <span>{invoiceCopied ? "已复制" : "复制"}</span>
+            </button>
+          </article>
+          <article className={`copy-target-card invite ${inviteCopied ? "copied" : ""}`} data-copy-target="invite">
+            <div className="copy-target-copy">
+              <span className="copy-target-icon link" aria-hidden="true"><Link2 size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>邀请链接</strong>
+                <code id="audited-copy-source-invite">https://kandong.app/invite/ui-27</code>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`audited-copy-button secondary ${inviteCopied ? "copied" : ""}`}
+              aria-label={inviteCopied ? "已复制邀请链接，可再次复制" : "复制邀请链接"}
+              aria-describedby="audited-copy-source-invite audited-copy-feedback"
+              onClick={() => {
+                void triggerCopyButton("invite", "https://kandong.app/invite/ui-27", "邀请链接");
+              }}
+            >
+              {inviteCopied ? <Check size={18} aria-hidden="true" focusable="false" /> : <Copy size={18} aria-hidden="true" focusable="false" />}
+              <span>{inviteCopied ? "已复制" : "复制"}</span>
+            </button>
+          </article>
+          <article className="copy-target-card locked" data-copy-target="hidden-token">
+            <div className="copy-target-copy">
+              <span className="copy-target-icon locked" aria-hidden="true"><Copy size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>隐藏 Token</strong>
+                <small id="audited-copy-empty-reason">权限不足时没有可复制值，按钮保持禁用。</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-copy-button disabled"
+              aria-label="隐藏 Token 暂不可复制"
+              aria-describedby="audited-copy-empty-reason audited-copy-feedback"
+              disabled
+            >
+              <Copy size={18} aria-hidden="true" focusable="false" />
+              <span>不可复制</span>
+            </button>
+          </article>
+          <p
+            id="audited-copy-feedback"
+            className={`copy-action-note ${copyButtonStatus.result}`}
+            aria-live="polite"
+          >
+            复制状态：{copyPending ? "正在写入剪贴板" : copyButtonStatus.message}
+          </p>
+        </section>
+        <p className="copy-rule-note">Copy Button 只把当前可见值写入剪贴板；创建副本用 Duplicate Button，外发协作用 Share Button，更多操作集合用 More Button。</p>
+        <footer>
+          <span>type=button</span>
+          <span>aria-live result</span>
+          <span>target-bound</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "share-button-distribution-preview") {
+    const shareOpen = sharePanelOpen;
+    const shareSuccess = shareButtonStatus.result === "success";
+    const shareFallback = shareButtonStatus.result === "fallback";
+    const sharePending = shareButtonStatus.result === "pending";
+
+    return (
+      <div
+        className={`live-audited-share-button-card distribution ${variantClass}`}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && shareOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeSharePanel("已取消分享");
+          }
+        }}
+      >
+        <header>
+          <span><Share2 size={17} aria-hidden="true" focusable="false" /> Share Button</span>
+          <b>external collaboration</b>
+        </header>
+        <section className="audited-share-board" aria-label="Share Button 预览">
+          <article className={`share-resource-card ${shareOpen ? "open" : ""} ${shareSuccess || shareFallback ? "shared" : ""}`} data-share-target="design-system-kit">
+            <div className="share-target-copy">
+              <span className="share-target-icon" aria-hidden="true"><ExternalLink size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>设计系统套装</strong>
+                <small id="audited-share-resource-copy">团队可见 · 可评论 · 12 个组件包</small>
+              </div>
+            </div>
+            <div className="share-trigger-wrap">
+              <button
+                type="button"
+                className={`audited-share-button trigger ${shareOpen ? "open" : ""} ${shareSuccess || shareFallback ? "shared" : ""}`}
+                aria-label="分享设计系统套装"
+                aria-haspopup="dialog"
+                aria-expanded={shareOpen}
+                aria-controls="audited-share-panel"
+                aria-describedby="audited-share-resource-copy audited-share-feedback"
+                onClick={toggleSharePanel}
+              >
+                <Share2 size={18} aria-hidden="true" focusable="false" />
+                <span>{shareSuccess || shareFallback ? "已分享" : "分享"}</span>
+              </button>
+              {shareOpen ? (
+                <div id="audited-share-panel" className="audited-share-panel" role="dialog" aria-label="分享设计系统套装">
+                  <header>
+                    <strong>选择分享目标</strong>
+                    <button type="button" aria-label="取消分享设计系统套装" onClick={() => closeSharePanel("已取消分享")}>
+                      <X size={16} aria-hidden="true" focusable="false" />
+                    </button>
+                  </header>
+                  <div className="share-channel-list" aria-label="分享渠道">
+                    <button type="button" className="share-channel team" onClick={() => completeShare("team", "设计系统团队")}>
+                      <UserRound size={16} aria-hidden="true" focusable="false" />
+                      <span><b>设计系统团队</b><small>15 人 · 可评论</small></span>
+                    </button>
+                    <button type="button" className="share-channel channel" onClick={() => completeShare("channel", "产品发布频道")}>
+                      <MessageCircle size={16} aria-hidden="true" focusable="false" />
+                      <span><b>产品发布频道</b><small>频道通知 · 只读</small></span>
+                    </button>
+                    <button type="button" className="share-channel link" onClick={() => { void fallbackShareLink(); }}>
+                      <Link2 size={16} aria-hidden="true" focusable="false" />
+                      <span><b>复制邀请链接</b><small>系统分享不可用时 fallback</small></span>
+                    </button>
+                  </div>
+                  {shareButtonStatus.target === "link" && shareButtonStatus.result === "error" ? (
+                    <label className="share-manual-link" htmlFor="audited-share-manual-link">
+                      <span>邀请链接可手动复制</span>
+                      <input id="audited-share-manual-link" readOnly value="https://kandong.app/share/design-system-kit" />
+                    </label>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </article>
+          <article className="share-resource-card locked" data-share-target="private-draft">
+            <div className="share-target-copy">
+              <span className="share-target-icon locked" aria-hidden="true"><Share2 size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong>私密草稿</strong>
+                <small id="audited-share-disabled-copy">草稿未发布且无外发权限，分享按钮保持禁用。</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-share-button disabled"
+              aria-label="私密草稿暂不可分享"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              aria-describedby="audited-share-disabled-copy audited-share-feedback"
+              disabled
+            >
+              <Share2 size={18} aria-hidden="true" focusable="false" />
+              <span>不可分享</span>
+            </button>
+          </article>
+          <p
+            id="audited-share-feedback"
+            className={`share-action-note ${shareButtonStatus.result}`}
+            aria-live="polite"
+          >
+            分享状态：{sharePending ? "正在处理分享链接" : shareButtonStatus.message}
+          </p>
+        </section>
+        <p className="share-rule-note">Share Button 负责外发协作、渠道选择和权限范围；本地剪贴板用 Copy Button，低频操作集合用 More Button。</p>
+        <footer>
+          <span>aria-haspopup=dialog</span>
+          <span>permission scope</span>
+          <span>share target</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "favorite-button-collection-preview") {
+    const kitFavorite = favoriteItems.has("system-kit");
+    const templateFavorite = favoriteItems.has("template-pack");
+    const favoriteFeedback = favoriteStatus.message;
+
+    return (
+      <div className={`live-audited-favorite-button-card collection ${variantClass}`}>
+        <header>
+          <span><Star size={17} aria-hidden="true" focusable="false" /> Favorite Button</span>
+          <b>personal preference</b>
+        </header>
+        <section className="audited-favorite-board" aria-label="Favorite Button 预览">
+          <article className={`favorite-target-card ${kitFavorite ? "favorited" : ""}`} data-favorite-target="system-kit">
+            <div className="favorite-target-copy">
+              <span className="favorite-target-icon" aria-hidden="true"><Star size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong id="audited-favorite-system-kit">设计系统套装</strong>
+                <small>个人收藏夹 · 常用组件 · 28 次打开</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`audited-favorite-button ${kitFavorite ? "favorited" : ""}`}
+              aria-label={kitFavorite ? "取消收藏设计系统套装" : "收藏设计系统套装"}
+              aria-pressed={kitFavorite}
+              aria-describedby="audited-favorite-system-kit audited-favorite-feedback"
+              onClick={() => toggleFavoriteItem("system-kit", "设计系统套装")}
+            >
+              <Star size={18} aria-hidden="true" focusable="false" />
+              <span>{kitFavorite ? "已收藏" : "收藏"}</span>
+            </button>
+          </article>
+
+          <article className={`favorite-target-card ${templateFavorite ? "favorited" : ""}`} data-favorite-target="template-pack">
+            <div className="favorite-target-copy">
+              <span className="favorite-target-icon quiet" aria-hidden="true"><Star size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong id="audited-favorite-template-pack">移动端模板包</strong>
+                <small>稍后再看 · 模板 · 未加入收藏</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`audited-favorite-button secondary ${templateFavorite ? "favorited" : ""}`}
+              aria-label={templateFavorite ? "取消收藏移动端模板包" : "收藏移动端模板包"}
+              aria-pressed={templateFavorite}
+              aria-describedby="audited-favorite-template-pack audited-favorite-feedback"
+              onClick={() => toggleFavoriteItem("template-pack", "移动端模板包")}
+            >
+              <Star size={18} aria-hidden="true" focusable="false" />
+              <span>{templateFavorite ? "已收藏" : "收藏"}</span>
+            </button>
+          </article>
+
+          <article className="favorite-target-card retry" data-favorite-target="archived-report">
+            <div className="favorite-target-copy">
+              <span className="favorite-target-icon retry" aria-hidden="true"><Star size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong id="audited-favorite-archived-report">归档报表视图</strong>
+                <small>演示失败反馈 · 不改变收藏状态</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-favorite-button retry"
+              aria-label="尝试收藏归档报表视图"
+              aria-pressed="false"
+              aria-describedby="audited-favorite-archived-report audited-favorite-feedback"
+              onClick={() => simulateFavoriteFailure("archived-report", "归档报表视图")}
+            >
+              <Star size={18} aria-hidden="true" focusable="false" />
+              <span>重试收藏</span>
+            </button>
+          </article>
+
+          <article className="favorite-target-card locked" data-favorite-target="guest-only">
+            <div className="favorite-target-copy">
+              <span className="favorite-target-icon locked" aria-hidden="true"><Star size={16} aria-hidden="true" focusable="false" /></span>
+              <div>
+                <strong id="audited-favorite-guest-only">访客只读条目</strong>
+                <small>登录后才能加入个人收藏夹</small>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="audited-favorite-button disabled"
+              aria-label="访客只读条目暂不可收藏"
+              aria-pressed="false"
+              aria-describedby="audited-favorite-guest-only audited-favorite-feedback"
+              disabled
+            >
+              <Star size={18} aria-hidden="true" focusable="false" />
+              <span>不可收藏</span>
+            </button>
+          </article>
+
+          <p id="audited-favorite-feedback" className={`favorite-action-note ${favoriteStatus.result}`} aria-live="polite">
+            收藏状态：{favoriteFeedback}
+          </p>
+        </section>
+        <p className="favorite-rule-note">Favorite Button 只表达个人收藏偏好；固定位置用 Pin Button，公开点赞计数用 Like Button，保存编辑内容用 Save Button。</p>
+        <footer>
+          <span>aria-pressed</span>
+          <span>personal collection</span>
+          <span>toggle feedback</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "brand-icon-identity-preview") {
+    return (
+      <div className={`live-audited-brand-icon-card identity ${variantClass}`}>
+        <header>
+          <span><Box size={17} aria-hidden="true" /> Brand Icon</span>
+          <b>mark + lockup</b>
+        </header>
+        <section className="audited-brand-icon-panel" aria-label="品牌图标预览">
+          <article className="brand-icon-lockup">
+            <span className="brand-icon-mark primary" aria-hidden="true">
+              <b>K</b>
+            </span>
+            <div>
+              <strong>Kandong</strong>
+              <small>品牌图标 + 字标锁定</small>
+            </div>
+          </article>
+          <div className="brand-icon-variant-row" aria-label="品牌图标版本">
+            <span className="brand-icon-mark standalone" role="img" aria-label="Kandong 主品牌图标"><b>K</b></span>
+            <span className="brand-icon-mark mono" role="img" aria-label="Kandong 单色品牌图标"><b>K</b></span>
+            <span className="brand-icon-mark reverse" role="img" aria-label="Kandong 反白品牌图标"><b>K</b></span>
+            <span className="brand-icon-mark app" role="img" aria-label="Kandong 应用图标"><b>K</b></span>
+          </div>
+          <p className="brand-icon-rule">
+            <Check size={14} aria-hidden="true" />
+            <span>固定比例与安全区；可点击语义交给外层 Link/Button。</span>
+          </p>
+        </section>
+        <footer>
+          <span>品牌识别</span>
+          <span className="mono">单色</span>
+          <span className="safe">安全区</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "badge-label-preview") {
+    return (
+      <div className={`live-audited-badge-card label ${variantClass}`}>
+        <header>
+          <span><Bookmark size={17} aria-hidden="true" /> Badge</span>
+          <b>short label</b>
+        </header>
+        <section className="audited-badge-panel" aria-label="徽标预览">
+          <div className="audited-badge-line">
+            <strong>组件库</strong>
+            <span className="audited-label-badge new">New</span>
+          </div>
+          <div className="audited-badge-line">
+            <strong>自动化规则</strong>
+            <span className="audited-label-badge beta" aria-label="Beta 功能">Beta</span>
+          </div>
+          <div className="audited-badge-line">
+            <strong>团队模板</strong>
+            <span className="audited-label-badge pro">Pro</span>
+          </div>
+          <div className="audited-badge-line muted">
+            <strong>实验室</strong>
+            <span className="audited-label-badge lab">Lab</span>
+          </div>
+        </section>
+        <p className="badge-rule-note">Badge 只表达短文本元信息；数字数量、成功/错误状态和可关闭标签应使用对应组件。</p>
+        <footer>
+          <span>短文本</span>
+          <span className="soft">非交互</span>
+          <span className="accent">元信息</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "count-badge-counter-preview") {
+    return (
+      <div className={`live-audited-count-badge-card counter ${variantClass}`}>
+        <header>
+          <span><MessageCircle size={17} aria-hidden="true" /> Count Badge</span>
+          <b>0 / 99+</b>
+        </header>
+        <section className="audited-count-badge-panel" aria-label="数字徽标预览" aria-live="polite">
+          <div className="count-badge-target unread">
+            <MessageCircle size={23} aria-hidden="true" />
+            <strong>消息</strong>
+            <span className="audited-count-badge" aria-label="未读消息 12 条">12</span>
+          </div>
+          <div className="count-badge-target overflow">
+            <Bookmark size={23} aria-hidden="true" />
+            <strong>通知</strong>
+            <span className="audited-count-badge overflow" aria-label="通知 132 条，显示为 99+">99+</span>
+          </div>
+          <div className="count-badge-target compact">
+            <Download size={23} aria-hidden="true" />
+            <strong>下载</strong>
+            <span className="audited-count-badge compact" aria-label="下载队列 3 项">3</span>
+          </div>
+          <div className="count-badge-target zero" aria-label="收件箱没有新项目">
+            <BookOpen size={23} aria-hidden="true" />
+            <strong>收件箱</strong>
+            <span className="audited-count-badge zero" aria-hidden="true">0</span>
+          </div>
+        </section>
+        <p className="count-badge-note">数字徽标只提示数量；0 值隐藏，99+ 需要保留完整数量说明。</p>
+        <footer>
+          <span>数量</span>
+          <span className="overflow">99+</span>
+          <span className="zero">0 隐藏</span>
+        </footer>
+      </div>
+    );
+  }
+
+  if (type === "typography-block") {
+    return (
+      <div className={`live-semantic-card typography ${variantClass}`}>
+        <span>Typography</span>
+        <strong>{selected.title}</strong>
+        <p>{selected.summary}</p>
+        <div className="semantic-text-stack"><b /><i /><i /></div>
+      </div>
+    );
+  }
+
+  if (type === "icon-signal") {
+    return (
+      <div className={`live-semantic-card icon-signal ${variantClass}`}>
+        <div className="semantic-icon-row"><Sparkles size={22} /><Check size={22} /><X size={22} /></div>
+        <strong>{selected.title}</strong>
+        <p>{selected.summary}</p>
+      </div>
+    );
+  }
+
+  if (type === "structure-block") {
+    return (
+      <div className={`live-semantic-card structure ${variantClass}`}>
+        <header>{selected.secondLevelName}</header>
+        <section><b /><b /><b /></section>
+        <footer>{selected.title}</footer>
+      </div>
+    );
+  }
+
+  if (type === "chart-panel") {
+    return (
+      <div className={`live-semantic-card chart ${variantClass}`}>
+        <header><ChartPie size={20} /><strong>{selected.title}</strong></header>
+        <div className="semantic-chart-bars"><i /><i /><i /><i /><i /></div>
+        <p>{selected.summary}</p>
+      </div>
+    );
+  }
+
+  if (type === "editor-panel") {
+    return (
+      <div className={`live-semantic-card editor ${variantClass}`}>
+        <div className="semantic-toolbar"><b>B</b><b>I</b><b>H1</b><span>发布</span></div>
+        <section><strong>{selected.title}</strong><i /><i /><i /></section>
+      </div>
+    );
+  }
+
+  if (type === "map-panel") {
+    return (
+      <div className={`live-semantic-card map ${variantClass}`}>
+        <div className="semantic-map-grid"><i /><i /><i /><i /></div>
+        <strong>{selected.title}</strong>
+        <p>位置、范围与路径状态需要在同一视图内可读。</p>
+      </div>
+    );
+  }
+
+  if (type === "a11y-panel") {
+    return (
+      <div className={`live-semantic-card a11y ${variantClass}`}>
+        <SquareCheck size={24} />
+        <strong>{selected.title}</strong>
+        <ul><li>键盘可达</li><li>读屏名称完整</li><li>焦点状态可见</li></ul>
+      </div>
+    );
+  }
+
+  if (type === "i18n-panel") {
+    return (
+      <div className={`live-semantic-card i18n ${variantClass}`}>
+        <div><span>LTR</span><span>RTL</span><span>中文</span></div>
+        <strong>{selected.title}</strong>
+        <p>长文本、方向、日期、数字与货币格式需要随地区切换。</p>
+      </div>
+    );
+  }
+
+  if (type === "ai-panel") {
+    return (
+      <div className={`live-semantic-card ai ${variantClass}`}>
+        <div className="semantic-prompt"><Sparkles size={18} /><span>生成组件说明</span></div>
+        <strong>{selected.title}</strong>
+        <p>展示输入、生成中、引用来源与低置信度反馈。</p>
+      </div>
+    );
+  }
+
+  if (type === "security-panel") {
+    return (
+      <div className={`live-semantic-card security ${variantClass}`}>
+        <UserRound size={24} />
+        <strong>{selected.title}</strong>
+        <div><b>权限</b><span>已验证</span></div>
+        <p>授权、拒绝、过期与危险操作要清楚分层。</p>
+      </div>
+    );
+  }
+
+  if (type === "settings-panel") {
+    return (
+      <div className={`live-semantic-card settings ${variantClass}`}>
+        <strong>{selected.title}</strong>
+        {["通知", "权限", "外观"].map((row, index) => <label key={row}><span>{row}</span><i className={index === 0 ? "on" : ""} /></label>)}
+      </div>
+    );
+  }
+
+  if (type === "support-panel") {
+    return (
+      <div className={`live-semantic-card support ${variantClass}`}>
+        <BookOpen size={22} />
+        <strong>{selected.title}</strong>
+        <p>{selected.summary}</p>
+        <button type="button">查看文档</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`live-semantic-card metric ${variantClass}`}>
+      <span>{selected.secondLevelName}</span>
+      <strong>82%</strong>
+      <p>{selected.title}</p>
+      <div className="semantic-sparkline"><i /><i /><i /><i /></div>
+    </div>
+  );
+}
+
 function ComponentLivePreview({ selected, term, variant = "" }) {
   const id = selected.id;
+  const previewType = selected.preview;
   const variantIndex = getVariantIndex(selected, variant);
   const variantClass = getVariantPreviewClass(variant, variantIndex);
   const isDangerVariant = variantHas(variant, ["错误", "危险", "删除", "失败"]);
@@ -4047,6 +6257,18 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   const hasIconVariant = variantHas(variant, ["图标", "搜索", "建议", "命令"]);
   const hasClearVariant = variantHas(variant, ["清除"]);
   const hasRecommendationVariant = variantHas(variant, ["建议", "推荐"]);
+
+  if (semanticPreviewTypes.has(previewType)) {
+    return <SemanticComponentPreview selected={selected} variantClass={variantClass} />;
+  }
+
+  if (previewType.startsWith("layout-")) {
+    return <LayoutLivePreview selected={selected} variant={variant} />;
+  }
+
+  if (previewType !== id && componentTemplatePreviewTypes.has(previewType)) {
+    return <ComponentLivePreview selected={{ ...selected, id: previewType }} term={term} variant={variant} />;
+  }
 
   if (id === "button") {
     return (
@@ -4058,7 +6280,7 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
-  if (["text-field", "textarea", "search", "password-field", "autocomplete"].includes(id)) {
+  if (["text-field", "text", "textarea", "search", "password-field", "autocomplete"].includes(id)) {
     return (
       <div className={`live-card live-form-card ${variantClass}`}>
         <label>{selected.title}</label>
@@ -4167,7 +6389,7 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
-  if (id === "empty-state") {
+  if (["empty-state", "empty"].includes(id)) {
     return (
       <div className={`live-empty-card ${variantClass}`}>
         <CircleHelp size={34} />
@@ -4968,6 +7190,7 @@ function PreviewContext({ selected, deviceMode = "desktop" }) {
     : [];
   const rows = [
     ...mobileRows,
+    ["组成结构", selected.anatomy || []],
     ["常见状态", selected.states],
     ["常见用途", selected.useCases],
     ["相关条目", selected.related.map((id) => findItem(id).title)],
@@ -5009,16 +7232,20 @@ function SegmentedControl({ label, value, options, onChange }) {
 
 function InfoGrid({ selected }) {
   const blocks = [
+    ["文档层级", [selected.moduleLabel, selected.secondLevelLabel]],
+    ["组成结构", selected.anatomy || []],
+    ["交互规则", selected.interaction || []],
     ["常见用途", selected.useCases],
     ["常见变体", selected.variants],
     ["状态", selected.states],
+    ["完整性校验", selected.qualityChecklist || []],
     ["不要这样用", selected.dont],
     ["无障碍提醒", selected.accessibility],
   ].filter(([, values]) => values.length > 0);
 
   return (
     <div className="info-grid">
-      {blocks.slice(0, 5).map(([label, values]) => (
+      {blocks.map(([label, values]) => (
         <div key={label}>
           <h3>{label}</h3>
           <ul>
@@ -5103,6 +7330,406 @@ function ExploreSection({ activeSection, onSection, onChoose }) {
   );
 }
 
+function SemanticMiniPreview({ type, className }) {
+  if (type === "text-body-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-text body-text">
+          <b />
+          <i />
+          <i />
+          <em />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "heading-hierarchy-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-heading hierarchy">
+          <b>H1</b>
+          <i />
+          <em>H2</em>
+          <i />
+          <small>H3</small>
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "subtitle-support-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-subtitle support-copy">
+          <b />
+          <i />
+          <i />
+          <em />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "paragraph-reading-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-paragraph reading">
+          <b />
+          <i />
+          <i />
+          <i />
+          <em />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "caption-annotation-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-caption annotation">
+          <b />
+          <i />
+          <em />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "helper-text-field-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-helper field-help">
+          <b />
+          <i />
+          <em />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "description-summary-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-description summary">
+          <b>D</b>
+          <i />
+          <i />
+          <em />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "label-binding-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-label binding">
+          <b />
+          <i />
+          <em />
+          <i />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "required-mark-indicator-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-required indicator">
+          <b />
+          <em>*</em>
+          <i />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "optional-mark-indicator-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-optional indicator">
+          <b />
+          <em>可选</em>
+          <i />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "link-navigation-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-link navigation">
+          <b />
+          <i />
+          <em>↗</em>
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "external-link-disclosure-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-external-link disclosure">
+          <b />
+          <em>↗</em>
+          <i />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "icon-semantics-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-icon semantics">
+          <b />
+          <i />
+          <em />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "decorative-icon-hidden-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-decorative-icon hidden">
+          <b />
+          <i />
+          <em />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "status-icon-state-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-status-icon state">
+          <b />
+          <i />
+          <em />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "status-dot-presence-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-status-dot presence">
+          <b />
+          <i />
+          <em />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "status-badge-feedback-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-status-badge feedback">
+          <b>已通过</b>
+          <i>待确认</i>
+          <em>失败</em>
+          <strong>同步中</strong>
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "tag-taxonomy-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-tag taxonomy">
+          <b>表单</b>
+          <i>动效</i>
+          <em>可访问性</em>
+          <strong>归档</strong>
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "chip-token-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-chip token">
+          <b><span>林</span>林青</b>
+          <i>负责人</i>
+          <em>API</em>
+          <strong>访客</strong>
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "close-button-dismiss-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-close-button dismiss">
+          <b><i /></b>
+          <em />
+          <strong />
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "more-button-overflow-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-more-button overflow">
+          <b><i /></b>
+          <em />
+          <strong />
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "help-button-guidance-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-help-button guidance">
+          <b><i /></b>
+          <em>?</em>
+          <strong />
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "info-button-facts-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-info-button facts">
+          <b><i /></b>
+          <em>i</em>
+          <strong />
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "copy-button-clipboard-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-copy-button clipboard">
+          <b><i /></b>
+          <em />
+          <strong>Copy</strong>
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "share-button-distribution-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-share-button distribution">
+          <b><i /></b>
+          <em />
+          <strong />
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "favorite-button-collection-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-favorite-button collection">
+          <b />
+          <em />
+          <strong />
+          <span />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "brand-icon-identity-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-brand-icon identity">
+          <b>K</b>
+          <i />
+          <em />
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "badge-label-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-badge label">
+          <b>New</b>
+          <i />
+          <em>Pro</em>
+          <strong />
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "count-badge-counter-preview") {
+    return (
+      <span className={className}>
+        <span className="mini-audited-count-badge counter">
+          <b />
+          <em>12</em>
+          <i />
+          <strong>99+</strong>
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span className={className}>
+      <span className={`mini-semantic ${type}`}>
+        {type === "chart-panel" ? <><i /><i /><i /><i /></> : null}
+        {type === "typography-block" ? <><b /><i /><i /></> : null}
+        {type === "icon-signal" ? <><b>✓</b><b>!</b><b>↕</b></> : null}
+        {type === "structure-block" ? <><b /><i /><i /><b /></> : null}
+        {type === "editor-panel" ? <><b>B</b><b>I</b><i /><i /></> : null}
+        {type === "map-panel" ? <><i /><i /><b /><i /></> : null}
+        {type === "a11y-panel" ? <><b>⌘</b><i /><i /></> : null}
+        {type === "i18n-panel" ? <><b>LTR</b><b>RTL</b><i /></> : null}
+        {type === "ai-panel" ? <><b>AI</b><i /><i /></> : null}
+        {type === "security-panel" ? <><b>●</b><i /><i /></> : null}
+        {type === "settings-panel" ? <><i /><b /><i /></> : null}
+        {type === "support-panel" ? <><b>?</b><i /><i /></> : null}
+        {type === "metric-panel" ? <><b>82</b><i /><i /></> : null}
+      </span>
+    </span>
+  );
+}
+
 function MiniPreview({ type, large = false }) {
   const className = `mini-preview preview-${type} ${large ? "large" : ""}`;
 
@@ -5110,6 +7737,7 @@ function MiniPreview({ type, large = false }) {
   if (type.includes("style")) return <StylePreview type={type} large={large} />;
   if (type.includes("motion")) return <MotionPreview type={type} large={large} />;
   if (type.includes("pattern")) return <PatternPreview type={type} large={large} />;
+  if (semanticPreviewTypes.has(type)) return <SemanticMiniPreview type={type} className={className} />;
 
   switch (type) {
     case "button":

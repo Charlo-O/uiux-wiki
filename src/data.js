@@ -1,3 +1,5 @@
+import { expandedIndexRows } from "./expanded-index.generated.js";
+
 export const sections = [
   { id: "components", label: "组件" },
   { id: "layouts", label: "布局" },
@@ -5,6 +7,11 @@ export const sections = [
   { id: "motion", label: "动效" },
   { id: "patterns", label: "场景" },
   { id: "dictionary", label: "词典" },
+  { id: "states", label: "状态字段" },
+  { id: "mobile-components", label: "移动端组件" },
+  { id: "react-components", label: "React 组件" },
+  { id: "accessibility", label: "可访问性" },
+  { id: "internationalization", label: "国际化" },
 ];
 
 const commonNotes = {
@@ -23,6 +30,9 @@ function item(data) {
     do: commonNotes.do,
     dont: commonNotes.dont,
     accessibility: commonNotes.accessibility,
+    anatomy: [],
+    interaction: [],
+    qualityChecklist: [],
     related: [],
     preview: "generic",
     comparison: null,
@@ -1968,7 +1978,1160 @@ const additionalItems = [
   }),
 ];
 
-export const uiItems = [...coreItems, ...additionalItems];
+const sectionLabelById = Object.fromEntries(sections.map((section) => [section.id, section.label]));
+
+const categoryDetails = {
+  components: {
+    type: "组件",
+    useCases: ["组件命名", "界面检索", "规范对齐"],
+    variants: ["基础形态", "紧凑形态", "复杂场景"],
+    states: ["默认", "悬停", "聚焦", "禁用"],
+    related: ["button", "card", "form"],
+  },
+  layouts: {
+    type: "布局",
+    useCases: ["页面骨架", "响应式改版", "信息组织"],
+    variants: ["桌面布局", "移动适配", "密集内容"],
+    states: ["默认", "窄屏", "宽屏"],
+    related: ["single-column", "dashboard", "card-grid"],
+  },
+  styles: {
+    type: "样式",
+    useCases: ["视觉规范", "设计 Token", "品牌统一"],
+    variants: ["默认风格", "强调风格", "高对比风格"],
+    states: ["默认", "强调", "禁用"],
+    related: ["color", "typography", "spacing"],
+  },
+  motion: {
+    type: "动效",
+    useCases: ["状态反馈", "页面过渡", "注意力引导"],
+    variants: ["轻量动效", "强调动效", "减少动效"],
+    states: ["进入", "运行中", "结束"],
+    related: ["hover-motion", "loading-motion", "reduced-motion"],
+  },
+  patterns: {
+    type: "场景",
+    useCases: ["流程设计", "需求拆解", "交互评审"],
+    variants: ["桌面流程", "移动流程", "异常流程"],
+    states: ["开始", "进行中", "完成", "失败"],
+    related: ["form-fill-pattern", "search-pattern", "settings-pattern"],
+  },
+  dictionary: {
+    type: "词典",
+    useCases: ["术语统一", "团队沟通", "需求命名"],
+    variants: ["中文名", "英文名", "别名"],
+    states: ["可检索", "可关联", "可解释"],
+    related: ["button", "modal", "toast"],
+  },
+  states: {
+    type: "状态字段",
+    useCases: ["状态命名", "交互验收", "边界场景整理"],
+    variants: ["交互状态", "数据状态", "系统状态"],
+    states: ["存在", "变化中", "结束"],
+    related: ["badge", "alert", "empty-state"],
+  },
+  "mobile-components": {
+    type: "移动端组件",
+    useCases: ["移动端设计", "触控交互", "小屏适配"],
+    variants: ["iOS 风格", "Android 风格", "WebView 场景"],
+    states: ["默认", "触摸", "禁用"],
+    related: ["bottom-navigation", "drawer", "toast"],
+  },
+  "react-components": {
+    type: "React 组件",
+    useCases: ["页面拆分", "组件命名", "实现对齐"],
+    variants: ["页面组件", "容器组件", "工具组件"],
+    states: ["挂载", "加载", "空状态", "错误"],
+    related: ["card", "form", "preview-modal"],
+  },
+  accessibility: {
+    type: "可访问性条目",
+    useCases: ["无障碍检查", "键盘访问", "读屏支持"],
+    variants: ["基础要求", "测试要求", "修复提示"],
+    states: ["可访问", "需修复", "已验证"],
+    related: ["tooltip", "form", "alert"],
+  },
+  internationalization: {
+    type: "国际化条目",
+    useCases: ["多语言适配", "本地化检查", "区域合规"],
+    variants: ["语言", "地区", "格式化"],
+    states: ["已翻译", "缺失翻译", "需本地化"],
+    related: ["text-field", "date-picker", "table"],
+  },
+};
+
+function normalizeTerm(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function stripOrdinal(value) {
+  return String(value || "").replace(/^\d+\.\s*/, "").trim();
+}
+
+function labelName(value) {
+  return stripOrdinal(value).split(/\s+\/\s+/)[0].trim();
+}
+
+function labelEnglish(value) {
+  const parts = stripOrdinal(value).split(/\s+\/\s+/);
+  return (parts[1] || parts[0] || "").trim();
+}
+
+function slugPart(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function labelId(value) {
+  return slugPart(labelEnglish(value) || labelName(value));
+}
+
+function hasAny(value, keywords) {
+  return keywords.some((keyword) => value.includes(keyword));
+}
+
+function uniqueList(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function buildDocModules(rows) {
+  const moduleMap = new Map();
+  rows.forEach(([category, moduleLabel, groupLabel]) => {
+    const moduleId = labelId(moduleLabel);
+    if (!moduleMap.has(moduleId)) {
+      moduleMap.set(moduleId, {
+        id: moduleId,
+        label: stripOrdinal(moduleLabel),
+        name: labelName(moduleLabel),
+        categories: new Set(),
+        groups: new Map(),
+        count: 0,
+      });
+    }
+
+    const module = moduleMap.get(moduleId);
+    const groupId = `${moduleId}-${labelId(groupLabel)}`;
+    module.categories.add(category);
+    module.count += 1;
+    if (!module.groups.has(groupId)) {
+      module.groups.set(groupId, {
+        id: groupId,
+        label: stripOrdinal(groupLabel),
+        name: labelName(groupLabel),
+        category,
+        count: 0,
+      });
+    }
+    module.groups.get(groupId).count += 1;
+  });
+
+  return [...moduleMap.values()].map((module) => ({
+    ...module,
+    categories: [...module.categories],
+    groups: [...module.groups.values()],
+  }));
+}
+
+export const docModules = buildDocModules(expandedIndexRows);
+
+const groupDetailRules = [
+  [["primitives", "基础元素"], ["基础元素", "语义元素", "状态标记"], ["默认", "聚焦", "禁用"], ["设计系统基础", "命名对齐", "组件拆解"]],
+  [["actions", "buttons", "操作", "按钮"], ["主次层级", "危险操作", "批量操作"], ["默认", "悬停", "按下", "加载中", "禁用"], ["动作触发", "表单提交", "工具栏操作"]],
+  [["text inputs", "文本输入"], ["单行输入", "格式化输入", "带辅助信息输入"], ["默认", "聚焦", "已填写", "错误", "只读", "禁用"], ["表单填写", "搜索录入", "账号信息"]],
+  [["selection", "选择控件"], ["单选", "多选", "范围选择"], ["默认", "选中", "半选", "打开", "禁用"], ["筛选条件", "设置偏好", "表单选择"]],
+  [["forms", "validation", "表单"], ["字段结构", "校验反馈", "提交区域"], ["默认", "校验中", "成功", "错误", "禁用"], ["资料填写", "支付表单", "设置表单"]],
+  [["navigation", "导航"], ["全局导航", "局部导航", "当前位置"], ["默认", "当前", "悬停", "访问过", "禁用"], ["页面切换", "层级定位", "移动端入口"]],
+  [["menus", "commands", "菜单", "命令"], ["操作菜单", "命令搜索", "快捷键"], ["关闭", "打开", "高亮", "选中", "禁用"], ["更多操作", "命令面板", "上下文操作"]],
+  [["overlays", "弹层", "覆盖"], ["阻塞弹层", "轻量浮层", "焦点管理"], ["关闭", "打开", "进入", "退出", "焦点锁定"], ["确认任务", "详情查看", "临时选择"]],
+  [["feedback", "status", "反馈", "状态展示"], ["消息反馈", "结果状态", "风险提示"], ["信息", "成功", "警告", "错误", "离线"], ["操作结果", "系统提示", "异常恢复"]],
+  [["loading", "placeholders", "加载", "占位"], ["进度反馈", "骨架占位", "页面加载"], ["待加载", "加载中", "已加载", "失败"], ["异步请求", "内容占位", "上传下载"]],
+  [["data display", "数据展示"], ["信息卡片", "元数据", "时间线"], ["默认", "选中", "空", "加载", "错误"], ["资料展示", "列表摘要", "状态说明"]],
+  [["tables", "data grids", "表格"], ["列结构", "行操作", "数据密度"], ["未排序", "升序", "降序", "已筛选", "行选中"], ["数据对比", "后台管理", "批量处理"]],
+  [["lists", "trees", "collections", "列表", "树"], ["列表项", "树节点", "集合操作"], ["默认", "展开", "折叠", "选中", "拖拽中"], ["内容浏览", "层级选择", "集合管理"]],
+  [["data visualization", "可视化"], ["图表结构", "指标展示", "图例说明"], ["默认", "悬停", "选中", "空数据", "加载"], ["趋势分析", "报表看板", "指标解读"]],
+  [["files", "uploads", "文件"], ["选择文件", "上传进度", "文件状态"], ["待上传", "上传中", "上传成功", "上传失败"], ["附件管理", "媒体上传", "导入导出"]],
+  [["media", "images", "媒体", "图像"], ["播放器", "图片处理", "设备媒体"], ["播放", "暂停", "缓冲", "全屏", "静音"], ["视频播放", "图片预览", "音频录制"]],
+  [["editors", "creation", "编辑"], ["编辑器", "格式工具", "创作状态"], ["编辑中", "预览中", "已保存", "有未保存更改"], ["内容创作", "富文本编辑", "代码编辑"]],
+  [["chat", "comments", "social", "聊天", "评论", "社交"], ["消息结构", "评论反馈", "社交关系"], ["未读", "已读", "发送中", "已发送", "已点赞"], ["聊天会话", "内容评论", "社交互动"]],
+  [["commerce", "交易", "电商"], ["商品信息", "支付流程", "订单状态"], ["有商品", "待支付", "支付中", "已发货", "已退款"], ["商品购买", "结算支付", "订单管理"]],
+  [["account", "access", "security", "账户", "权限", "安全"], ["身份入口", "权限控制", "安全提示"], ["未登录", "已登录", "未授权", "已验证", "已锁定"], ["登录注册", "权限管理", "安全校验"]],
+  [["ai interaction", "ai"], ["输入生成", "引用状态", "模型控制"], ["生成中", "流式输出中", "工具调用中", "低置信度"], ["AI 对话", "生成反馈", "模型配置"]],
+  [["settings", "preferences", "配置", "偏好"], ["偏好开关", "配置项", "系统选项"], ["默认", "已修改", "已保存", "已重置"], ["设置中心", "个性化配置", "系统偏好"]],
+  [["map", "location", "spatial", "地图", "位置"], ["地图视图", "位置输入", "空间标记"], ["定位中", "已定位", "不可用", "已选择"], ["地址选择", "空间定位", "地图导航"]],
+  [["help", "docs", "support", "帮助", "文档"], ["文档结构", "帮助入口", "支持反馈"], ["默认", "展开", "已解决", "待回复"], ["帮助中心", "文档浏览", "问题反馈"]],
+  [["accessibility components", "可访问性组件"], ["辅助语义", "键盘操作", "读屏支持"], ["可访问", "需修复", "已验证"], ["无障碍改造", "键盘测试", "读屏校验"]],
+  [["app-level", "应用级"], ["应用外壳", "布局容器", "Provider"], ["加载", "鉴权中", "错误", "可用"], ["应用搭建", "全局状态", "框架集成"]],
+  [["page structure", "页面结构"], ["页面头部", "内容区", "页脚"], ["默认", "滚动", "响应式"], ["页面搭建", "内容组织", "信息层级"]],
+  [["grid", "column", "网格", "列"], ["列宽", "间距", "断点"], ["默认", "窄屏", "宽屏"], ["响应式网格", "卡片排列", "多列排版"]],
+  [["flex", "spatial", "空间"], ["对齐", "分布", "堆叠"], ["默认", "换行", "压缩"], ["工具栏排布", "表单排版", "移动适配"]],
+  [["panels", "split", "面板"], ["分割区域", "可调整面板", "辅助栏"], ["默认", "展开", "收起", "调整中"], ["编辑器", "后台工具", "主从详情"]],
+  [["flow", "business", "流程", "业务"], ["步骤流程", "业务确认", "任务推进"], ["开始", "进行中", "完成", "失败"], ["注册流程", "结算流程", "导入流程"]],
+  [["data", "board", "看板"], ["指标区", "表格区", "趋势区"], ["加载", "空数据", "异常", "已更新"], ["数据看板", "运营后台", "任务面板"]],
+  [["design tokens", "token"], ["Token 名称", "变量映射", "语义层级"], ["默认", "覆盖", "继承"], ["设计 Token", "主题系统", "样式同步"]],
+  [["color", "色彩"], ["调色板", "语义色", "对比度"], ["默认", "强调", "危险", "禁用"], ["视觉层级", "状态表达", "品牌识别"]],
+  [["typography", "字体", "文本"], ["字号", "字重", "行高"], ["默认", "强调", "截断"], ["阅读体验", "信息层级", "多语言排版"]],
+  [["space", "size", "density", "空间", "尺寸", "密度"], ["间距", "尺寸", "密度"], ["紧凑", "默认", "宽松"], ["布局节奏", "触控尺寸", "数据密度"]],
+  [["shape", "border", "elevation", "形状", "边框", "层级"], ["圆角", "边框", "阴影"], ["默认", "悬浮", "选中"], ["卡片层级", "输入边界", "浮层表达"]],
+  [["state styles", "状态样式"], ["交互态", "禁用态", "错误态"], ["默认", "悬停", "聚焦", "错误"], ["组件状态", "表单反馈", "可访问提示"]],
+  [["icon", "illustration", "brand", "图标", "插画", "品牌"], ["图标风格", "插画风格", "品牌语气"], ["默认", "强调", "装饰"], ["品牌一致性", "空状态插画", "导航图标"]],
+  [["basic feedback motion", "基础反馈"], ["悬停反馈", "点击反馈", "结果反馈"], ["触发", "响应中", "完成"], ["按钮反馈", "表单提交", "状态变化"]],
+  [["visibility", "transition", "显示", "转场"], ["淡入淡出", "滑入滑出", "缩放"], ["进入", "显示", "退出"], ["内容切换", "页面过渡", "浮层出现"]],
+  [["overlay", "navigation motion", "弹层", "导航动效"], ["弹层进入", "页面层级", "导航方向"], ["进入", "停留", "返回"], ["抽屉", "弹窗", "页面跳转"]],
+  [["loading", "data motion", "加载", "数据动效"], ["等待反馈", "进度变化", "列表变化"], ["等待", "加载中", "完成"], ["加载占位", "数据刷新", "上传下载"]],
+  [["drag", "gesture", "mobile motion", "拖拽", "手势"], ["拖拽跟随", "释放反馈", "手势切换"], ["拖动中", "可放置", "回弹"], ["移动端手势", "排序拖拽", "卡片滑动"]],
+];
+
+function groupDetailsFor(category, groupLabel) {
+  const base = categoryDetails[category] || categoryDetails.components;
+  const haystack = `${stripOrdinal(groupLabel)} ${labelEnglish(groupLabel)}`.toLowerCase();
+  const matched = groupDetailRules.find(([keywords]) =>
+    keywords.some((keyword) => haystack.includes(String(keyword).toLowerCase())),
+  );
+
+  if (!matched) return base;
+
+  const [, variants, states, useCases] = matched;
+  return {
+    ...base,
+    variants,
+    states,
+    useCases,
+  };
+}
+
+function generatedDetailFor(category, groupLabel, title, english, preview) {
+  const moduleType = categoryDetails[category]?.type || "UI 条目";
+  const groupName = labelName(groupLabel);
+  const englishName = labelEnglish(groupLabel);
+  const baseContext = englishName && englishName !== groupName ? `${groupName} / ${englishName}` : groupName;
+  const previewName = preview.replace(/-/g, " ");
+  const anatomy = [
+    `${title} 的主视觉或主控件区域`,
+    `${baseContext} 的语义标签与辅助说明`,
+    "状态、反馈、禁用或异常提示位",
+  ];
+  const interaction = [
+    "默认、悬停、聚焦、按下和禁用状态需要可区分",
+    "键盘焦点、读屏名称和可点击热区必须随状态同步",
+    "异步或危险操作需要显示等待、成功、失败与撤销/确认反馈",
+  ];
+  const qualityChecklist = [
+    `${english} 不应只停留在命名，预览必须表现 ${previewName} 的结构`,
+    "预览卡片、详情弹窗和搜索结果中的名称、分类、状态保持一致",
+    "在桌面与移动端都不能出现文本溢出、遮挡或空白预览",
+  ];
+
+  if (category === "layouts") {
+    return {
+      anatomy: [`${title} 的页面骨架`, "主内容区、辅助区和导航区", "响应式断点下的堆叠顺序"],
+      interaction: ["滚动、固定区和可调整面板不应互相遮挡", "窄屏时优先保留主任务与返回路径", "加载、空状态和错误状态要占据同一布局槽位"],
+      qualityChecklist: ["布局预览必须看出区域关系", "桌面和移动端均无横向溢出", "信息密度与所属页面场景匹配"],
+    };
+  }
+
+  if (category === "styles") {
+    return {
+      anatomy: [`${title} 的 token 或视觉规则`, "默认值、强调值和禁用值", "组件示例与对比示例"],
+      interaction: ["状态样式要覆盖 hover、focus、active、disabled", "颜色、字号、间距变化不能破坏可读性", "深浅背景下都需要保持足够对比"],
+      qualityChecklist: ["样式预览必须显示前后/强弱差异", "不能只出现文字说明而没有可见样式", "状态字段和设计 token 命名一致"],
+    };
+  }
+
+  if (category === "motion") {
+    return {
+      anatomy: [`${title} 的触发对象`, "起始、运行、结束三个阶段", "减弱动效或静态替代方案"],
+      interaction: ["动效必须由真实状态变化触发", "持续时间、方向和缓动要服务信息层级", "减少动态效果时仍能理解状态"],
+      qualityChecklist: ["预览中能看出动效目标和反馈结果", "危险/错误状态不依赖动效单独表达", "移动端不造成滚动或点击干扰"],
+    };
+  }
+
+  if (category === "patterns") {
+    return {
+      anatomy: [`${title} 的流程入口`, "关键输入、确认动作和结果反馈", "异常、取消和恢复路径"],
+      interaction: ["每一步都要有清晰下一步", "错误路径必须可恢复", "移动端需要减少层级和输入成本"],
+      qualityChecklist: ["场景预览必须呈现流程，不只是单个控件", "成功/失败/空状态都能被用户理解", "主行动作和危险动作层级清楚"],
+    };
+  }
+
+  if (["accessibility", "internationalization"].includes(category)) {
+    return {
+      anatomy: [`${title} 的用户可感知内容`, "程序化名称、说明和语言/方向信息", "测试或回退提示"],
+      interaction: ["键盘、读屏和缩放场景都应可用", "语言、方向、数字和日期格式随地区切换", "错误提示不能只靠颜色或位置"],
+      qualityChecklist: ["详情必须说明可访问性或国际化约束", "预览中能看出适配点", "RTL/LTR、长文本或读屏说明不遮挡主体"],
+    };
+  }
+
+  return { anatomy, interaction, qualityChecklist: qualityChecklist.map((item) => `${moduleType}：${item}`) };
+}
+
+function componentPreviewFor(title, english, groupLabel = "") {
+  const value = `${title} ${english} ${groupLabel}`.toLowerCase();
+  if (hasAny(value, ["chart", "graph", "plot", "heatmap", "gauge", "radar", "sankey", "sparkline", "funnel", "waterfall", "candlestick", "metric explanation", "threshold", "annotation"])) return "chart-panel";
+  if (hasAny(value, ["data board", "dashboard", "zoom control", "data point", "reference line", "reference area"])) return "chart-panel";
+  if (hasAny(value, ["editor", "wysiwyg", "markdown", "json", "canvas", "whiteboard", "inline edit", "diff", "version history", "undo redo", "publish", "word count"])) return "editor-panel";
+  if (hasAny(value, ["map", "route", "geofence", "coordinate", "locator", "delivery area", "service area", "place card", "store card"])) return "map-panel";
+  if (hasAny(value, ["screen reader", "aria", "accessible", "accessibility", "focus ring", "focus trap", "skip target", "landmark", "semantic heading", "touch target", "color blind", "live region", "announced status"])) return "a11y-panel";
+  if (hasAny(value, ["rtl", "ltr", "translation", "pluralization", "locale", "regional", "multilingual"])) return "i18n-panel";
+  if (hasAny(value, ["prompt", "citation", "source card", "generated result", "streaming", "tool call", "regenerate", "confidence", "grounding"])) return "ai-panel";
+  if (hasAny(value, ["login panel", "signup panel", "permission", "auth", "mfa", "quota", "usage meter", "connected account", "authorized apps", "session", "danger zone", "security", "privacy"])) return "security-panel";
+  if (hasAny(value, ["settings", "preferences", "configuration", "column settings", "import settings", "export settings"])) return "settings-panel";
+  if (hasAny(value, ["help", "docs", "faq", "coachmark", "support", "ticket", "bug report", "feature request", "status page", "announcement", "glossary"])) return "support-panel";
+  if (hasAny(value, ["stat card", "metric card", "kpi", "summary card", "status card", "result card", "data card", "user card", "team card", "event card", "metadata", "path display", "money display", "countdown", "counter", "delta", "trend", "audit log", "changelog", "data summary"])) return "metric-panel";
+  if (hasAny(value, ["offline state", "not found state", "maintenance state", "rate limit state", "permission denied state"])) return "error-state";
+  if (hasAny(value, ["kanban"])) return "layout-dashboard";
+  if (hasAny(value, ["card"])) return "card";
+  if (hasAny(value, ["heading", "subtitle", "paragraph", "caption", "helper text", "description", "label", "required mark", "optional mark", "text"])) return "typography-block";
+  if (hasAny(value, ["icon", "status dot", "drag handle", "resize handle", "keyboard key"])) return "icon-signal";
+  if (hasAny(value, ["divider", "spacer", "container", "section", "panel", "surface", "card header", "card content", "card footer", "legend", "blockquote", "overlay", "portal"])) return "structure-block";
+  const matchers = [
+    [["password"], "password-field"],
+    [["textarea", "multi line", "long text"], "textarea"],
+    [["search"], "search"],
+    [["autocomplete", "combobox", "suggest"], "autocomplete"],
+    [["input", "field", "email", "phone", "url", "username", "pin", "otp", "code"], "text"],
+    [["button", "cta", "action", "submit", "save", "delete", "download", "upload", "share", "copy"], "button"],
+    [["icon button", "close button", "more button"], "icon-button"],
+    [["link"], "link"],
+    [["menu", "command palette", "shortcut"], "menu"],
+    [["dropdown", "select", "picker", "selector"], "select"],
+    [["checkbox"], "checkbox"],
+    [["radio"], "radio"],
+    [["switch", "toggle"], "switch"],
+    [["slider", "range"], "slider"],
+    [["date", "calendar", "time"], "calendar"],
+    [["upload", "file", "dropzone"], "file-upload"],
+    [["table"], "table"],
+    [["grid"], "data-grid"],
+    [["badge", "chip"], "badge"],
+    [["tag"], "tag"],
+    [["tooltip"], "tooltip"],
+    [["accordion", "collapse"], "accordion"],
+    [["skeleton", "placeholder"], "skeleton"],
+    [["empty", "no results"], "empty"],
+    [["progress"], "progress"],
+    [["spinner", "loader", "loading"], "spinner"],
+    [["drawer", "sheet"], "drawer"],
+    [["toolbar"], "toolbar"],
+    [["navigation", "navbar", "app bar", "top"], "top-navigation"],
+    [["sidebar", "rail"], "sidebar"],
+    [["breadcrumb"], "breadcrumb"],
+    [["pagination", "page number"], "pagination"],
+    [["stepper", "steps"], "stepper"],
+    [["bottom navigation", "tab bar"], "bottom-navigation"],
+    [["back", "previous"], "back-button"],
+    [["list", "tree", "feed"], "list"],
+    [["avatar", "profile"], "avatar"],
+    [["popover", "popup", "hover card"], "popover"],
+    [["modal", "dialog", "lightbox"], "modal"],
+    [["toast", "snackbar"], "toast"],
+    [["alert", "warning", "error notice", "risk"], "alert"],
+    [["confirmation"], "confirmation"],
+    [["success"], "success-state"],
+    [["error", "failed", "failure"], "error-state"],
+    [["notification", "banner"], "notification"],
+    [["form", "fieldset", "validation", "captcha"], "form"],
+    [["filter"], "filter-panel"],
+    [["sort"], "sort-control"],
+    [["carousel", "swiper"], "carousel"],
+    [["timeline", "activity"], "timeline"],
+    [["media", "video", "audio", "player", "recorder"], "media-player"],
+    [["chat", "message"], "chat-bubble"],
+    [["comment"], "comment-box"],
+    [["rating", "review", "star"], "rating"],
+    [["cart", "checkout", "payment", "order", "product", "price", "commerce"], "shopping-cart"],
+  ];
+  return matchers.find(([keywords]) => hasAny(value, keywords))?.[1] || "generic";
+}
+
+function layoutPreviewFor(title, english, groupLabel = "") {
+  const value = `${title} ${english} ${groupLabel}`.toLowerCase();
+  if (hasAny(value, ["single", "article", "reading"])) return "layout-single";
+  if (hasAny(value, ["two", "detail"])) return "layout-two";
+  if (hasAny(value, ["sidebar", "side"])) return "layout-sidebar";
+  if (hasAny(value, ["dashboard", "board", "kanban"])) return "layout-dashboard";
+  if (hasAny(value, ["grid", "gallery", "card"])) return "layout-grid";
+  if (hasAny(value, ["feed", "timeline"])) return "layout-feed";
+  if (hasAny(value, ["master"])) return "layout-master";
+  if (hasAny(value, ["settings"])) return "layout-settings";
+  if (hasAny(value, ["checkout", "commerce"])) return "layout-checkout";
+  if (hasAny(value, ["three"])) return "layout-three";
+  if (hasAny(value, ["sticky header"])) return "layout-sticky-header";
+  if (hasAny(value, ["sticky sidebar"])) return "layout-sticky-sidebar";
+  if (hasAny(value, ["masonry"])) return "layout-masonry";
+  if (hasAny(value, ["split", "pane", "panel"])) return "layout-split";
+  if (hasAny(value, ["wizard", "step"])) return "layout-wizard";
+  if (hasAny(value, ["modal", "fullscreen"])) return "layout-fullscreen-modal";
+  if (hasAny(value, ["landing"])) return "layout-landing";
+  if (hasAny(value, ["profile"])) return "layout-profile";
+  if (hasAny(value, ["search"])) return "layout-search-results";
+  return "layout-grid";
+}
+
+function previewFor(category, title, english, groupLabel) {
+  const value = `${title} ${english} ${groupLabel}`.toLowerCase();
+  if (category === "layouts") return layoutPreviewFor(title, english, groupLabel);
+  if (category === "styles") {
+    if (hasAny(value, ["radius", "corner", "shape"])) return "style-radius";
+    if (hasAny(value, ["shadow", "elevation"])) return "style-shadow";
+    if (hasAny(value, ["spacing", "space", "size"])) return "style-spacing";
+    if (hasAny(value, ["type", "font", "text"])) return "style-type";
+    if (hasAny(value, ["color", "contrast", "palette"])) return "style-color";
+    if (hasAny(value, ["density"])) return "style-density";
+    if (hasAny(value, ["dark"])) return "style-dark";
+    if (hasAny(value, ["border"])) return "style-border";
+    if (hasAny(value, ["gradient"])) return "style-gradient";
+    if (hasAny(value, ["transparent", "opacity"])) return "style-transparency";
+    if (hasAny(value, ["icon", "illustration", "brand"])) return "style-icons";
+    if (hasAny(value, ["divider"])) return "style-divider";
+    if (hasAny(value, ["emphasis", "highlight", "state"])) return "style-emphasis";
+    if (hasAny(value, ["brand"])) return "style-brand";
+    return "style-theme";
+  }
+  if (category === "motion") {
+    if (hasAny(value, ["hover"])) return "motion-hover";
+    if (hasAny(value, ["press", "tap", "feedback"])) return "motion-press";
+    if (hasAny(value, ["loading", "skeleton", "spinner", "data"])) return "motion-loading";
+    if (hasAny(value, ["success"])) return "motion-success";
+    if (hasAny(value, ["error", "shake"])) return "motion-error";
+    if (hasAny(value, ["expand", "collapse"])) return "motion-expand";
+    if (hasAny(value, ["reduced"])) return "motion-reduced";
+    if (hasAny(value, ["fade", "visibility"])) return "motion-fade";
+    if (hasAny(value, ["slide", "overlay", "navigation"])) return "motion-slide";
+    if (hasAny(value, ["page"])) return "motion-page";
+    if (hasAny(value, ["attention"])) return "motion-attention";
+    if (hasAny(value, ["spatial"])) return "motion-spatial";
+    if (hasAny(value, ["list"])) return "motion-list";
+    if (hasAny(value, ["drag", "gesture", "swipe", "mobile"])) return "motion-drag";
+    return "motion-hover";
+  }
+  if (category === "patterns") {
+    if (hasAny(value, ["login", "auth", "signin"])) return "pattern-login";
+    if (hasAny(value, ["signup", "register"])) return "pattern-signup";
+    if (hasAny(value, ["search", "browse"])) return "pattern-search";
+    if (hasAny(value, ["filter"])) return "pattern-filter";
+    if (hasAny(value, ["upload", "file"])) return "pattern-upload";
+    if (hasAny(value, ["checkout", "payment", "commerce"])) return "pattern-checkout";
+    if (hasAny(value, ["delete", "remove"])) return "pattern-delete";
+    if (hasAny(value, ["sort"])) return "pattern-sort";
+    if (hasAny(value, ["onboarding", "guide", "tour", "education", "support"])) return "pattern-onboarding";
+    if (hasAny(value, ["settings"])) return "pattern-settings";
+    if (hasAny(value, ["error", "failure", "edge", "system"])) return "pattern-error";
+    return "pattern-form";
+  }
+  if (category === "states") {
+    if (hasAny(value, ["success", "complete", "approved", "sent", "saved"])) return "success-state";
+    if (hasAny(value, ["error", "failed", "failure", "denied", "forbidden"])) return "error-state";
+    if (hasAny(value, ["loading", "pending", "processing", "syncing"])) return "skeleton";
+    if (hasAny(value, ["empty", "no "])) return "empty";
+    return "badge";
+  }
+  if (category === "accessibility" || category === "internationalization") return "tooltip";
+  if (category === "react-components") return componentPreviewFor(title, english, groupLabel) === "generic" ? "card" : componentPreviewFor(title, english, groupLabel);
+  return componentPreviewFor(title, english, groupLabel);
+}
+
+function canonicalRelated(preview, category) {
+  const byPreview = {
+    text: "text-field",
+    calendar: "calendar",
+    empty: "empty-state",
+    "layout-grid": "card-grid",
+    "style-theme": "theme",
+    "motion-hover": "hover-motion",
+    "pattern-form": "form-fill-pattern",
+    generic: "button",
+  };
+  const details = categoryDetails[category] || categoryDetails.components;
+  return [byPreview[preview] || preview, ...details.related].filter(Boolean).slice(0, 4);
+}
+
+const baseItems = [...coreItems, ...additionalItems];
+const curatedByKey = new Map();
+baseItems.forEach((entry) => {
+  [`${entry.category}|${normalizeTerm(entry.title)}`, `${entry.category}|${normalizeTerm(entry.english)}`].forEach((key) => {
+    if (!curatedByKey.has(key)) curatedByKey.set(key, entry);
+  });
+});
+
+const usedItemIds = new Set();
+
+function findCuratedItem(category, title, english) {
+  return curatedByKey.get(`${category}|${normalizeTerm(english)}`) || curatedByKey.get(`${category}|${normalizeTerm(title)}`) || null;
+}
+
+function expandedItemId(category, group, english, index, preferredId) {
+  const base = preferredId || [category, group, english].map(slugPart).filter(Boolean).join("-") || `expanded-${index + 1}`;
+  let id = base;
+  let suffix = 2;
+  while (usedItemIds.has(id)) {
+    id = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  usedItemIds.add(id);
+  return id;
+}
+
+function expandedRowToItem([category, moduleLabel, rawGroup, title, english], index) {
+  const curated = findCuratedItem(category, title, english);
+  const details = groupDetailsFor(category, rawGroup);
+  const group = labelName(rawGroup);
+  const preview = previewFor(category, title, english, rawGroup);
+  const moduleId = labelId(moduleLabel);
+  const secondLevelId = `${moduleId}-${labelId(rawGroup)}`;
+  const moduleName = labelName(moduleLabel);
+  const secondLevelLabel = stripOrdinal(rawGroup);
+  const secondLevelName = labelName(rawGroup);
+  const detail = generatedDetailFor(category, rawGroup, title, english, preview);
+  const generatedPlain = `来自文档「${stripOrdinal(moduleLabel)} / ${secondLevelLabel}」。${title} / ${english} 需要同时覆盖命名、结构、状态、交互反馈、可访问性与移动端展示，不只是一个索引名字。`;
+
+  return item({
+    ...curated,
+    id: expandedItemId(category, group, english, index, curated?.id),
+    title,
+    english,
+    category,
+    moduleId,
+    moduleLabel: stripOrdinal(moduleLabel),
+    moduleName,
+    secondLevelId,
+    secondLevelLabel,
+    secondLevelName,
+    group,
+    summary: curated?.summary || `${title} 属于「${secondLevelLabel}」中的${details.type}条目，预览与详情按该二级分类补齐。`,
+    plain: curated?.plain || generatedPlain,
+    aliases: uniqueList([english, ...(curated?.aliases || [])]),
+    tags: uniqueList([moduleName, secondLevelName, english, ...(curated?.tags || [])]),
+    variants: curated?.variants?.length ? curated.variants : details.variants,
+    states: curated?.states?.length ? curated.states : details.states,
+    useCases: curated?.useCases?.length ? curated.useCases : details.useCases,
+    anatomy: curated?.anatomy?.length ? curated.anatomy : detail.anatomy,
+    interaction: curated?.interaction?.length ? curated.interaction : detail.interaction,
+    qualityChecklist: curated?.qualityChecklist?.length ? curated.qualityChecklist : detail.qualityChecklist,
+    related: curated?.related?.length ? curated.related : canonicalRelated(preview, category),
+    preview: curated?.preview || preview,
+    isGenerated: !curated,
+  });
+}
+
+const manualAuditOverrides = {
+  "components-text": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 1,
+    auditSource: "docs/ui-item-name-index-expanded.md:10",
+    preview: "text-body-preview",
+    summary: "正文文本是界面里承载可阅读内容的基础排版单元，重点不是装饰，而是稳定的字号、行高、对比度、换行和截断规则。",
+    plain: "Text 应该让用户顺畅读完一句话、一段说明或一组列表描述。它需要清楚地区分正文、强调、辅助和截断场景，并在选中、聚焦、只读、禁用语境下保持可读。",
+    aliases: ["Text", "Body Text", "正文", "普通文本", "内容文本"],
+    tags: ["组件", "基础元素", "排版", "正文", "可读性", "文本状态"],
+    variants: ["正文文本", "强调文本", "辅助文本", "单行截断文本", "多行省略文本"],
+    states: ["默认", "悬停可选", "键盘聚焦", "选中文本", "只读", "禁用语境"],
+    useCases: ["文章正文", "卡片描述", "列表说明", "表单帮助说明", "空状态说明"],
+    anatomy: ["文本内容区：承载真实句子，不用灰条替代", "排版规格：字号、字重、行高、最大行宽和换行策略", "状态层：选中高亮、截断提示、只读/禁用语境的弱化规则", "语义关系：与 Heading、Label、Caption 的层级边界"],
+    interaction: ["正文默认不触发主操作，若可点击必须改用 Link 或 Button 语义", "可选择文本要保留浏览器选区，不用不可访问的假高亮覆盖", "单行截断要有 title、tooltip 或详情入口，不能吞掉关键信息", "键盘聚焦只出现在可交互文本或可复制区域，普通正文不抢焦点"],
+    qualityChecklist: ["移动端正文不小于 16px 或具备等效可读性", "正文行高稳定在 1.45 到 1.65，长文本行宽控制在 45 到 75ch", "辅助文本与正文的对比仍满足 WCAG AA", "强调态只改变必要权重或颜色，不把正文做成按钮", "截断、换行、复制、选中态都有可见反馈"],
+    do: ["用正文文本承载说明、描述和阅读型内容", "为长文本设置合理行宽和换行策略", "用语义层级区分 Heading、Label、Caption 和 Text"],
+    dont: ["不要把普通正文做成可点击按钮样式", "不要用浅灰小字承载关键信息", "不要在没有补充入口时直接截断关键内容"],
+    accessibility: ["正文与背景对比至少满足 WCAG AA", "允许用户缩放、选择和复制正文", "不要只靠颜色表达强调或错误含义"],
+    related: ["components-heading", "components-paragraph", "components-label", "link"],
+  },
+  "components-heading": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 2,
+    auditSource: "docs/ui-item-name-index-expanded.md:11",
+    preview: "heading-hierarchy-preview",
+    summary: "标题用于建立页面或区域的信息层级，让用户快速判断当前内容是什么、属于哪一层、下一段该看哪里。",
+    plain: "Heading 不是把字放大。它需要同时承担语义层级、视觉权重、扫描路径和可访问导航。页面标题、区块标题、卡片标题和弹窗标题要有不同的尺寸与语义边界。",
+    aliases: ["Heading", "Title", "H1", "H2", "Section Title", "页面标题", "区块标题"],
+    tags: ["组件", "基础元素", "排版", "标题层级", "信息架构", "可扫描性"],
+    variants: ["页面标题", "区块标题", "卡片标题", "弹窗标题", "带锚点标题", "带说明标题"],
+    states: ["默认", "悬停显示锚点", "键盘聚焦锚点", "长标题换行", "截断标题", "加载占位"],
+    useCases: ["页面主标题", "设置分组标题", "文章章节标题", "数据卡片标题", "弹窗任务标题"],
+    anatomy: ["语义级别：H1 到 H6 或等效 aria-level 只表达结构，不拿来单纯调大小", "视觉级别：字号、字重、行高、上下间距共同形成扫描路径", "辅助关系：副标题、说明文本、徽标或锚点不能抢走主标题权重", "边界空间：标题与上一个区块、下一个内容区的间距必须有明确规则"],
+    interaction: ["普通标题本身不应可点击；需要跳转时使用标题旁的 Link 或锚点按钮", "锚点只在 hover/focus 时显现，键盘聚焦必须有可见焦点环", "长标题优先换行并保持行高，只有卡片等受限空间才截断", "读屏顺序必须与视觉层级一致，不能为了样式跳过标题级别"],
+    qualityChecklist: ["一个页面通常只有一个 H1，后续标题按层级递进", "标题行高比正文更紧，但不能压到中文上下笔画", "移动端长标题换行后不遮挡下方内容", "标题与副标题的尺寸/颜色/权重能一眼区分", "锚点、复制链接或折叠入口不能伪装成标题正文"],
+    do: ["用标题组织页面结构和阅读节奏", "让标题级别与页面信息架构一致", "为可定位章节提供清晰但不喧宾夺主的锚点"],
+    dont: ["不要只靠放大正文来冒充标题", "不要跳过标题级别造成读屏结构混乱", "不要把可点击行为藏在整个标题文字上"],
+    accessibility: ["标题层级应按 DOM/ARIA 顺序递进", "锚点按钮必须有可见焦点和可读名称", "标题文本与背景至少满足大字号 3:1，对关键标题按 4.5:1 处理"],
+    related: ["components-text", "components-subtitle", "components-caption", "link"],
+  },
+  "components-subtitle": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 3,
+    auditSource: "docs/ui-item-name-index-expanded.md:12",
+    preview: "subtitle-support-preview",
+    summary: "副标题用于补充主标题的语境、范围或价值说明，帮助用户在进入正文前理解这一屏或这一块内容。",
+    plain: "Subtitle 位于 Heading 附近，但不承担主层级。它要比正文更靠近标题，比 Caption 更醒目，用来解释标题没有说完的背景、限制、时间范围或下一步期待。",
+    aliases: ["Subtitle", "Subheading", "Lead", "Deck", "副标题", "导语", "标题说明"],
+    tags: ["组件", "基础元素", "排版", "副标题", "导语", "信息层级"],
+    variants: ["页面副标题", "区块副标题", "卡片副标题", "数据副标题", "营销导语", "带状态副标题"],
+    states: ["默认", "弱化", "强调", "长文换行", "加载占位", "空内容缺省"],
+    useCases: ["页面标题下的说明", "数据面板时间范围", "卡片标题补充", "搜索结果说明", "空状态引导语"],
+    anatomy: ["主标题关系：副标题必须绑定一个 Heading 或等效标题对象", "说明文本：承载范围、背景、限制或用户收益", "视觉权重：低于标题，高于普通辅助说明", "换行边界：长副标题允许 2 到 3 行，不能把首屏挤空"],
+    interaction: ["副标题默认不可点击；若包含跳转，需要把可点击片段拆成 Link", "副标题变化通常跟随筛选、时间范围或数据状态更新", "加载状态应用骨架或短占位，不要让标题与正文距离跳动", "错误或空状态下，副标题要说明原因或下一步，而不是只重复标题"],
+    qualityChecklist: ["副标题不能和标题同字号同权重", "与标题之间的间距小于与正文之间的间距", "移动端长副标题换行后仍保留主标题可见", "副标题里的链接有独立焦点，不把整句变成按钮", "空、加载、筛选变化时文案不产生布局跳动"],
+    do: ["用副标题解释标题的范围和上下文", "让副标题贴近它所属的标题", "在数据和筛选场景中显示时间范围或结果范围"],
+    dont: ["不要用副标题承载主操作", "不要把副标题写得和正文一样长", "不要让副标题与 Caption、Helper Text 的层级混在一起"],
+    accessibility: ["副标题应在 DOM 中紧邻它解释的标题", "若副标题包含链接，可点击片段必须有独立可见焦点", "副标题颜色不能低到影响关键信息阅读"],
+    related: ["components-heading", "components-text", "components-caption", "components-description"],
+  },
+  "components-paragraph": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 4,
+    auditSource: "docs/ui-item-name-index-expanded.md:13",
+    preview: "paragraph-reading-preview",
+    summary: "段落用于承载连续阅读内容，重点是行长、行高、段间距、换行和阅读节奏，而不是单独一句 UI 文案。",
+    plain: "Paragraph 比 Text 更强调长内容的可读性。它通常由多句正文组成，需要控制最大行宽、段落间距、首行/段间风格、选中复制和移动端重排，避免读起来拥挤或像散乱列表。",
+    aliases: ["Paragraph", "Body Paragraph", "正文段落", "长文段落", "内容段落"],
+    tags: ["组件", "基础元素", "排版", "段落", "长文本", "阅读体验"],
+    variants: ["普通段落", "文章段落", "说明段落", "法律条款段落", "紧凑段落", "带链接段落"],
+    states: ["默认", "选中文本", "长文换行", "加载骨架", "空段落缺省", "折叠预览"],
+    useCases: ["帮助文档正文", "文章内容", "产品说明", "协议条款", "详情页描述"],
+    anatomy: ["段落文本：由多句连续内容组成，不是单行标签", "行长规则：正文最大宽度通常控制在 45 到 75ch", "段落节奏：段间距或首行缩进二选一，不能混用", "内容状态：长文折叠、加载骨架、空内容说明和选中文本反馈"],
+    interaction: ["段落默认只负责阅读和选择，不承担按钮动作", "段落内链接必须保持 Link 语义和独立焦点", "长段落可折叠，但展开入口要明确且不遮挡内容", "复制、选中和浏览器缩放不能被自定义样式破坏"],
+    qualityChecklist: ["正文段落行高稳定在 1.5 左右，移动端不小于 16px", "段落宽度不过长，桌面大屏也不铺满整行", "段间距使用统一节奏，不靠随意 margin 拼接", "法律或协议段落不能低对比小字堆叠", "加载和折叠状态不会造成布局跳动"],
+    do: ["用段落承载连续阅读内容", "限制行宽并保持稳定行高", "为长内容提供折叠、继续阅读或目录入口"],
+    dont: ["不要把段落排成一整屏超长单行", "不要用段落替代列表、表格或标签", "不要让浅灰小字号承载关键条款"],
+    accessibility: ["段落应允许缩放、选择和复制", "段落内链接必须可键盘访问并有清晰焦点", "长文对比度和行高要满足持续阅读需求"],
+    related: ["components-text", "components-heading", "components-subtitle", "components-description"],
+  },
+  "components-caption": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 5,
+    auditSource: "docs/ui-item-name-index-expanded.md:14",
+    preview: "caption-annotation-preview",
+    summary: "说明文本用于解释图片、图表、表格、字段或内容片段的来源、限制和补充信息，必须贴近它所说明的对象。",
+    plain: "Caption 通常比正文更小、更安静，但不能低到不可读。它的关键不是弱化，而是把补充信息准确绑定到对象上，例如图片图注、表格说明、图表来源、字段补充或版权说明。",
+    aliases: ["Caption", "Figure Caption", "Table Caption", "图注", "表注", "说明文本"],
+    tags: ["组件", "基础元素", "排版", "说明文本", "图注", "表注", "辅助说明"],
+    variants: ["图片说明", "表格说明", "图表来源", "字段补充", "版权说明", "错误旁注"],
+    states: ["默认", "弱化", "带来源链接", "长说明换行", "缺失说明", "错误说明"],
+    useCases: ["图片下方图注", "表格标题说明", "图表数据来源", "表单字段补充", "媒体版权标注"],
+    anatomy: ["被说明对象：图片、表格、图表或字段必须和 Caption 形成清楚关系", "说明文本：来源、限制、时间范围、单位或版权信息", "位置规则：通常紧贴对象下方或标题附近，不能漂到无关区域", "语义连接：必要时用 aria-describedby 或 figcaption 建立关系"],
+    interaction: ["Caption 默认不可点击；来源或帮助入口应使用独立 Link", "长说明允许换行，不应用极小字号强行塞进一行", "错误说明要和错误字段或对象明确绑定", "图表来源更新时 Caption 应同步更新，避免数据口径过期"],
+    qualityChecklist: ["Caption 字号可以小，但移动端仍需可读，不承载关键主信息", "Caption 与对象的距离小于与下一块内容的距离", "来源链接有独立焦点和足够点击面积", "弱化颜色仍满足可读对比", "图注/表注/字段说明不要混用同一位置规则"],
+    do: ["把 Caption 放在它解释的对象旁边", "说明来源、单位、时间范围或限制", "用语义关系连接对象与说明文本"],
+    dont: ["不要用 Caption 承载必须立即看到的主结论", "不要让 Caption 远离它解释的对象", "不要用过浅小字隐藏重要限制"],
+    accessibility: ["图片图注优先使用 figure/figcaption 结构", "字段说明可用 aria-describedby 关联", "Caption 对比度和字号要支持移动端阅读"],
+    related: ["components-text", "components-paragraph", "components-description", "components-helper-text"],
+  },
+  "components-helper-text": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 6,
+    auditSource: "docs/ui-item-name-index-expanded.md:15",
+    preview: "helper-text-field-preview",
+    summary: "辅助文本用于解释输入字段的规则、限制、错误原因或成功反馈，必须和对应字段建立明确关系。",
+    plain: "Helper Text 通常出现在输入框、选择器或表单控件下方。它不是普通说明文案，而是字段级反馈：告诉用户怎么填、为什么错、还剩多少字、当前是否通过校验，并通过 aria-describedby 让读屏也能关联到字段。",
+    aliases: ["Helper Text", "Help Text", "Field Hint", "辅助说明", "字段帮助", "表单提示"],
+    tags: ["组件", "基础元素", "表单", "辅助文本", "字段说明", "校验反馈"],
+    variants: ["中性帮助", "错误帮助", "成功帮助", "字数提示", "格式规则", "只读说明"],
+    states: ["默认", "聚焦显示", "输入中", "错误", "成功", "禁用字段"],
+    useCases: ["邮箱格式提示", "密码规则", "字数限制", "必填原因", "错误修复建议"],
+    anatomy: ["字段控件：Helper Text 必须归属一个输入框、选择器或可编辑字段", "说明文本：规则、限制、错误原因、成功反馈或剩余字数", "状态图标/色彩：错误、成功、警告不能只靠颜色表达", "语义连接：通过 aria-describedby 或等效机制把帮助文本关联到字段"],
+    interaction: ["字段聚焦时帮助文本可增强显示，但不能突然推开下方布局", "错误状态要在校验后出现，并说明如何修复", "成功状态只用于用户真的完成有效输入时，不能过早打勾", "字数提示要随输入同步，但不应抢走输入焦点"],
+    qualityChecklist: ["Helper Text 位于字段下方或紧邻字段，不能漂到无关区域", "错误/成功/中性帮助在颜色、图标和文案上都可区分", "移动端帮助文本不小于可读尺寸，长提示允许换行", "字段必须能通过 aria-describedby 读到帮助说明", "禁用字段的说明要解释不可编辑原因，而不是只变灰"],
+    do: ["把辅助文本绑定到对应字段", "用明确文案说明规则或修复方式", "错误、成功和字数提示各自设计状态"],
+    dont: ["不要把 Helper Text 当作页面段落使用", "不要只写“格式错误”而不告诉用户怎么改", "不要让帮助文本在输入时造成布局大幅跳动"],
+    accessibility: ["使用 aria-describedby 关联字段和帮助文本", "错误说明要能被读屏读取并配合 aria-invalid", "不要只靠红色或绿色表达校验结果"],
+    related: ["text-field", "components-label", "components-caption", "components-description"],
+  },
+  "components-description": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 7,
+    auditSource: "docs/ui-item-name-index-expanded.md:16",
+    preview: "description-summary-preview",
+    summary: "描述文本用于概括一个对象、页面、卡片或功能的含义，让用户在进入详情前快速判断它是否相关。",
+    plain: "Description 不是正文段落，也不是字段帮助。它通常跟随标题、对象名或卡片出现，用一到两句解释对象是什么、有什么状态、为什么值得继续看，并在内容过长时提供截断、展开或详情入口。",
+    aliases: ["Description", "Summary", "Object Description", "描述文本", "摘要说明", "对象描述"],
+    tags: ["组件", "基础元素", "排版", "描述文本", "摘要", "内容概览"],
+    variants: ["卡片描述", "页面描述", "对象摘要", "搜索结果描述", "空描述", "可展开描述"],
+    states: ["默认", "截断", "展开", "加载中", "空内容", "过期描述"],
+    useCases: ["组件卡片说明", "产品摘要", "搜索结果片段", "设置项说明", "资料页简介"],
+    anatomy: ["被描述对象：标题、对象名、卡片或页面区域", "摘要正文：一到两句解释用途、状态或价值", "补充元信息：更新时间、范围、标签或来源", "展开入口：长描述需要明确的更多入口，而不是直接吞掉内容"],
+    interaction: ["描述文本默认不触发操作；可展开时入口要是独立按钮", "截断描述要保留关键信息并提供查看完整内容的方式", "加载中的描述使用骨架占位，避免卡片高度突然变化", "空描述要说明没有内容或引导补充，而不是只留空白"],
+    qualityChecklist: ["描述文本比标题弱，但比 Caption/Helper Text 更像内容摘要", "卡片描述通常限制 2 到 3 行，移动端也不能遮挡操作区", "展开按钮具备可见焦点和足够点击面积", "搜索结果描述要保留命中上下文，不把关键词截掉", "空描述、加载描述和过期描述都有明确状态"],
+    do: ["用描述文本解释对象是什么和为什么相关", "长描述提供截断和展开规则", "把描述放在对应标题或对象附近"],
+    dont: ["不要用描述文本承载字段校验规则", "不要把描述写成长篇正文", "不要在卡片里让描述挤掉主要操作"],
+    accessibility: ["可展开描述的按钮要有清晰名称和焦点", "截断内容应有完整内容入口", "描述与对象的 DOM 顺序应保持紧邻"],
+    related: ["components-heading", "components-subtitle", "components-paragraph", "components-helper-text"],
+  },
+  "components-label": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 8,
+    auditSource: "docs/ui-item-name-index-expanded.md:17",
+    preview: "label-binding-preview",
+    summary: "标签文本用于命名字段、控件或对象，让用户知道当前输入、选择或信息块代表什么。",
+    plain: "Label 的核心是绑定关系。表单字段 Label 应该通过 htmlFor/id 或等效机制连接控件；列表、图表、设置项中的标签也要和被命名对象保持视觉邻近和语义清晰。它不是 Caption，也不是 Helper Text。",
+    aliases: ["Label", "Field Label", "Control Label", "标签文本", "字段标签", "控件名称"],
+    tags: ["组件", "基础元素", "表单", "标签文本", "字段名称", "可访问性"],
+    variants: ["字段标签", "内联标签", "顶部标签", "左侧标签", "图表标签", "设置项标签"],
+    states: ["默认", "聚焦字段", "必填组合", "可选组合", "错误字段", "禁用字段"],
+    useCases: ["表单输入标签", "筛选项名称", "设置项名称", "图表轴标签", "属性字段名"],
+    anatomy: ["标签文本：用简短名词说明字段或对象", "绑定目标：输入框、选择器、开关、图表项或数据字段", "辅助标记：必填/可选/错误标记应作为附加元素，不替代 Label", "布局位置：顶部、左侧或内联位置必须和控件形成稳定对齐"],
+    interaction: ["点击字段 Label 应聚焦对应控件", "字段聚焦时 Label 可增强显示，但不应像按钮一样浮夸", "禁用字段的 Label 需要同步弱化但保持可读", "错误状态下 Label、边框和 Helper Text 要共同指向同一字段"],
+    qualityChecklist: ["表单 Label 必须可见，不能只依赖 placeholder", "Label 与控件之间距离小于与其他字段的距离", "长 Label 在移动端可换行，不挤压输入区", "必填星号、可选说明和错误提示不能和 Label 含义混淆", "点击 Label 能聚焦对应控件或至少语义关联明确"],
+    do: ["用 Label 命名字段或控件", "把 Label 贴近并绑定到对应目标", "把必填、可选、错误作为 Label 的附属状态处理"],
+    dont: ["不要用 placeholder 替代 Label", "不要让 Label 远离它命名的控件", "不要把 Helper Text 或 Caption 写成 Label"],
+    accessibility: ["表单字段应使用 label/htmlFor 或 aria-labelledby", "Label 文案要简短明确，读屏可理解", "错误状态下 Label、aria-invalid 和帮助文本应指向同一字段"],
+    related: ["text-field", "components-helper-text", "components-required-mark", "components-optional-mark"],
+  },
+  "components-required-mark": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 9,
+    auditSource: "docs/ui-item-name-index-expanded.md:18",
+    preview: "required-mark-indicator-preview",
+    summary: "必填标记用于提示某个字段必须填写；它只能辅助 Label 和字段语义，不能单独替代表单校验。",
+    plain: "Required Mark 通常是星号、必填文字或状态徽标，放在字段 Label 旁边。它的职责是提前说明填写要求，同时要和 required、aria-required、错误提示和提交校验保持一致，不能只靠红色星号让用户猜。",
+    aliases: ["Required Mark", "Required Indicator", "必填星号", "必填标记", "Required Asterisk"],
+    tags: ["组件", "基础元素", "表单", "必填", "字段状态", "可访问性"],
+    variants: ["星号标记", "文字标记", "徽标标记", "行内必填", "分组必填", "移动端必填"],
+    states: ["默认", "字段聚焦", "未填写错误", "已填写通过", "禁用字段", "批量必填"],
+    useCases: ["注册表单", "收货地址", "支付信息", "实名认证", "问卷必答题"],
+    anatomy: ["Label：必填标记必须依附在字段标签旁", "视觉标记：星号、必填徽标或文字说明", "字段语义：input/select/textarea 需要 required 或 aria-required", "错误联动：未填写时和 Helper Text、aria-invalid 同步"],
+    interaction: ["点击 Label 仍应聚焦字段，必填标记本身不抢焦点", "提交后未填写时显示错误说明，不只让星号变红", "字段填完后可显示通过或移除错误，但必填语义仍保留", "禁用字段如果仍显示必填，需要解释为什么不可填"],
+    qualityChecklist: ["必填标记与 Label 间距紧凑，不漂到输入框右侧", "不能只靠颜色表达必填，至少有文字、符号或语义补充", "required/aria-required 与视觉标记一致", "错误状态包含修复建议和 aria-invalid", "移动端必填标记不遮挡 Label 或输入区域"],
+    do: ["把必填标记贴在字段 Label 上", "同时设置 required 或 aria-required", "未填写时给出明确错误说明"],
+    dont: ["不要只画红星却没有字段语义", "不要让必填标记替代 Label", "不要在禁用字段上显示无法完成的必填要求"],
+    accessibility: ["必填状态应能被读屏感知", "错误状态配合 aria-invalid 与 aria-describedby", "不要只靠红色区分必填和可选"],
+    related: ["components-label", "components-helper-text", "components-optional-mark", "text-field"],
+  },
+  "components-optional-mark": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 10,
+    auditSource: "docs/ui-item-name-index-expanded.md:19",
+    preview: "optional-mark-indicator-preview",
+    summary: "可选标记用于说明某个字段可以跳过；它应降低填写压力，而不是让用户误以为字段仍会被强制校验。",
+    plain: "Optional Mark 通常以“可选”“稍后填写”或补充说明出现在字段 Label 旁边。它的职责是说明不填写也能继续，同时保持字段与 Label、Helper Text 的关系清楚。可选字段不应设置 required，也不应用弱到看不清的灰字把关键信息藏起来。",
+    aliases: ["Optional Mark", "Optional Indicator", "Optional Badge", "可选标记", "可跳过标记"],
+    tags: ["组件", "基础元素", "表单", "可选", "字段状态", "可访问性"],
+    variants: ["文字可选", "胶囊徽标", "稍后填写", "分组可选", "低优先级字段", "移动端可选"],
+    states: ["默认", "字段聚焦", "已跳过", "已填写", "禁用字段", "可选说明展开"],
+    useCases: ["公司名称", "邀请码", "备用电话", "个人简介", "发票抬头"],
+    anatomy: ["Label：可选标记必须附着在字段标签旁", "可选标记：文字、徽标或跳过说明，用于表达不强制填写", "字段语义：input/select/textarea 不应设置 required，aria-required 不能为 true", "辅助说明：解释填写收益或跳过后果，而不是只写灰色小字"],
+    interaction: ["点击 Label 仍应聚焦字段，可选标记本身不抢焦点", "用户跳过时不显示错误，只保留可继续状态", "字段填写后可显示增强收益，但不能把可选变成强制", "移动端可选说明可换行，不能挤掉输入框"],
+    qualityChecklist: ["可选标记与 Label 间距紧凑，并和必填标记视觉区分明显", "字段不能设置 required 或 aria-required=true", "可选说明要说明不填写是否影响流程", "弱化颜色仍需满足可读性，不能只靠浅灰表达", "移动端长 Label 和可选徽标不遮挡输入区"],
+    do: ["把可选说明贴近字段 Label", "明确说明不填写也能继续", "用 Helper Text 补充填写收益"],
+    dont: ["不要给可选字段设置 required", "不要每个字段都标可选造成噪音", "不要用过浅颜色让可选说明不可读"],
+    accessibility: ["可选状态应通过可读文字表达", "字段不应暴露 required 语义", "辅助说明可通过 aria-describedby 关联字段"],
+    related: ["components-label", "components-required-mark", "components-helper-text", "text-field"],
+  },
+  link: {
+    auditStatus: "manual-reviewed",
+    auditOrder: 11,
+    auditSource: "docs/ui-item-name-index-expanded.md:20",
+    preview: "link-navigation-preview",
+    summary: "链接用于跳转到另一个页面、区域或资源；它必须表现为可识别的 anchor，而不是伪装成按钮的普通文本。",
+    plain: "Link 的核心是目的地和可导航性。可点击文本应使用清楚的链接文案和 href，支持鼠标、键盘和读屏识别；访问过、聚焦、悬停、禁用等状态需要可区分。真正触发操作的控件应使用 Button，链接只承担导航。",
+    aliases: ["Link", "Anchor", "Text Link", "Navigation Link", "链接", "锚链接"],
+    tags: ["组件", "基础元素", "导航", "链接", "anchor", "可访问性"],
+    variants: ["正文链接", "导航链接", "返回链接", "锚点链接", "访问过链接", "禁用链接"],
+    states: ["默认", "悬停", "聚焦可见", "访问过", "按下", "禁用"],
+    useCases: ["帮助中心入口", "详情页跳转", "返回上一层", "锚点目录", "资源下载入口"],
+    anatomy: ["链接文本：说明目的地，避免只写“点击这里”", "href 目标：页面、锚点或资源地址", "视觉提示：下划线、箭头、颜色或上下文应能识别为链接", "状态层：hover、focus-visible、visited、disabled 需要明确区分"],
+    interaction: ["点击或按 Enter 跳转到 href 指向的位置", "键盘 Tab 应能聚焦链接并显示焦点环", "访问过状态可以弱化但仍需可读", "禁用链接不应保留可跳转 href，也不能像可点击链接一样响应"],
+    qualityChecklist: ["链接使用 anchor/href，不用 button 假装导航", "链接文案能独立说明目的地", "焦点态清晰且触控高度不小于 40px", "禁用链接有 aria-disabled 或等效说明且不会跳转", "正文、导航、返回和访问过状态视觉上有差异"],
+    do: ["用明确文案说明链接目的地", "为可导航链接提供 href", "给键盘焦点和访问过状态单独设计"],
+    dont: ["不要用链接触发提交、删除等原地操作", "不要只写“点击这里”", "不要让禁用链接仍然可跳转"],
+    accessibility: ["anchor 文案应可被读屏独立理解", "focus-visible 状态必须清楚", "外部链接、下载或新窗口应另行说明"],
+    related: ["components-external-link", "breadcrumb", "link-button", "button"],
+  },
+  "components-external-link": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 12,
+    auditSource: "docs/ui-item-name-index-expanded.md:21",
+    preview: "external-link-disclosure-preview",
+    summary: "外部链接用于跳转到当前产品之外的网站或资源；它必须明确提示用户将离开当前上下文。",
+    plain: "External Link 是 Link 的外部目标版本。它仍然是 anchor/href，但需要通过外链图标、域名提示、新窗口说明或辅助文本告诉用户将打开第三方站点。若使用 target=\"_blank\"，必须配合 rel=\"noreferrer\" 或 noopener，避免安全和隐私问题。",
+    aliases: ["External Link", "Outbound Link", "External Anchor", "外部链接", "站外链接", "出站链接"],
+    tags: ["组件", "基础元素", "导航", "外部链接", "新窗口", "安全", "可访问性"],
+    variants: ["正文外链", "带域名外链", "新窗口外链", "下载外链", "合作方外链", "禁用外链"],
+    states: ["默认", "悬停", "聚焦可见", "新窗口提示", "安全提示", "禁用"],
+    useCases: ["打开第三方文档", "跳转合作方控制台", "查看外部资源", "下载外站文件", "打开隐私政策"],
+    anatomy: ["链接文本：说明外部目的地，不能只写“官网”", "外链图标：视觉上提示将离开当前站点", "目标属性：外部新窗口需要 target=\"_blank\" 与 rel=\"noreferrer\"", "补充提示：域名、新窗口或第三方说明需要可见或可被读屏读取"],
+    interaction: ["点击或按 Enter 打开外部 href", "新窗口外链要在文案、图标或 aria-label 中说明", "键盘焦点需要清楚可见且不被外链图标打断", "禁用外链不应保留 href，也不应打开第三方站点"],
+    qualityChecklist: ["外部链接使用 anchor/href，不用 button 假装跳转", "target=\"_blank\" 时同时设置 rel=\"noreferrer\" 或 noopener", "外链图标不替代文本说明，读屏能知道会打开外部资源", "触控高度不小于 40px，移动端域名提示不挤压链接", "外部、普通、禁用和安全提示状态视觉上可区分"],
+    do: ["用外链图标或文案提示站外跳转", "给新窗口外链补齐 rel 安全属性", "在必要时显示域名或第三方名称"],
+    dont: ["不要悄悄把用户带离当前产品", "不要只放图标没有链接文本", "不要让禁用外链仍然带 href"],
+    accessibility: ["aria-label 或可见文本应说明外部资源/新窗口", "外链图标若只作装饰应 aria-hidden", "焦点态必须覆盖文本和图标整体"],
+    related: ["link", "components-icon", "components-help-button", "button"],
+  },
+  "components-icon": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 13,
+    auditSource: "docs/ui-item-name-index-expanded.md:22",
+    preview: "icon-semantics-preview",
+    summary: "图标用于以紧凑视觉符号表达对象、动作或状态；它必须有清楚的名称、尺寸规则和可访问性语义，而不是随意摆放的装饰符号。",
+    plain: "Icon 是基础视觉元素，不等同于 Icon Button。图标可以作为文本旁的辅助符号、状态提示或品牌/功能识别，但它本身通常不处理点击。需要被读屏理解的图标要有可访问名称或相邻文本；纯装饰图标应隐藏给辅助技术；放进按钮或链接时，交互语义由外层控件承担。",
+    aliases: ["Icon", "Glyph", "Symbol", "图标", "符号图标", "功能图标"],
+    tags: ["组件", "基础元素", "图标", "语义", "状态", "可访问性", "视觉系统"],
+    variants: ["线性图标", "填充图标", "功能图标", "状态图标", "文本前缀图标", "仅视觉装饰图标"],
+    states: ["默认", "强调", "弱化", "状态提示", "禁用继承", "装饰隐藏"],
+    useCases: ["搜索入口提示", "状态成功/失败标识", "菜单项前缀", "表单帮助提示", "空状态视觉符号", "品牌或文件类型识别"],
+    anatomy: ["图标形体：来自统一图标库，遵守网格、描边和端点规则", "尺寸令牌：常用 16/20/24px，不能随容器任意拉伸", "颜色语义：默认继承文本色，状态图标使用成功/警告/错误色并配合文本", "可访问语义：语义图标需要可读名称，装饰图标需要 aria-hidden"],
+    interaction: ["图标自身通常不可点击；需要点击时应放入 Button、Link 或其他有语义的控件", "鼠标悬停不能只靠图标变色表达关键信息，应有文本、tooltip 或上下文", "状态图标应与状态文本同步变化，不能只换颜色", "键盘焦点应落在外层控件上，而不是裸 SVG 上"],
+    qualityChecklist: ["图标来自统一库或资产，不混用不同线宽和圆角风格", "图标尺寸、描边、颜色使用设计 token 或明确规则", "语义图标有 aria-label、role=img 或相邻可读文本", "装饰图标设置 aria-hidden=true，避免读屏重复朗读", "图标按钮另按 Icon Button 处理，不把裸 Icon 当按钮使用", "移动端图标与文字间距稳定，不挤压文本"],
+    do: ["为功能或状态图标提供可读文本或 aria-label", "让图标颜色跟随语义，而不是随机点缀", "把可点击图标包进真正的 button/link"],
+    dont: ["不要只用图标传达关键业务状态", "不要把 SVG 直接当可点击控件", "不要混用不同图标库导致线宽和视觉风格跳变"],
+    accessibility: ["装饰图标使用 aria-hidden=true", "语义图标用 role=img、aria-label 或相邻文本提供名称", "图标按钮的可访问名称应放在外层按钮上"],
+    related: ["components-decorative-icon", "components-status-icon", "components-brand-icon", "icon-button"],
+  },
+  "components-decorative-icon": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 14,
+    auditSource: "docs/ui-item-name-index-expanded.md:23",
+    preview: "decorative-icon-hidden-preview",
+    summary: "装饰图标只负责视觉节奏、氛围或品牌感；移除它以后，页面信息、状态和操作仍然必须完整可理解。",
+    plain: "Decorative Icon 是没有业务语义的图标。它可以让标题、卡片、空状态或分组更有层次，但不能替代文本、状态说明或可点击控件。合格的装饰图标应对辅助技术隐藏，通常设置 aria-hidden=\"true\" 与 focusable=\"false\"；如果图标传达成功、错误、警告、外链或按钮含义，就不再是 Decorative Icon。",
+    aliases: ["Decorative Icon", "Ornamental Icon", "Presentational Icon", "装饰图标", "无语义图标", "表现性图标"],
+    tags: ["组件", "基础元素", "图标", "装饰", "aria-hidden", "可访问性", "视觉层级"],
+    variants: ["标题装饰图标", "卡片角标装饰", "空状态装饰", "背景符号", "分组装饰", "品牌氛围图标"],
+    states: ["默认", "弱化", "强调但无语义", "高对比隐藏", "减少动效", "读屏隐藏"],
+    useCases: ["章节标题前的小符号", "空状态插画旁的小图标", "卡片背景水印", "营销氛围点缀", "分组之间的视觉节奏", "品牌纹样辅助"],
+    anatomy: ["装饰 SVG：只提供视觉，不提供状态或操作含义", "相邻文本：所有真实信息必须由文字或语义组件表达", "隐藏属性：aria-hidden=\"true\"，SVG 不进入读屏顺序", "焦点规则：装饰图标不应获得键盘焦点，也不应成为点击目标"],
+    interaction: ["装饰图标不响应点击、悬停或键盘事件", "如果用户需要点击它，应改成 Icon Button 或 Link", "如果悬停才显示关键信息，它就不是装饰图标", "在减少动效或高对比环境里可以弱化或移除，不影响理解"],
+    qualityChecklist: ["移除装饰图标后，标题、状态、说明和操作仍然完整", "SVG 设置 aria-hidden=true，必要时设置 focusable=false", "不使用 role=img、aria-label 或 title 让读屏朗读装饰图标", "装饰图标不带 onClick、tabIndex、href 或 button 语义", "颜色对比不抢正文层级，移动端不挤压文字", "需要表达状态时改用 Status Icon，而不是装饰图标"],
+    do: ["把装饰图标隐藏给辅助技术", "让真实含义由文本或语义组件承担", "用低权重色彩和稳定尺寸保持氛围"],
+    dont: ["不要用装饰图标替代错误、成功或警告文案", "不要给装饰图标加可点击事件", "不要给装饰 SVG 添加 aria-label 造成重复朗读"],
+    accessibility: ["aria-hidden=true 可避免读屏朗读无意义图标", "focusable=false 可避免旧环境中 SVG 获得焦点", "装饰图标被隐藏后，相邻文本仍需表达完整信息"],
+    related: ["components-icon", "components-status-icon", "components-hidden-decorative-icon", "icon-button"],
+  },
+  "components-status-icon": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 15,
+    auditSource: "docs/ui-item-name-index-expanded.md:24",
+    preview: "status-icon-state-preview",
+    summary: "状态图标用于快速表达成功、警告、错误、进行中等状态；它必须和文本或可访问名称一起工作，不能只依赖颜色。",
+    plain: "Status Icon 是带语义的图标，不是装饰图标。它通常出现在表单校验、同步结果、系统健康、文件上传、列表行状态或提示信息中。每个状态需要稳定的图标形状、状态色和文字说明；读屏用户应能听到状态含义。若只是一个小点，应归入 Status Dot；若带边框胶囊和标签，应归入 Status Badge。",
+    aliases: ["Status Icon", "State Icon", "Validation Icon", "状态图标", "语义状态图标", "校验图标"],
+    tags: ["组件", "基础元素", "图标", "状态", "反馈", "校验", "可访问性"],
+    variants: ["成功图标", "警告图标", "错误图标", "加载/同步图标", "信息图标", "禁用状态图标"],
+    states: ["成功", "警告", "错误", "进行中", "信息", "禁用"],
+    useCases: ["表单字段校验", "文件上传结果", "同步状态", "系统健康检查", "通知列表状态", "流程步骤结果"],
+    anatomy: ["图标形状：不同状态应有不同轮廓，不只换颜色", "状态文本：说明成功、警告、错误或进行中含义", "语义属性：role、aria-label、aria-live 或相邻文本让读屏可理解", "颜色令牌：成功/警告/错误/信息色与系统状态保持一致"],
+    interaction: ["状态图标自身通常不可点击，只反馈状态", "状态变化时应同步更新文本和 aria 状态", "错误或警告状态需要提供修复说明或入口，不能只显示图标", "加载状态可动效，但应支持减少动效并保留文字"],
+    qualityChecklist: ["成功、警告、错误不能只靠颜色区分", "图标和文字或 aria-label 一起表达状态", "装饰性状态容器不应误设为 aria-hidden", "图标不可点击时不应出现 button、href 或 tabIndex", "移动端图标和状态文本不挤压、不换成纯图标", "需要徽章形态时改用 Status Badge，需要小圆点时改用 Status Dot"],
+    do: ["为每个状态提供文字或 aria-label", "让图标形状和颜色共同表达状态", "状态变化时同步读屏可感知内容"],
+    dont: ["不要只用红绿颜色传达状态", "不要把状态图标隐藏给辅助技术", "不要把错误图标当成可点击按钮"],
+    accessibility: ["可用 role=\"status\" 或 aria-label 传达状态含义", "图标 SVG 可 aria-hidden，但外层状态文本/容器必须可读", "加载或异步状态变化应考虑 aria-live"],
+    related: ["components-icon", "components-decorative-icon", "components-status-dot", "components-status-badge"],
+  },
+  "components-brand-icon": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 16,
+    auditSource: "docs/ui-item-name-index-expanded.md:25",
+    preview: "brand-icon-identity-preview",
+    summary: "品牌图标用于承载产品、组织或品牌识别；它必须遵守品牌形状、色彩、安全区和可访问名称，而不是随意替换的普通图标。",
+    plain: "Brand Icon 是品牌资产的一部分，通常用于应用入口、导航锁定区、登录方式、合作方列表、文件来源或品牌联名。它和 Decorative Icon 不同，因为它承载识别含义；和 Icon Button 不同，因为它本身不代表操作。独立出现时需要可访问名称，和品牌文字一起出现时要避免重复朗读，并且不能被拉伸、改色或随意套状态色。",
+    aliases: ["Brand Icon", "Logo Icon", "Brand Mark", "App Icon", "品牌图标", "品牌标志", "品牌符号"],
+    tags: ["组件", "基础元素", "图标", "品牌", "标志", "资产", "可访问性"],
+    variants: ["主品牌图标", "单色品牌图标", "反白品牌图标", "应用图标", "合作方品牌图标", "锁定字标"],
+    states: ["默认", "单色", "反白", "小尺寸", "禁用/不可用", "安全区"],
+    useCases: ["顶部导航品牌入口", "应用图标展示", "登录方式列表", "合作伙伴墙", "文件来源标识", "品牌联名卡片"],
+    anatomy: ["品牌标志：稳定的形状或字母组合，不随场景重绘", "字标/名称：需要时和品牌图标形成 lockup", "安全区：图标四周留出不可侵占空间，避免贴边", "颜色版本：主色、单色、反白要遵守品牌规范", "可访问名称：独立标志需要 aria-label 或相邻文本"],
+    interaction: ["品牌图标本身不处理操作；需要返回首页时由外层 Link 承担", "悬停或焦点态应加在外层链接/按钮，而不是裸品牌 SVG", "小尺寸下保留关键识别轮廓，不能压成普通圆点", "禁用或合作方不可用时要降低整体容器权重，不要破坏标志形状"],
+    qualityChecklist: ["品牌图标不复用随机功能图标或状态图标", "独立品牌图标有可访问名称，和文字锁定时避免重复朗读", "保持固定宽高比和安全区，不被容器拉伸", "主色、单色、反白版本视觉上可区分但仍同源", "若可点击，交互语义在 Link/Button 外层，不在裸 SVG 上", "移动端图标和品牌名不互相挤压"],
+    do: ["使用稳定的品牌标志和安全区", "为独立图标提供 aria-label", "准备主色、单色和反白版本"],
+    dont: ["不要用状态色随意重绘品牌标志", "不要把品牌图标当普通装饰图标隐藏", "不要把裸品牌 SVG 直接当按钮"],
+    accessibility: ["独立品牌标志使用 role=\"img\" 与 aria-label", "和品牌文字一起出现时可让图标 aria-hidden，避免重复", "可点击品牌入口的 accessible name 应放在外层链接或按钮上"],
+    related: ["components-icon", "components-decorative-icon", "components-status-icon", "icon-button"],
+  },
+  badge: {
+    auditStatus: "manual-reviewed",
+    auditOrder: 17,
+    auditSource: "docs/ui-item-name-index-expanded.md:26",
+    preview: "badge-label-preview",
+    summary: "徽标用于给对象追加短文本元信息，例如 New、Beta、Pro、推荐；它强调标签属性，不负责数字计数或状态反馈。",
+    plain: "Badge 是贴近标题、列表项、卡片或导航项的小型文本标记。它通常用于说明版本、层级、权益、推荐、新内容或实验功能。Badge 不应承担 Count Badge 的数量提醒，也不应承担 Status Badge 的成功/失败/警告语义；如果需要用户点击或关闭，应改用 Tag、Chip 或 Button。",
+    aliases: ["Badge", "Label Badge", "Pill Badge", "徽标", "文本徽标", "胶囊徽标"],
+    tags: ["组件", "基础元素", "徽标", "短文本", "元信息", "标签", "可访问性"],
+    variants: ["默认徽标", "New 徽标", "Beta 徽标", "Pro 徽标", "推荐徽标", "实验徽标"],
+    states: ["默认", "强调", "弱化", "禁用继承", "拥挤布局", "深色背景"],
+    useCases: ["标题旁标注 Beta", "功能卡片标注 Pro", "导航项标注 New", "列表项标注推荐", "实验功能入口", "套餐权益说明"],
+    anatomy: ["短文本：1 到 2 个词，不能塞长句", "胶囊容器：提供边界和视觉权重", "语义位置：贴近被修饰对象，不能漂浮到无关位置", "颜色语义：用于层级或类别，不表达成功/失败状态"],
+    interaction: ["Badge 本身通常不可点击，也不获得焦点", "如果需要关闭或选择，应使用 Tag/Chip", "如果用于可点击卡片内，点击语义由外层卡片或链接承担", "悬停时不应出现按钮式反馈"],
+    qualityChecklist: ["徽标文本短且能独立解释元信息", "不使用纯数字作为 Count Badge 的替代", "不使用成功/警告/错误状态色承担状态反馈", "Badge 无 button、href、tabIndex 或关闭按钮", "移动端不会挤压主标题，必要时换行", "深色和浅色背景上都保持可读"],
+    do: ["把 Badge 放在它修饰的标题或对象旁边", "用短文本表达版本、权益或推荐属性", "用低到中等视觉权重避免抢主标题"],
+    dont: ["不要把未读数量做成普通 Badge", "不要用 Badge 表达错误/成功状态", "不要让 Badge 自己变成可点击控件"],
+    accessibility: ["可见短文本通常足够被读屏读取", "缩写徽标可用 aria-label 补充完整含义", "Badge 不应进入键盘焦点顺序"],
+    related: ["components-count-badge", "components-status-badge", "tag", "components-status-dot"],
+  },
+  "components-count-badge": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 18,
+    auditSource: "docs/ui-item-name-index-expanded.md:27",
+    preview: "count-badge-counter-preview",
+    summary: "数字徽标用于提示数量，例如未读消息、待办项、购物车商品数；它必须表达真实计数，并处理 0、上限和读屏数量。",
+    plain: "Count Badge 是附着在导航项、图标、列表行或卡片上的数量提醒。它和 Badge 不同，因为核心内容是数字；和 Status Badge 不同，因为它不表达成功、警告或错误。数量为 0 时通常隐藏或弱化，超过上限时显示 99+、9+ 等截断值，同时仍要让读屏获得完整数量。",
+    aliases: ["Count Badge", "Number Badge", "Notification Badge", "Unread Badge", "数字徽标", "计数徽标", "未读角标"],
+    tags: ["组件", "基础元素", "徽标", "数量", "通知", "未读", "可访问性"],
+    variants: ["未读数量", "上限数量", "购物车数量", "待办数量", "零值隐藏", "紧凑角标"],
+    states: ["0 隐藏", "个位数", "两位数", "99+ 上限", "更新中", "禁用继承"],
+    useCases: ["消息未读数", "购物车数量", "通知中心数量", "任务待办数量", "筛选结果数量", "收件箱新项"],
+    anatomy: ["被附着对象：图标、导航项或列表行是计数的上下文", "数字胶囊：显示短数字或上限值，不能塞长文本", "完整数量：截断显示时仍保留可访问完整数量", "零值规则：0 通常隐藏，避免制造噪音", "位置锚点：角标应贴近目标，不遮挡主要图标"],
+    interaction: ["Count Badge 本身通常不可点击，点击语义由外层导航项、图标按钮或链接承担", "数量更新时可用 aria-live 或外层公告提示变化", "超过上限时显示 99+ 等短值，但 tooltip/aria-label 可说明完整数量", "0 值隐藏时不应留下空白焦点或可点击区域"],
+    qualityChecklist: ["数字徽标只表达数量，不混入 New/Beta 等文本标签", "0 值隐藏或弱化规则明确", "99+ 等截断值有完整数量的 aria-label", "角标不作为独立 button/link，也不进入 tabindex", "位置不遮挡图标主体，移动端不挤压文本", "颜色用于提醒层级，不替代数量文本"],
+    do: ["把数字徽标锚定到它计数的对象上", "为截断数量提供完整 aria-label", "0 值时隐藏或明确弱化"],
+    dont: ["不要用 Count Badge 表达成功/错误状态", "不要把 Badge 的短文本语义混进数字角标", "不要让 0 也显示成红色提醒"],
+    accessibility: ["可用 aria-label 表达完整数量，例如“未读消息 132 条，显示为 99+”", "动态数量变化时考虑 aria-live", "数字角标自身不应成为键盘焦点"],
+    related: ["badge", "components-status-badge", "components-status-dot", "notification"],
+  },
+  "components-status-dot": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 19,
+    auditSource: "docs/ui-item-name-index-expanded.md:28",
+    preview: "status-dot-presence-preview",
+    summary: "状态点是贴近对象的小圆点状态提示，用于表达在线、忙碌、同步中、离线等轻量状态；它必须依附对象和文字说明，不能只靠颜色让用户猜。",
+    plain: "Status Dot 是最小形态的状态指示器，常出现在头像、服务列表、连接状态、消息线程、同步任务或设备在线状态旁。它和 Status Icon 不同，因为它没有复杂图标形状；和 Status Badge 不同，因为它不是带文字的胶囊；和 Count Badge 不同，因为它不显示数量。状态点自身通常不可点击，语义应由外层行、文本或 aria-label 承担。",
+    aliases: ["Status Dot", "Presence Dot", "State Dot", "Indicator Dot", "状态点", "在线点", "存在状态点", "小圆点状态"],
+    tags: ["组件", "基础元素", "状态", "圆点", "在线状态", "存在感", "可访问性"],
+    variants: ["在线状态点", "忙碌状态点", "同步中状态点", "离线状态点", "未读存在点", "服务健康点"],
+    states: ["在线", "忙碌", "同步中", "离线", "未知", "禁用继承"],
+    useCases: ["头像在线状态", "团队成员忙碌提示", "服务健康列表", "设备连接状态", "消息线程新状态", "文件同步状态"],
+    anatomy: ["锚定对象：头像、列表行、服务名或设备名提供上下文", "状态点：小圆点或环形点只负责轻量提示", "状态文本：必须把在线、忙碌、同步中、离线等含义写出来", "语义容器：外层行可用 role=status 或 aria-label 传达完整状态", "颜色/形状：颜色可辅助状态，但需要环形、脉冲、空心或文字共同区分"],
+    interaction: ["Status Dot 本身通常不可点击，也不进入键盘焦点", "如果整行可点击，点击语义由外层列表项、链接或按钮承担", "实时状态变化时外层状态行可使用 aria-live 或 role=status", "同步中可有轻微脉冲动画，但减少动效时必须停止或弱化"],
+    qualityChecklist: ["状态点必须贴近它描述的对象，不能漂浮在无上下文位置", "不能只用红绿颜色表达状态，必须有可见文本或 aria-label", "点本身不应出现 button、href、tabIndex 或独立 aria-label", "同步/忙碌/离线等状态在视觉上有形态差异", "移动端点、名称和状态文本不互相挤压", "需要文字胶囊时改用 Status Badge，需要图标时改用 Status Icon"],
+    do: ["把点锚定在头像或列表对象旁", "用文字或 aria-label 补足状态含义", "为同步状态准备减少动效表现"],
+    dont: ["不要把状态点做成可点击按钮", "不要用 Status Dot 显示数量", "不要把带文字的状态胶囊误归为 Status Dot"],
+    accessibility: ["状态点可 aria-hidden=true，由外层 role=status 或相邻文本表达含义", "实时状态变化可放在 aria-live=polite 的状态列表中", "不要让裸圆点成为键盘焦点或唯一语义来源"],
+    related: ["components-status-icon", "components-status-badge", "badge", "components-count-badge"],
+  },
+  "components-status-badge": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 20,
+    auditSource: "docs/ui-item-name-index-expanded.md:29",
+    preview: "status-badge-feedback-preview",
+    summary: "状态徽章是带文字的胶囊状态提示，用于表达已通过、待确认、失败、同步中等状态；它比状态点更明确，比状态图标更适合列表和表格扫描。",
+    plain: "Status Badge 是把状态文字、状态色和可选图标组合在一起的紧凑胶囊。它通常出现在表格行、订单、审核流程、服务健康、文件任务和列表项末尾。它和 Badge 不同，因为文字表示状态而不是 New/Beta 等元信息；和 Status Dot 不同，因为它自带可读状态文字；和 Status Icon 不同，因为它是文字徽章而不是单独图标。状态徽章通常不可点击，若需要筛选或关闭，应使用 Button、Tag 或 Chip。",
+    aliases: ["Status Badge", "State Badge", "Status Pill", "State Pill", "状态徽章", "状态胶囊", "状态标签", "反馈徽章"],
+    tags: ["组件", "基础元素", "状态", "徽章", "胶囊", "反馈", "可访问性"],
+    variants: ["成功状态徽章", "警告状态徽章", "错误状态徽章", "进行中状态徽章", "信息状态徽章", "禁用状态徽章"],
+    states: ["成功", "警告", "错误", "进行中", "信息", "禁用"],
+    useCases: ["订单状态", "审核结果", "任务同步状态", "服务健康表格", "文件上传结果", "流程步骤状态"],
+    anatomy: ["状态文本：胶囊内必须写出状态含义，不能只放颜色", "状态图标或点：可辅助扫描，但必须 aria-hidden 避免重复", "胶囊容器：提供边界和视觉权重，和普通 Badge 区分", "上下文对象：列表行、表格行或卡片说明这个状态属于谁", "语义属性：role=status 或 aria-label 让读屏获取完整状态"],
+    interaction: ["Status Badge 本身通常不可点击，也不进入键盘焦点", "如果用于筛选，应改成 Filter Chip 或 Button，并提供焦点态", "状态变化时可用 role=status 或 aria-live 让辅助技术感知", "错误或警告徽章旁应提供修复说明或外层操作入口，不把操作塞进徽章"],
+    qualityChecklist: ["状态徽章必须包含可见状态文字，不只是颜色或圆点", "成功、警告、错误、进行中在颜色和图标/形态上可区分", "不混入 New、Beta、Pro 等普通 Badge 元信息", "不显示纯数字数量，数量提醒应使用 Count Badge", "徽章本身无 button、href、tabIndex 或关闭按钮", "移动端长状态文字不挤压对象名称，可换行或收紧布局"],
+    do: ["用短文字直接写出状态", "为状态徽章提供 role=status 或完整 aria-label", "让状态色、图标和文字共同表达语义"],
+    dont: ["不要把 Status Badge 当普通 Badge 展示版本信息", "不要把状态徽章做成可关闭标签", "不要只用红绿颜色表达状态"],
+    accessibility: ["可在徽章上使用 role=\"status\" 和 aria-label 表达完整状态", "胶囊内的图标应 aria-hidden=true，避免读屏重复", "如果状态动态更新，外层列表可使用 aria-live=polite"],
+    related: ["badge", "components-status-dot", "components-status-icon", "components-count-badge", "tag"],
+  },
+  tag: {
+    auditStatus: "manual-reviewed",
+    auditOrder: 21,
+    auditSource: "docs/ui-item-name-index-expanded.md:30",
+    preview: "tag-taxonomy-preview",
+    summary: "标签是贴在内容、筛选条件或对象旁的分类标记，用于表达主题、属性、已选过滤条件或可移除分类；它可以静态展示，也可以作为筛选/移除控件。",
+    plain: "Tag 用于把内容归类、把条件显性化，或让用户快速识别对象的主题与属性。它和 Badge 不同，因为 Badge 多用于 New/Beta/Pro 等短元信息且通常不可交互；和 Status Badge 不同，因为 Tag 不承担成功、失败、同步中等状态反馈；和 Chip 不同，因为 Tag 更强调分类和筛选语义，Chip 更常用于输入 token、联系人、选择结果或紧凑操作单元。Tag 可以是静态文本、可选择筛选项、可关闭已选条件或禁用标签，但每种交互都必须有明确语义。",
+    aliases: ["Tag", "Content Tag", "Filter Tag", "Removable Tag", "Label Tag", "标签", "内容标签", "筛选标签", "可移除标签"],
+    tags: ["组件", "基础元素", "Tag", "标签", "分类", "筛选", "可移除", "可访问性"],
+    variants: ["静态分类标签", "可选筛选标签", "可移除标签", "禁用标签", "多色主题标签", "长文本标签"],
+    states: ["默认", "悬停", "聚焦", "选中", "禁用", "可移除"],
+    useCases: ["文章主题分类", "资源库筛选条件", "搜索结果已选过滤", "表单已选类别", "用户画像兴趣标签", "内容管理批量归类"],
+    anatomy: ["标签文本：必须写出分类名或筛选条件，不能只放颜色或图标", "标签容器：提供边界、背景和紧凑间距，和普通正文分开", "选中状态：可选标签应使用 aria-pressed 或等价状态", "移除按钮：可关闭标签必须提供独立按钮和 aria-label", "禁用状态：不可用标签应视觉降级并通过 aria-disabled 或 disabled 表达"],
+    interaction: ["静态 Tag 不可点击，也不进入键盘焦点", "筛选 Tag 可以是 button，并使用 aria-pressed 表达是否选中", "可移除 Tag 的关闭按钮必须是 button type=button，焦点态清晰可见", "不要把整个可移除标签和内部关闭按钮都做成同一个点击目标", "禁用 Tag 不触发筛选、关闭或导航"],
+    qualityChecklist: ["Tag 必须表达分类或筛选含义，不展示 New/Beta/Pro 等 Badge 元信息", "Tag 不使用 role=status，也不展示成功/失败/同步中状态语义", "可选标签有 hover、focus-visible、active 和 aria-pressed", "可移除标签的关闭按钮有 aria-label，图标 aria-hidden=true", "禁用标签不可点击且对比度仍可读", "移动端长标签可换行，不挤压相邻内容或造成横向滚动"],
+    do: ["用清晰短词表达分类", "把筛选型 Tag 做成 button 并标明选中状态", "为可移除 Tag 提供独立关闭按钮"],
+    dont: ["不要把 Tag 当普通 Badge 展示版本或权益", "不要把成功/警告/错误状态塞进 Tag", "不要只用颜色区分标签类别", "不要让关闭图标没有可访问名称"],
+    accessibility: ["筛选型标签使用 button 与 aria-pressed", "移除按钮使用 aria-label，例如“移除标签 可访问性”", "装饰图标或关闭图标 SVG 应 aria-hidden=true", "禁用标签使用 aria-disabled=true 或 disabled，并避免进入焦点"],
+    related: ["badge", "components-status-badge", "components-chip", "components-count-badge"],
+  },
+  "components-chip": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 22,
+    auditSource: "docs/ui-item-name-index-expanded.md:31",
+    preview: "chip-token-preview",
+    summary: "Chip 是紧凑的对象或选择 token，用于表示已选成员、输入结果、可切换选项或小型操作单元；它比 Tag 更像一个可交互的选择结果，比 Badge 更强调对象和操作。",
+    plain: "Chip 常出现在多选输入、联系人选择器、筛选构建器、权限配置、收件人列表和搜索条件编辑器里。它和 Tag 不同，因为 Chip 更常代表一个已选对象、输入 token 或紧凑操作，而不是单纯分类；和 Badge 不同，因为 Chip 可以被选择、删除或承载小头像/图标；和 Status Badge 不同，因为 Chip 不表达成功、失败、同步中等状态反馈。Chip 可以是只读 token、可选择 button、可移除 token 或禁用对象，但交互目标必须清楚分开。",
+    aliases: ["Chip", "Input Chip", "Filter Chip", "Choice Chip", "Token Chip", "Selection Chip", "芯片", "选择胶囊", "输入 token", "对象胶囊"],
+    tags: ["组件", "基础元素", "Chip", "token", "选择", "输入", "可移除", "可访问性"],
+    variants: ["输入 Chip", "选择 Chip", "可移除 Chip", "头像 Chip", "图标 Chip", "禁用 Chip"],
+    states: ["默认", "悬停", "聚焦", "选中", "禁用", "可移除", "清空"],
+    useCases: ["多选联系人输入", "筛选条件构建器", "权限成员选择", "收件人 token", "搜索条件编辑", "批量对象选择"],
+    anatomy: ["对象文本：说明 Chip 代表的成员、条件、文件或选择结果", "头像或图标：可辅助识别对象，装饰图标应 aria-hidden", "Chip 容器：提供紧凑边界和可点击区域", "选择状态：可选 Chip 使用 button 与 aria-pressed", "移除按钮：可移除 Chip 内部提供独立 button 和 aria-label", "禁用状态：禁用 Chip 视觉降级且不进入交互"],
+    interaction: ["只读 Chip 不可点击，也不进入键盘焦点", "选择 Chip 是 button，使用 aria-pressed 表达选中状态", "可移除 Chip 的关闭按钮必须是独立 button type=button，不能把整个 Chip 和关闭按钮合并成一个点击目标", "删除 Chip 后应从 token 列表中真实移除，并在空状态给出反馈", "禁用 Chip 不响应点击、删除或键盘焦点"],
+    qualityChecklist: ["Chip 必须代表对象、输入结果或紧凑选择，不展示 New/Beta/Pro 等 Badge 元信息", "Chip 不使用 role=status，也不展示成功/失败/同步中状态语义", "可选 Chip 有 hover、focus-visible、active 和 aria-pressed", "可移除 Chip 的关闭按钮有 aria-label，关闭图标 aria-hidden=true", "头像或图标不替代可见文本", "移动端可点击 Chip 和移除按钮至少 44px 高，长 token 不造成横向滚动"],
+    do: ["用 Chip 表达已选对象、输入 token 或紧凑选择", "为可选 Chip 提供 aria-pressed", "为可移除 Chip 提供独立关闭按钮"],
+    dont: ["不要把 Chip 当 Badge 展示版本贴纸", "不要把 Chip 当 Status Badge 展示成功或失败", "不要只用头像或图标表达 Chip 含义", "不要让整个 Chip 和关闭按钮抢同一个点击语义"],
+    accessibility: ["选择型 Chip 使用 button 与 aria-pressed", "移除按钮使用 aria-label，例如“移除成员 林青”", "头像和装饰图标使用 aria-hidden=true", "禁用 Chip 使用 aria-disabled=true 或 disabled，并避免进入焦点"],
+    related: ["tag", "badge", "components-status-badge", "components-count-badge"],
+  },
+  "components-close-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 23,
+    auditSource: "docs/ui-item-name-index-expanded.md:32",
+    preview: "close-button-dismiss-preview",
+    summary: "关闭按钮是专门用于 dismiss 当前表面、提示或浮层的图标按钮，重点是关闭这个容器本身，而不是删除数据、返回上页、清空输入或展开更多操作。",
+    plain: "Close Button 常出现在 Modal、Drawer、Toast、Popover、Tag/Chip token、侧边面板和临时提示里。它的语义是让当前可见对象消失或退出当前浮层，所以必须有明确目标，例如“关闭设置面板”或“关闭同步提示”。它和 Delete Button 不同，因为不会销毁后端数据；和 Back Button 不同，因为不负责导航历史；和 Clear Button 不同，因为不清空输入值；和 More Button 不同，因为不打开菜单。图标可以只有 X，但按钮本身必须有可访问名称、焦点态、hover/active/disabled 状态和足够触控尺寸。",
+    aliases: ["Close Button", "Dismiss Button", "Close Control", "Dialog Close", "Toast Close", "关闭按钮", "关闭控件", "Dismiss 控件"],
+    tags: ["组件", "基础元素", "关闭", "dismiss", "图标按钮", "浮层", "可访问性"],
+    variants: ["弹窗关闭按钮", "面板关闭按钮", "Toast 关闭按钮", "内联提示关闭按钮", "禁用关闭按钮", "紧凑关闭按钮"],
+    states: ["默认", "悬停", "按下", "键盘聚焦", "禁用", "目标已关闭"],
+    useCases: ["关闭 Modal 或 Drawer", "关闭 Toast 或 Notification", "关闭内联提示条", "移除临时浮层", "退出预览面板", "收起可 dismiss 的帮助说明"],
+    anatomy: ["按钮元素：使用 button type=button，不提交表单", "关闭图标：通常是 X，SVG 设置 aria-hidden=true", "可访问名称：aria-label 必须写清关闭目标", "目标容器：按钮应该靠近并属于被关闭的表面", "状态层：hover、focus-visible、active 与 disabled 都要有明确反馈", "安全尺寸：移动端触控目标至少 44px"],
+    interaction: ["点击 Close Button 后只关闭对应表面，不删除业务对象或清空输入", "图标本身不承担读屏名称，读屏名称由 button 的 aria-label 提供", "按钮必须能通过键盘 Tab 聚焦，并用 Enter 或 Space 触发", "禁用状态使用 disabled，不能进入焦点也不能触发关闭", "关闭后剩余内容不应重排到混乱或产生横向滚动"],
+    qualityChecklist: ["Close Button 必须有明确 dismiss 目标，不能只写 aria-label=关闭", "按钮必须是 type=button，避免在表单里误提交", "X 图标 aria-hidden=true，避免读屏重复朗读", "不能混用删除、返回、清空、更多或取消语义", "hover、focus-visible、active、disabled 状态都有实装样式", "移动端按钮外框或命中区域至少 44px，不遮挡标题或内容"],
+    do: ["用 Close Button 关闭当前浮层、面板或提示", "为每个关闭按钮写目标明确的 aria-label", "把关闭按钮放在被关闭对象的右上角或尾部"],
+    dont: ["不要用 Close Button 删除数据或执行危险操作", "不要让 X 图标没有可访问名称", "不要把 Close Button 做成 More、Back、Clear 或 Cancel"],
+    accessibility: ["使用原生 button type=button 并提供 aria-label", "SVG 关闭图标使用 aria-hidden=true 和 focusable=false", "focus-visible 至少 2px 且与背景保持足够对比", "触控环境中保持 44px 最小命中尺寸"],
+    related: ["button", "components-icon", "components-more-button", "components-help-button"],
+  },
+  "components-more-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 24,
+    auditSource: "docs/ui-item-name-index-expanded.md:33",
+    preview: "more-button-overflow-preview",
+    summary: "更多按钮是用于打开溢出操作菜单的图标按钮，通常以横向或纵向省略号呈现；它本身不执行具体动作，而是把低频、次要或上下文相关动作收进菜单。",
+    plain: "More Button 常出现在列表行、卡片、工具栏、表格行、文件条目和移动端头部。它的职责是揭示 overflow actions：用户点击后看到一组可选择操作，例如查看详情、复制链接、分享权限或导出记录。它和普通 Button 不同，因为按钮文案通常不写动作本身；和 Close Button 不同，因为它打开菜单而不是关闭表面；和 Load More Button 不同，因为它不加载列表下一页；和 Menu 不同，因为 More Button 只是菜单触发器，菜单项才是具体操作。",
+    aliases: ["More Button", "Overflow Button", "Kebab Button", "Meatball Button", "Ellipsis Button", "更多按钮", "溢出菜单按钮", "省略号按钮"],
+    tags: ["组件", "基础元素", "更多", "overflow", "菜单触发器", "图标按钮", "可访问性"],
+    variants: ["横向省略号按钮", "纵向省略号按钮", "行操作更多按钮", "卡片更多按钮", "工具栏更多按钮", "禁用更多按钮"],
+    states: ["默认", "悬停", "按下", "键盘聚焦", "菜单展开", "菜单收起", "禁用"],
+    useCases: ["表格行低频操作", "卡片右上角操作菜单", "文件或资产更多操作", "移动端头部溢出入口", "工具栏次级命令", "权限或分享相关菜单"],
+    anatomy: ["触发按钮：使用 button type=button，通常只显示省略号图标", "可访问名称：aria-label 写清对象和“更多操作”", "菜单关系：使用 aria-haspopup=menu、aria-expanded 和 aria-controls", "省略号图标：SVG aria-hidden=true，不能替代按钮名称", "弹出菜单：使用 role=menu，菜单项使用 role=menuitem", "禁用状态：无可用溢出操作时使用 disabled"],
+    interaction: ["点击 More Button 展开或收起对应菜单，不直接执行业务动作", "选择菜单项后执行该项动作并收起菜单", "Escape 应能收起已打开菜单", "More Button 不应该跳转、关闭、删除、清空或加载更多列表", "菜单必须贴近触发器，避免被 overflow 容器裁切或遮挡"],
+    qualityChecklist: ["More Button 必须是菜单触发器而不是普通操作按钮", "按钮必须有 aria-haspopup=menu、aria-expanded 和目标明确的 aria-label", "菜单展开状态必须真实改变 DOM 和 aria-expanded", "菜单项才承载查看、复制、分享、导出等具体动作", "禁用按钮不可点击且不进入菜单展开状态", "移动端触控目标至少 44px，菜单不造成横向滚动"],
+    do: ["用 More Button 收纳低频和上下文操作", "为触发器和菜单建立 aria-controls 关系", "让菜单项文案写清具体动作"],
+    dont: ["不要用 More Button 代替 Close、Back、Clear 或 Load More", "不要让省略号图标没有可访问名称", "不要点击 More Button 后立即执行隐藏动作"],
+    accessibility: ["触发器使用 button type=button", "使用 aria-haspopup=\"menu\" 和 aria-expanded 表示菜单状态", "菜单使用 role=\"menu\"，菜单项使用 role=\"menuitem\"", "省略号 SVG 使用 aria-hidden=true 和 focusable=false", "焦点环清晰可见，移动端命中区域至少 44px"],
+    related: ["button", "components-icon", "components-close-button", "components-help-button"],
+  },
+  "components-help-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 25,
+    auditSource: "docs/ui-item-name-index-expanded.md:34",
+    preview: "help-button-guidance-preview",
+    summary: "帮助按钮是用于打开上下文帮助、说明步骤或解释规则的图标按钮，通常以问号呈现；它回答“我该怎么做 / 为什么这样做”，而不是展示静态元信息、执行操作或打开更多操作菜单。",
+    plain: "Help Button 常出现在复杂字段、配置区块、权限设置、空状态和流程节点旁边。它的职责是把轻量帮助说明按需展开，让用户理解当前上下文里的规则、示例或下一步。它和 Info Button 不同，因为 Info Button 更偏静态事实或状态说明；和 More Button 不同，因为它不打开操作菜单；和 Close Button 不同，因为它不 dismiss 当前表面；和 Support Panel 不同，因为 Help Button 是局部触发器，不是完整客服或工单入口。按钮必须有目标明确的 aria-label、aria-haspopup、aria-expanded、aria-controls、焦点态、展开态和禁用态。",
+    aliases: ["Help Button", "Context Help Button", "Question Button", "Field Help Button", "帮助按钮", "上下文帮助按钮", "问号按钮"],
+    tags: ["组件", "基础元素", "帮助", "上下文帮助", "问号按钮", "图标按钮", "可访问性"],
+    variants: ["字段帮助按钮", "区块帮助按钮", "流程帮助按钮", "示例帮助按钮", "文档帮助按钮", "禁用帮助按钮"],
+    states: ["默认", "悬停", "按下", "键盘聚焦", "帮助面板展开", "帮助面板收起", "禁用"],
+    useCases: ["表单字段规则解释", "权限配置说明", "复杂设置的示例说明", "流程节点帮助", "空状态下一步提示", "术语旁的局部帮助"],
+    anatomy: ["触发按钮：使用 button type=button，通常只显示问号或帮助图标", "可访问名称：aria-label 写清帮助对象，例如“打开 API 密钥命名帮助”", "弹出关系：使用 aria-haspopup=\"dialog\"、aria-expanded 和 aria-controls 绑定帮助面板", "帮助面板：承载简短规则、示例或下一步，不承载业务操作菜单", "状态反馈：hover、focus-visible、active、open 和 disabled 都有独立视觉", "禁用状态：帮助内容不可用时使用 disabled，不能展开面板"],
+    interaction: ["点击 Help Button 展开或收起对应帮助面板，不直接执行业务动作", "Escape 应能收起已展开的帮助面板", "展开状态必须真实更新 DOM 与 aria-expanded", "帮助内容应贴近触发目标，避免被 overflow 容器裁切", "Help Button 不应跳转、关闭、删除、清空或打开操作菜单"],
+    qualityChecklist: ["Help Button 必须是上下文帮助触发器，不能退化为普通问号装饰", "按钮必须是 type=button，并有目标明确的 aria-label", "必须使用 aria-haspopup=\"dialog\"、aria-expanded 和 aria-controls 描述帮助面板关系", "展开面板承载如何做、为什么、示例等帮助内容，不使用 role=menu 或 role=menuitem", "禁用按钮不可点击且 aria-expanded=false", "移动端命中区域至少 44px，帮助面板不造成横向滚动"],
+    do: ["用 Help Button 暴露局部规则、步骤和示例", "让展开态同时改变视觉、DOM 和 aria-expanded", "把帮助内容写成可执行的短提示"],
+    dont: ["不要把 Help Button 当 Info Button 展示静态元数据", "不要把 Help Button 做成 More Button 或操作菜单", "不要只放问号图标而没有 aria-label", "不要让帮助面板遮挡或挤压当前输入目标"],
+    accessibility: ["使用原生 button type=button", "触发器使用 aria-haspopup=\"dialog\"、aria-expanded 和 aria-controls", "帮助图标使用 aria-hidden=true 和 focusable=false", "focus-visible 至少 2px 且与背景有足够对比", "禁用状态使用 disabled，移动端命中区域至少 44px"],
+    related: ["button", "components-icon", "components-info-button", "components-more-button"],
+  },
+  "components-info-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 26,
+    auditSource: "docs/ui-item-name-index-expanded.md:35",
+    preview: "info-button-facts-preview",
+    summary: "信息按钮是用于揭示静态说明、字段元数据或当前状态出处的图标按钮，通常以 i 图标呈现；它回答“这是什么 / 当前值代表什么”，而不是提供操作步骤、打开菜单或关闭界面。",
+    plain: "Info Button 常出现在字段标签、指标标题、状态值、版本号、费用明细和风险等级旁边。它的职责是补充事实性说明，例如数据口径、更新时间、计算公式、来源或权限可见范围。它和 Help Button 不同，因为 Help Button 偏“怎么做”和“为什么这样做”的指导；和 More Button 不同，因为它不承载操作集合；和 Close Button 不同，因为它不关闭任何表面；和普通 Button 不同，因为它通常只显示 i 图标，但按钮本身必须有明确 aria-label、展开状态、关联的信息气泡、焦点态、悬停态、按下态和禁用态。",
+    aliases: ["Info Button", "Information Button", "Info Icon Button", "Field Info Button", "信息按钮", "说明按钮", "信息图标按钮"],
+    tags: ["组件", "基础元素", "信息", "说明", "元数据", "图标按钮", "可访问性"],
+    variants: ["字段信息按钮", "指标信息按钮", "版本信息按钮", "来源信息按钮", "禁用信息按钮", "内联信息按钮"],
+    states: ["默认", "悬停", "按下", "键盘聚焦", "信息气泡展开", "信息气泡收起", "禁用"],
+    useCases: ["字段标签旁的数据口径说明", "指标标题旁的计算公式", "版本号或更新时间说明", "费用明细来源说明", "权限可见范围提示", "状态值旁的静态解释"],
+    anatomy: ["触发按钮：使用 button type=button，通常只显示 i 信息图标", "可访问名称：aria-label 写清信息对象，例如“查看转化率口径信息”", "描述关系：打开时用 aria-describedby 指向信息气泡文本", "信息气泡：使用 role=\"tooltip\" 承载静态事实，不放操作按钮或菜单项", "状态反馈：default、hover、focus-visible、active、open 和 disabled 都要可见", "禁用状态：信息不可用时使用 disabled，不能展开气泡"],
+    interaction: ["点击 Info Button 展开或收起对应信息气泡，不直接执行业务动作", "Escape 应只收起已展开的信息气泡，不关闭外层详情", "展开状态必须真实更新 DOM 与 aria-expanded", "信息气泡应贴近触发对象，避免被裁切或造成横向滚动", "Info Button 不应跳转、关闭、删除、清空、打开操作菜单或提供操作步骤"],
+    qualityChecklist: ["Info Button 必须承载静态事实说明，不能退化为装饰 i 图标", "按钮必须是 type=button，并有目标明确的 aria-label", "打开时必须有 aria-expanded=true、aria-controls 和 aria-describedby", "信息气泡使用 role=tooltip，不能使用 role=menu、role=menuitem 或 Help Button 的 dialog 结构", "禁用按钮不可点击且 aria-expanded=false", "移动端命中区域至少 44px，信息气泡不造成横向滚动"],
+    do: ["用 Info Button 展示口径、来源、公式、更新时间等静态说明", "让展开态同时改变视觉、DOM、aria-expanded 和 aria-describedby", "保持信息内容短、事实化、可读"],
+    dont: ["不要把 Info Button 当 Help Button 写操作步骤", "不要把 Info Button 做成 More Button 或操作菜单", "不要只放 i 图标而没有 aria-label", "不要在信息气泡里放提交、复制、分享等业务操作"],
+    accessibility: ["使用原生 button type=button", "触发器使用 aria-expanded、aria-controls，并在打开时使用 aria-describedby", "信息气泡使用 role=\"tooltip\" 并有可读文本", "Info 图标使用 aria-hidden=true 和 focusable=false", "禁用状态使用 disabled，移动端命中区域至少 44px"],
+    related: ["button", "components-icon", "components-help-button", "components-tooltip"],
+  },
+  "components-copy-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 27,
+    auditSource: "docs/ui-item-name-index-expanded.md:36",
+    preview: "copy-button-clipboard-preview",
+    summary: "复制按钮是把当前可见文本、链接、代码或标识符写入剪贴板的即时操作按钮；它执行 copy 动作并反馈结果，不是 Duplicate Button、Share Button、More Button 或普通确认按钮。",
+    plain: "Copy Button 常出现在代码块、邀请链接、订单号、Token、表格单元格和只读输入旁边。它的职责是复制一个明确目标，并在成功、失败、禁用和键盘聚焦状态下给出可感知反馈。它和 Duplicate Button 不同，因为不会创建第二个业务对象；和 Share Button 不同，因为不打开系统分享或权限面板；和 More Button 不同，因为不展开操作集合；和 Info Button 不同，因为它会执行剪贴板写入。按钮必须绑定可见复制目标、使用 type=button、提供目标明确的 aria-label、用 aria-live 公告结果，并避免把图标当成唯一语义。",
+    aliases: ["Copy Button", "Clipboard Button", "Copy Control", "Copy to Clipboard Button", "复制按钮", "剪贴板按钮", "复制到剪贴板按钮"],
+    tags: ["组件", "基础元素", "复制", "剪贴板", "即时操作", "图标按钮", "可访问性"],
+    variants: ["代码复制按钮", "链接复制按钮", "ID 复制按钮", "输入附加复制按钮", "已复制反馈按钮", "禁用复制按钮"],
+    states: ["默认", "悬停", "按下", "键盘聚焦", "复制中", "已复制", "复制失败", "禁用"],
+    useCases: ["复制 API Token 或密钥别名", "复制订单号、发票号或用户 ID", "复制邀请链接", "复制代码块内容", "复制只读输入值", "复制表格单元格内容"],
+    anatomy: ["目标内容：必须有明确可见值或通过 aria-describedby 关联的复制源", "触发按钮：使用 button type=button，不提交表单也不导航", "复制图标：SVG 设置 aria-hidden=true 和 focusable=false", "结果反馈：成功或失败通过可见文本与 aria-live 公告", "状态层：hover、focus-visible、active、copied、failed 和 disabled 均有样式", "禁用原因：没有可复制内容或权限不足时给出说明"],
+    interaction: ["点击 Copy Button 只复制对应目标内容，不创建副本对象、不分享、不打开菜单", "复制成功后按钮视觉切换为已复制状态，并通过 aria-live 公告结果", "复制失败时显示失败反馈，不假装成功", "键盘用户可通过 Tab 聚焦，并用 Enter 或 Space 触发复制", "禁用按钮不可点击，且需要说明为什么不可复制"],
+    qualityChecklist: ["Copy Button 必须绑定具体复制目标，不能只是通用按钮换 Copy 图标", "按钮必须是 type=button，并有目标明确的 aria-label", "成功、失败和禁用状态必须真实改变视觉与文本反馈", "复制结果必须通过 aria-live 或等效方式被读屏感知", "不得使用 aria-haspopup、aria-expanded、role=menu 或 role=dialog", "移动端命中区域至少 44px，长 token 或链接不造成横向滚动"],
+    do: ["用 Copy Button 复制当前可见值、链接、代码或标识符", "让复制源、按钮名称和成功反馈三者一致", "用已复制状态降低用户是否成功的疑虑"],
+    dont: ["不要用 Copy Button 表示 Duplicate 业务对象", "不要把复制动作藏在 More Button 的触发器本身", "不要点击后没有任何可见或可读反馈", "不要用 Share Button 的外发语义替代本地剪贴板复制"],
+    accessibility: ["使用原生 button type=button", "aria-label 写清复制目标，例如“复制发票号 INV-2026-0842”", "按钮用 aria-describedby 关联复制源和结果公告", "Copy / Check 图标使用 aria-hidden=true 和 focusable=false", "结果区域使用 aria-live=\"polite\"，移动端命中区域至少 44px"],
+    related: ["button", "components-icon", "components-info-button", "components-share-button"],
+  },
+  "components-share-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 28,
+    auditSource: "docs/ui-item-name-index-expanded.md:37",
+    preview: "share-button-distribution-preview",
+    summary: "分享按钮是把当前对象发给人、渠道或协作空间的外发动作入口；它处理分享目标、权限范围和发送结果，不是 Copy Button、More Button 或普通跳转按钮。",
+    plain: "Share Button 常出现在文档、设计稿、报表、商品、活动页、作品和协作对象旁边。它的职责是发起外发协作：选择收件人或渠道、确认权限范围、调用系统分享或打开分享面板，并在成功、取消、失败、禁用时给出可感知反馈。它和 Copy Button 不同，因为 Copy 只把可见值写入本地剪贴板；和 More Button 不同，因为 More 只是溢出菜单触发器；和 Send Button 不同，因为 Share Button 关注对象分发和访问权限，而不是发送一条消息正文。",
+    aliases: ["Share Button", "Share Control", "Share Action", "Distribution Button", "分享按钮", "协作分享按钮", "外发按钮"],
+    tags: ["组件", "基础元素", "分享", "协作", "外发", "权限", "图标按钮", "可访问性"],
+    variants: ["资源分享按钮", "权限分享按钮", "系统分享按钮", "渠道分享按钮", "禁用分享按钮", "Fallback 复制链接分享"],
+    states: ["默认", "悬停", "按下", "键盘聚焦", "分享面板展开", "分享成功", "分享取消", "分享失败", "禁用"],
+    useCases: ["分享设计稿或文档", "邀请团队成员协作", "把报表发送到频道", "调用移动端系统分享", "分享商品或活动链接", "权限不足时禁用分享"],
+    anatomy: ["分享对象：当前要外发的资源、链接、报表或作品", "触发按钮：button type=button，文案或图标必须说明分享目标", "权限摘要：公开、团队可见、仅受邀等范围必须可见", "分享面板：承载收件人、渠道或权限选择，不使用 role=menu", "结果反馈：成功、取消、失败或 fallback 复制通过 aria-live 公告", "禁用说明：私密、草稿或权限不足时给出不可分享原因"],
+    interaction: ["点击 Share Button 打开分享面板或调用系统分享，不直接复制本地值作为唯一结果", "选择分享目标后更新结果反馈，并允许取消关闭面板", "Escape 应只关闭分享面板，不关闭外层详情", "没有外发权限时按钮 disabled，且不打开空面板", "系统分享不可用时可以 fallback 到复制邀请链接，但必须明确这是 fallback"],
+    qualityChecklist: ["Share Button 必须体现外发协作、渠道或权限范围，不能只是 Copy 图标换成 Share 图标", "按钮必须是 type=button，并有目标明确的 aria-label", "自定义分享面板必须使用 aria-haspopup=\"dialog\"、aria-expanded 和 aria-controls，不使用 role=menu", "分享成功、取消、失败、fallback 和禁用状态必须真实改变视觉与 aria-live 文案", "Share2 图标 aria-hidden=true 且 focusable=false", "移动端触控目标至少 44px，长邮箱、频道名或分享链接不造成横向滚动"],
+    do: ["用 Share Button 发起资源外发、协作邀请或渠道分发", "在按钮附近展示分享对象和权限范围", "失败或系统分享不可用时清楚提示 fallback 行为"],
+    dont: ["不要把 Share Button 做成本地 Copy Button", "不要让 Share Button 本体变成 More Button 的菜单触发器", "不要未选择目标就提示分享成功", "不要在权限不足时提供可点击但无结果的假分享"],
+    accessibility: ["使用原生 button type=button", "Share 图标使用 aria-hidden=true 和 focusable=false", "分享面板触发器使用 aria-haspopup=\"dialog\"、aria-expanded 和 aria-controls", "结果区域使用 aria-live=\"polite\"", "禁用状态使用 disabled 并关联不可分享原因", "移动端按钮和面板操作均至少 44px 高"],
+    related: ["button", "components-icon", "components-copy-button", "components-more-button"],
+  },
+  "components-favorite-button": {
+    auditStatus: "manual-reviewed",
+    auditOrder: 29,
+    auditSource: "docs/ui-item-name-index-expanded.md:38",
+    preview: "favorite-button-collection-preview",
+    summary: "收藏按钮用于把当前对象加入或移出个人收藏集，是一个可切换的偏好动作；它表达 Favorite 状态，不是 Pin Button、Bookmark Button、Like Button、Save Button 或 Follow Button。",
+    plain: "Favorite Button 常出现在组件条目、文章、模板、商品、报表、作品和搜索结果旁边。它的职责是让用户把当前对象标记为“我想稍后再看 / 我常用 / 我喜欢”，并在已收藏、未收藏、处理中、失败和禁用状态下给出明确反馈。它和 Pin Button 不同，因为 Pin 会改变对象在界面中的固定位置；和 Bookmark Button 不同，因为 Bookmark 偏向阅读位置或书签入口；和 Like Button 不同，因为 Like 通常是公开社交计数；和 Save Button 不同，因为 Save 会保存编辑内容；和 Follow Button 不同，因为 Follow 订阅人或频道的更新。",
+    aliases: ["Favorite Button", "Favorite Toggle", "Star Button", "Favorite Control", "收藏按钮", "星标按钮", "加入收藏按钮"],
+    tags: ["组件", "基础元素", "收藏", "星标", "偏好", "可切换按钮", "图标按钮", "可访问性"],
+    variants: ["星标收藏按钮", "收藏夹按钮", "已收藏按钮", "未收藏按钮", "处理中收藏按钮", "禁用收藏按钮"],
+    states: ["未收藏", "已收藏", "悬停", "按下", "键盘聚焦", "保存中", "收藏失败", "禁用"],
+    useCases: ["收藏常用组件", "把模板加入个人收藏夹", "收藏文章或文档", "收藏商品或作品", "搜索结果中快速星标", "权限不足时禁用收藏"],
+    anatomy: ["收藏对象：当前要加入收藏集的组件、文档、模板或商品", "触发按钮：button type=button，使用星形或心形图标并提供可访问名称", "切换状态：aria-pressed 真实表达已收藏 / 未收藏", "结果反馈：aria-live 公告已加入、已移出、失败或禁用原因", "收藏目标：显示个人收藏夹、常用组件或稍后查看等目标", "禁用原因：游客、只读空间或对象已归档时必须说明不可收藏"],
+    interaction: ["点击未收藏按钮会把对象加入收藏集，并把 aria-pressed 更新为 true", "点击已收藏按钮会从收藏集移出，并把 aria-pressed 更新为 false", "收藏失败时不能假装成功，必须显示错误反馈", "禁用按钮使用 disabled，不能打开菜单或执行空操作", "Favorite Button 不应改变对象排序位置、保存编辑内容、订阅作者或打开分享面板"],
+    qualityChecklist: ["Favorite Button 必须是可切换按钮，不只是一个静态星形图标", "按钮必须是 type=button，并有目标明确的 aria-label", "已收藏状态必须同步改变视觉、文本和 aria-pressed", "结果区域必须使用 aria-live=\"polite\"", "不得使用 aria-haspopup、role=menu、role=dialog 或分享/更多菜单结构", "移动端命中区域至少 44px，长标题和收藏夹名称不造成横向滚动"],
+    do: ["用 Favorite Button 表达个人偏好和稍后再看", "让图标、按钮文案和 aria-pressed 同步变化", "说明收藏会进入哪个收藏集或列表"],
+    dont: ["不要把 Favorite Button 做成 Pin Button 的固定位置动作", "不要把 Favorite 当成公开 Like 计数", "不要用 Favorite 保存表单或编辑内容", "不要只放星形图标而没有 aria-label"],
+    accessibility: ["使用原生 button type=button", "使用 aria-pressed 表达可切换收藏状态", "aria-label 写清收藏对象和当前动作", "星形或心形图标使用 aria-hidden=true 和 focusable=false", "反馈区域使用 aria-live=\"polite\"，移动端命中区域至少 44px"],
+    related: ["button", "components-icon-button", "components-pin-button", "components-share-button"],
+  },
+};
+
+function applyManualAuditOverride(entry) {
+  const override = manualAuditOverrides[entry.id];
+  if (!override) return entry;
+
+  return item({
+    ...entry,
+    ...override,
+    aliases: uniqueList([...(entry.aliases || []), ...(override.aliases || [])]),
+    tags: uniqueList([...(entry.tags || []), ...(override.tags || [])]),
+    isGenerated: entry.isGenerated,
+    isManuallyAudited: true,
+  });
+}
+
+export const uiItems = expandedIndexRows.map(expandedRowToItem).map(applyManualAuditOverride);
+
+const uiItemIdSet = new Set(uiItems.map((entry) => entry.id));
+const stableFallbackRelated = ["button", "card", "form"].filter((id) => uiItemIdSet.has(id));
+uiItems.forEach((entry) => {
+  const cleaned = uniqueList((entry.related || []).filter((id) => uiItemIdSet.has(id) && id !== entry.id));
+  entry.related = cleaned.length > 0 ? cleaned.slice(0, 4) : stableFallbackRelated;
+});
+
+const curatedExpandedRows = uiItems.filter((entry) => !entry.isGenerated).length;
+const manualReviewedRows = uiItems.filter((entry) => entry.isManuallyAudited).length;
+
+export const expandedIndexCoverage = {
+  sourceRows: expandedIndexRows.length,
+  curatedRows: curatedExpandedRows,
+  manualReviewedRows,
+  generatedRows: uiItems.length - curatedExpandedRows,
+  totalRows: uiItems.length,
+};
 
 export const quickQuestions = [
   "按钮和链接有什么区别？",
@@ -1985,6 +3148,11 @@ export const categoryDescriptions = {
   motion: "点击、悬停、加载、成功、错误、展开和减少动效。",
   patterns: "登录、搜索、筛选、上传、支付、删除确认等常见流程。",
   dictionary: "弹窗 Modal、轻提示 Toast、标签页 Tab、抽屉 Drawer 等术语。",
+  states: "默认、加载、成功、失败、权限、网络、文件和业务流程等状态字段。",
+  "mobile-components": "移动端导航、输入、反馈、手势、交易和设备能力组件。",
+  "react-components": "页面、Provider、索引、预览、Playground 和工具类 React 组件。",
+  accessibility: "可访问名称、焦点、键盘、读屏、对比度和测试相关条目。",
+  internationalization: "语言、地区、翻译、日期、数字、货币和 RTL/LTR 适配条目。",
 };
 
 export function findItem(id) {
