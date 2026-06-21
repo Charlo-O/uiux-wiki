@@ -38,6 +38,8 @@ import {
   findItem,
   quickQuestions,
   sections,
+  uiDocumentSections,
+  uiDocumentTabs,
   uiItems,
 } from "./data.js";
 
@@ -69,7 +71,8 @@ const headerSections = [
   { id: "components", label: "组件" },
   { id: "comparisons", label: "常见对比" },
   { id: "patterns", label: "交互" },
-  { id: "dictionary", label: "状态" },
+  { id: "states", label: "状态" },
+  { id: "dictionary", label: "词典" },
   { id: "layouts", label: "布局" },
   { id: "styles", label: "样式" },
   { id: "motion", label: "动效" },
@@ -389,7 +392,7 @@ const mobileComponents = [
     group: "navigation",
     summary: "浮在内容上方的高频主操作。",
     usage: "适合发布、创建、扫码、快速编辑。",
-    preview: "product",
+    preview: "actions",
   },
   {
     id: "mobile-date-picker",
@@ -398,7 +401,7 @@ const mobileComponents = [
     group: "input",
     summary: "移动端日期、时间或范围选择。",
     usage: "适合预约、出行、订单筛选和报表范围。",
-    preview: "sheet",
+    preview: "picker",
   },
   {
     id: "mobile-stepper",
@@ -407,7 +410,7 @@ const mobileComponents = [
     group: "input",
     summary: "用加减按钮调整数字。",
     usage: "适合数量、人数、库存和评分项。",
-    preview: "actions",
+    preview: "stepper",
   },
   {
     id: "mobile-form-row",
@@ -416,7 +419,7 @@ const mobileComponents = [
     group: "input",
     summary: "移动端设置项、资料项和输入项。",
     usage: "适合个人资料、地址、设置和偏好。",
-    preview: "search",
+    preview: "input",
   },
   {
     id: "mobile-empty-state",
@@ -425,7 +428,7 @@ const mobileComponents = [
     group: "feedback",
     summary: "解释当前没有内容并引导下一步。",
     usage: "适合搜索无结果、列表为空、首次使用。",
-    preview: "toast",
+    preview: "empty",
   },
   {
     id: "mobile-skeleton",
@@ -434,7 +437,7 @@ const mobileComponents = [
     group: "feedback",
     summary: "数据加载时保持布局稳定。",
     usage: "适合列表、卡片、详情页和 feed 加载。",
-    preview: "refresh",
+    preview: "loading",
   },
   {
     id: "mobile-carousel",
@@ -452,7 +455,7 @@ const mobileComponents = [
     group: "gesture",
     summary: "支持缩放、滑动和关闭的媒体查看。",
     usage: "适合相册、商品详情、聊天图片。",
-    preview: "product",
+    preview: "media",
   },
   {
     id: "mobile-checkout-bar",
@@ -461,7 +464,7 @@ const mobileComponents = [
     group: "commerce",
     summary: "固定底部展示金额和主操作。",
     usage: "适合购物车、订单确认、课程购买。",
-    preview: "tabbar",
+    preview: "product",
   },
   {
     id: "mobile-coupon",
@@ -470,7 +473,7 @@ const mobileComponents = [
     group: "commerce",
     summary: "展示优惠信息、领取状态和使用条件。",
     usage: "适合营销活动、会员权益、结算页。",
-    preview: "actions",
+    preview: "product",
   },
   {
     id: "mobile-order-card",
@@ -491,6 +494,7 @@ function itemMatchesQuery(entry, query) {
   const needle = normalize(query);
   if (!needle) return true;
   return [
+    entry.id,
     entry.title,
     entry.english,
     entry.summary,
@@ -977,6 +981,46 @@ function getVariantPreviewClass(variant = "", index = 0) {
   return classes.join(" ");
 }
 
+const taxonomyPreviewTypes = new Set([
+  "text-content",
+  "icon-system",
+  "divider",
+  "panel",
+  "code-block",
+  "keyboard-key",
+  "status-indicator",
+  "chart",
+  "editor",
+  "security",
+  "map",
+  "help",
+  "a11y",
+  "a11y-focus",
+  "a11y-name",
+  "a11y-structure",
+  "a11y-announcement",
+  "a11y-contrast",
+  "a11y-motion",
+  "a11y-target",
+  "a11y-form",
+  "a11y-alt-text",
+  "a11y-testing",
+  "i18n",
+  "i18n-locale",
+  "i18n-translation",
+  "i18n-plural",
+  "i18n-format",
+  "i18n-direction",
+  "i18n-text",
+  "i18n-search",
+  "i18n-compliance",
+  "react-component",
+  "react-preview",
+  "mobile-preview",
+  "term-card",
+  "taxonomy",
+]);
+
 function useStoredList(key, fallback) {
   const [value, setValue] = useState(() => {
     try {
@@ -1311,8 +1355,18 @@ export function App() {
   }
 
   useEffect(() => {
-    const id = window.location.hash.replace("#", "");
-    if (id && uiItems.some((entry) => entry.id === id)) chooseItem(findItem(id));
+    function openHashItem() {
+      const id = window.location.hash.replace("#", "");
+      const entry = uiItems.find((item) => item.id === id);
+      if (!entry) return;
+      setSelectedId(entry.id);
+      setActiveSection(entry.category);
+      setPreviewModalId(entry.id);
+    }
+
+    openHashItem();
+    window.addEventListener("hashchange", openHashItem);
+    return () => window.removeEventListener("hashchange", openHashItem);
   }, []);
 
   const isHomePage = activeSection === "home";
@@ -3363,9 +3417,121 @@ function MobilePreview({ type }) {
             <i className="mobile-product-button" />
           </>
         )}
+        {type === "scanner" && (
+          <>
+            <div className="mobile-scan-frame"><b /><b /><b /><b /></div>
+            <i className="mobile-product-button" />
+          </>
+        )}
+        {type === "media" && (
+          <>
+            <div className="mobile-media-preview"><Play size={18} fill="currentColor" /></div>
+            <i /><i />
+          </>
+        )}
+        {type === "picker" && (
+          <>
+            <div className="mobile-picker-preview">{Array.from({ length: 9 }).map((_, index) => <b key={index} />)}</div>
+            <i className="mobile-product-button" />
+          </>
+        )}
+        {type === "stepper" && (
+          <>
+            <i className="mobile-hero-block" />
+            <div className="mobile-stepper-preview"><b>-</b><span>2</span><b>+</b></div>
+          </>
+        )}
+        {type === "empty" && (
+          <>
+            <div className="mobile-empty-preview"><CircleHelp size={18} /><b /></div>
+            <i className="mobile-product-button" />
+          </>
+        )}
+        {type === "browser" && (
+          <>
+            <div className="mobile-browser-preview"><b /><span /><span /></div>
+            <i /><i />
+          </>
+        )}
+        {type === "input" && (
+          <>
+            <div className="mobile-input-preview"><span>Label</span><b /></div>
+            <div className="mobile-input-preview"><span>Value</span><b /></div>
+          </>
+        )}
+        {type === "banner" && (
+          <>
+            <div className="mobile-banner-preview"><b /><span /></div>
+            <i /><i /><i />
+          </>
+        )}
+        {type === "permission" && (
+          <>
+            <i className="mobile-hero-block" />
+            <div className="mobile-permission-preview"><strong>Allow?</strong><b /><b /></div>
+          </>
+        )}
+        {type === "loading" && (
+          <>
+            <div className="mobile-loading-preview"><b /><b /><b /></div>
+            <i /><i />
+          </>
+        )}
+        {type === "list" && (
+          <>
+            <div className="mobile-list-preview"><b /><span /></div>
+            <div className="mobile-list-preview"><b /><span /></div>
+            <div className="mobile-list-preview"><b /><span /></div>
+          </>
+        )}
+        {type === "carousel" && (
+          <>
+            <div className="mobile-carousel-preview"><b /><b /><b /></div>
+            <i className="mobile-product-button" />
+          </>
+        )}
+        {type === "map" && (
+          <>
+            <div className="mobile-map-preview"><b /><i /></div>
+            <i className="mobile-product-button" />
+          </>
+        )}
       </div>
     </div>
   );
+}
+
+function getMobilePreviewType(selected) {
+  const text = getPreviewSearchText(selected);
+  if (!text.trim()) return "navbar";
+  if (/otp|\bpin\b|verification code|one-time code|passcode/.test(text)) return "otp";
+  if (/image picker|photo picker|camera picker|file picker/.test(text)) return "picker";
+  if (/haptic/.test(text)) return "toast";
+  if (/permission|biometric|face id|touch id|bluetooth/.test(text)) return "permission";
+  if (/safe area|splash screen|web view|in-app browser|mini program/.test(text)) return "browser";
+  if (/loading overlay|skeleton|load more|infinite scroll/.test(text)) return "loading";
+  if (/notification banner|offline banner|install banner|app update prompt|banner/.test(text)) return "banner";
+  if (/numeric keyboard|number keyboard|keyboard accessory|form row|text field|textarea|input/.test(text)) return "input";
+  if (/map view|locate|map/.test(text)) return "map";
+  if (/carousel|page indicator/.test(text)) return "carousel";
+  if (/list item|mobile card|share card|timeline/.test(text)) return "list";
+  if (/command entry/.test(text)) return "search";
+  if (/bottom app bar|long press menu/.test(text)) return "actions";
+  if (/barcode|qr|scanner|\bscan\b/.test(text)) return "scanner";
+  if (/date picker|calendar|time picker|month picker|year picker|range picker|picker/.test(text)) return "picker";
+  if (/recorder|recording|\bvoice\b|audio|video|camera|microphone|media|image|photo|gallery|viewer|player/.test(text)) return "media";
+  if (/stepper|quantity|counter/.test(text)) return "stepper";
+  if (/empty|no results|not found/.test(text)) return "empty";
+  if (/tab|tabbar|bottom navigation|bottom nav/.test(text)) return "tabbar";
+  if (/nav|navigation|app bar|navbar|header/.test(text)) return "navbar";
+  if (/action sheet|actions|share sheet/.test(text)) return "actions";
+  if (/sheet|drawer|bottom sheet/.test(text)) return "sheet";
+  if (/search|filter/.test(text)) return "search";
+  if (/refresh|pull/.test(text)) return "refresh";
+  if (/swipe|gesture|drag/.test(text)) return "swipe";
+  if (/toast|snackbar|notice|alert/.test(text)) return "toast";
+  if (/\bproduct\b|\bcart\b|\bcheckout\b|\border\b|commerce|payment|coupon/.test(text)) return "product";
+  return "navbar";
 }
 
 function SearchComposer({ query, setQuery, onSubmit, showQuickQuestions = true }) {
@@ -3567,7 +3733,7 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
                   onClick={() => onChoose(entry)}
                 >
                   <strong>{entry.title}</strong>
-                  <MiniPreview type={entry.preview} />
+                  <MiniPreview type={entry.preview} entry={entry} />
                   <span className="home-core-use">{entry.summary}</span>
                 </button>
               ))
@@ -3628,12 +3794,82 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
 }
 
 function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "desktop" }) {
-  const grouped = sections
-    .map((section) => ({
-      ...section,
-      items: items.filter((entry) => entry.category === section.id),
-    }))
-    .filter((section) => !query || section.items.length > 0);
+  const [activeDocSectionId, setActiveDocSectionId] = useState("all");
+  const [activeDocGroupId, setActiveDocGroupId] = useState("all");
+  const documentGroups = useMemo(() => {
+    const documentGroups = uiDocumentTabs
+      .map((tab) => ({
+        ...tab,
+        label: tab.group,
+        items: items.filter((entry) => entry.docGroupId === tab.id),
+      }))
+      .filter((tab) => tab.items.length > 0);
+    const uncategorized = items.filter((entry) => !entry.docGroupId);
+    return uncategorized.length > 0
+      ? [...documentGroups, { id: "uncategorized", label: "未归类", sectionLabel: "补充", items: uncategorized }]
+      : documentGroups;
+  }, [items]);
+  const documentSections = useMemo(() => {
+    const groupsBySection = new Map();
+    for (const group of documentGroups) {
+      const sectionId = group.sectionId || "uncategorized-section";
+      if (!groupsBySection.has(sectionId)) groupsBySection.set(sectionId, []);
+      groupsBySection.get(sectionId).push(group);
+    }
+
+    const sectionsWithItems = uiDocumentSections
+      .map((section) => {
+        const groups = groupsBySection.get(section.id) || [];
+        return {
+          ...section,
+          groups,
+          items: groups.flatMap((group) => group.items),
+        };
+      })
+      .filter((section) => section.items.length > 0);
+
+    const uncategorizedGroups = groupsBySection.get("uncategorized-section") || [];
+    return uncategorizedGroups.length > 0
+      ? [...sectionsWithItems, {
+          id: "uncategorized-section",
+          label: "补充",
+          heading: "补充",
+          categoryId: "components",
+          groups: uncategorizedGroups,
+          items: uncategorizedGroups.flatMap((group) => group.items),
+        }]
+      : sectionsWithItems;
+  }, [documentGroups]);
+  const sectionTabs = useMemo(() => [
+    { id: "all", label: "全部", heading: "全部", groups: documentGroups, items },
+    ...documentSections,
+  ], [documentGroups, documentSections, items]);
+  const activeSection = sectionTabs.find((tab) => tab.id === activeDocSectionId) || sectionTabs[0];
+  const currentGroups = activeSection?.id === "all" ? documentGroups : activeSection?.groups || [];
+  const categoryTabs = useMemo(() => [
+    {
+      id: "all",
+      label: activeSection?.id === "all" ? "全部子分类" : "本章全部",
+      sectionLabel: activeSection?.label || "文档分类",
+      items: activeSection?.items || [],
+    },
+    ...currentGroups,
+  ], [activeSection, currentGroups]);
+  const activeGroup = categoryTabs.find((tab) => tab.id === activeDocGroupId) || categoryTabs[0];
+  const visibleGroups = activeGroup?.id === "all" ? currentGroups : activeGroup?.items?.length ? [activeGroup] : [];
+
+  useEffect(() => {
+    if (!sectionTabs.some((tab) => tab.id === activeDocSectionId && tab.items.length > 0)) {
+      setActiveDocSectionId("all");
+      setActiveDocGroupId("all");
+    }
+  }, [activeDocSectionId, sectionTabs]);
+
+  useEffect(() => {
+    if (!categoryTabs.some((tab) => tab.id === activeDocGroupId && tab.items.length > 0)) {
+      setActiveDocGroupId("all");
+    }
+  }, [activeDocGroupId, categoryTabs]);
 
   return (
     <section className="all-components-page" aria-labelledby="all-components-title">
@@ -3641,8 +3877,43 @@ function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "d
         <span className="panel-kicker">全部展示</span>
         <h1 id="all-components-title">全部组件</h1>
       </div>
+      <div className="document-section-tabs" role="tablist" aria-label="按文档一级目录筛选全部 UI 条目">
+        {sectionTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeSection?.id === tab.id}
+            className={activeSection?.id === tab.id ? "active" : ""}
+            onClick={() => {
+              setActiveDocSectionId(tab.id);
+              setActiveDocGroupId("all");
+            }}
+          >
+            <span>{tab.label}</span>
+            <small>{tab.id === "all" ? "文档目录" : "一级目录"}</small>
+            <b>{tab.items.length}</b>
+          </button>
+        ))}
+      </div>
+      <div className="document-category-tabs" role="tablist" aria-label="按文档二级目录筛选全部 UI 条目">
+        {categoryTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeGroup?.id === tab.id}
+            className={activeGroup?.id === tab.id ? "active" : ""}
+            onClick={() => setActiveDocGroupId(tab.id)}
+          >
+            <span>{tab.label}</span>
+            <small>{tab.sectionLabel}</small>
+            <b>{tab.items.length}</b>
+          </button>
+        ))}
+      </div>
       <div className="all-component-groups">
-        {grouped.length > 0 ? grouped.map((section) => (
+        {visibleGroups.length > 0 ? visibleGroups.map((section) => (
           <section key={section.id} className="all-component-group" aria-labelledby={`${section.id}-showcase-title`}>
             <div className="all-component-group-heading">
               <h2 id={`${section.id}-showcase-title`}>{section.label}</h2>
@@ -3791,16 +4062,16 @@ function ComponentTile({ entry, index, active, onChoose, deviceMode = "desktop" 
       <span className="component-tile-preview">
         {deviceMode === "mobile" ? (
           <span className="tile-phone-preview">
-            <MiniPreview type={entry.preview} />
+            <MiniPreview type={entry.preview} entry={entry} />
           </span>
         ) : (
-          <MiniPreview type={entry.preview} />
+          <MiniPreview type={entry.preview} entry={entry} />
         )}
       </span>
       <span className="component-tile-copy">
         <strong>{entry.title}</strong>
         <em>{entry.english}</em>
-        <span>{entry.group}</span>
+        <span>{entry.docGroup || entry.group}</span>
       </span>
     </button>
   );
@@ -3816,7 +4087,7 @@ function EntryRow({ entry, index, active, onChoose }) {
       onClick={onChoose}
     >
       <span className="entry-index">{String(index + 1).padStart(2, "0")}</span>
-      <MiniPreview type={entry.preview} />
+      <MiniPreview type={entry.preview} entry={entry} />
       <span className="entry-copy">
         <strong>
           {entry.title}
@@ -3985,14 +4256,20 @@ function LivePreview({ selected, playground, variant, deviceMode = "desktop" }) 
   else if (selected.category === "motion") preview = <MotionLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "patterns") preview = <PatternLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "dictionary") {
-    const related = findItem(selected.related[0] || "button");
-    preview = (
-      <ComponentLivePreview
-        selected={related.id === selected.id ? selected : related}
-        term={selected}
-        variant={variant}
-      />
-    );
+    if (taxonomyPreviewTypes.has(selected.preview)) {
+      preview = <ComponentLivePreview selected={selected} variant={variant} />;
+    } else if (selected.preview && selected.preview !== "generic") {
+      preview = <ComponentLivePreview selected={selected} variant={variant} />;
+    } else {
+      const related = findItem(selected.related[0] || "button");
+      preview = (
+        <ComponentLivePreview
+          selected={related.id === selected.id ? selected : related}
+          term={selected}
+          variant={variant}
+        />
+      );
+    }
   } else {
     preview = <ComponentLivePreview selected={selected} variant={variant} />;
   }
@@ -4038,8 +4315,1130 @@ function VariantPreviewShell({ selected, variant, index, children }) {
   );
 }
 
+function getSemanticAction(selected) {
+  const text = getPreviewSearchText(selected);
+  const label = selected?.title || selected?.english || "Action";
+  if (/filter/.test(text)) return { kind: "filter", label, icon: SlidersHorizontal, helper: "Apply filters to narrow the current results." };
+  if (/sort/.test(text)) return { kind: "sort", label, icon: SlidersHorizontal, helper: "Choose ordering before scanning the list." };
+  if (/search/.test(text)) return { kind: "search", label, icon: Search, helper: "Run a search query against the current content." };
+  if (/prevent duplicate submit|submit/.test(text)) return { kind: "submit", label, icon: Check, helper: "Submit the current form and show the request state." };
+  if (/export|download/.test(text)) return { kind: "download", label, icon: Download, helper: "Download or export the selected data." };
+  if (/import|upload/.test(text)) return { kind: "upload", label, icon: ArrowUp, helper: "Upload or import files into the current flow." };
+  if (/copy|duplicate/.test(text)) return { kind: "copy", label, icon: Copy, helper: "Copy the current item or result." };
+  if (/share/.test(text)) return { kind: "share", label, icon: Share2, helper: "Share the current item with another person or channel." };
+  if (/delete|remove|stop|cancel/.test(text)) return { kind: "danger", label, icon: X, helper: "Stop or remove the current item after confirmation." };
+  if (/archive/.test(text)) return { kind: "archive", label, icon: Box, helper: "Move the selected item into the archive with a reversible action." };
+  if (/restore/.test(text)) return { kind: "restore", label, icon: RefreshCcw, helper: "Restore the archived item to the active list." };
+  if (/publish/.test(text)) return { kind: "publish", label, icon: Check, helper: "Publish the draft and make it visible to its audience." };
+  if (/save/.test(text)) return { kind: "save", label, icon: Check, helper: "Save the current changes." };
+  if (/refresh|retry/.test(text)) return { kind: "refresh", label, icon: RefreshCcw, helper: "Refresh the data and keep the user in place." };
+  if (/add|create|new/.test(text)) return { kind: "add", label, icon: Check, helper: "Add this item to the current collection or cart." };
+  if (/edit/.test(text)) return { kind: "edit", label, icon: PenTool, helper: "Open an edit state for the selected content." };
+  if (/back|previous|next/.test(text)) return { kind: "nav", label, icon: ChevronRight, helper: "Move through the current navigation flow." };
+  if (/record|recording/.test(text)) return { kind: "record", label, icon: Play, helper: "Start or stop media recording." };
+  return { kind: "default", label, icon: MousePointer2, helper: selected?.summary || "Trigger the primary action for this component." };
+}
+
+function getMenuOptions(selected, isDropdown = false) {
+  const text = getPreviewSearchText(selected);
+  if (/filter/.test(text)) return ["Status", "Owner", "Date range"];
+  if (/sort/.test(text)) return ["Newest first", "Priority", "Name A-Z"];
+  if (/share/.test(text)) return ["Copy link", "Invite member", "Share to channel"];
+  if (/export/.test(text)) return ["CSV", "Excel", "PDF"];
+  if (/import/.test(text)) return ["CSV import", "Excel import", "Template"];
+  if (/delete/.test(text)) return ["Archive", "Delete", "Cancel"];
+  if (isDropdown) return ["Newest first", "Price low to high", "Available only"];
+  return ["Edit", "Copy link", "Delete"];
+}
+
+function getFormRows(selected) {
+  const text = getPreviewSearchText(selected);
+  if (/payment/.test(text)) return ["Card number", "Expiry", "CVC"];
+  if (/filter/.test(text)) return ["Status", "Owner", "Date range"];
+  if (/search/.test(text)) return ["Search query", "Scope"];
+  if (/address/.test(text)) return ["Street", "City", "Postal code"];
+  if (/settings|preferences/.test(text)) return ["Preference", "Notification", "Visibility"];
+  if (/feedback/.test(text)) return ["Feedback", "Category", "Contact"];
+  return ["Email", "Note"];
+}
+
+function getSelectOptions(selected) {
+  const text = getPreviewSearchText(selected);
+  if (/color/.test(text)) return ["#111827", "#2563eb", "#16a34a"];
+  if (/payment method/.test(text)) return ["Visa ending 4242", "PayPal", "Apple Pay"];
+  if (/file/.test(text)) return ["report.pdf", "image.png", "archive.zip"];
+  if (/image|avatar/.test(text)) return ["Cover image", "Avatar", "Gallery"];
+  if (/icon/.test(text)) return ["Search", "Check", "Share"];
+  if (/member|user|team/.test(text)) return ["Alex", "Design Team", "Reviewers"];
+  if (/timezone/.test(text)) return ["UTC+08", "UTC+00", "UTC-05"];
+  if (/location/.test(text)) return ["Current location", "Office", "Warehouse"];
+  if (/template/.test(text)) return ["Blank", "Report", "Checklist"];
+  return ["Active", "Archived", "Draft"];
+}
+
+function ActionMockup({ action, selected }) {
+  const text = getPreviewSearchText(selected);
+  if (action.kind === "filter") {
+    return (
+      <section className="live-action-mock action-filter">
+        <label><input type="checkbox" defaultChecked /> Active</label>
+        <label><input type="checkbox" /> Archived</label>
+        <button type="button">Apply</button>
+      </section>
+    );
+  }
+  if (action.kind === "sort") {
+    return (
+      <section className="live-action-mock action-sort">
+        <label><input type="radio" name="sort-demo" defaultChecked /> Newest first</label>
+        <label><input type="radio" name="sort-demo" /> Price low to high</label>
+      </section>
+    );
+  }
+  if (action.kind === "copy") {
+    return <section className="live-action-mock action-copy"><code>{text.includes("result") ? "AI result.md" : "https://uiux.wiki/item"}</code><span>Copied</span></section>;
+  }
+  if (action.kind === "share") {
+    return <section className="live-action-mock action-share"><button>Link</button><button>Team</button><button>Channel</button></section>;
+  }
+  if (action.kind === "danger") {
+    return <section className="live-action-mock action-danger"><strong>{text.includes("stop") ? "Generation in progress" : "Selected item"}</strong><span>Confirm before continuing.</span></section>;
+  }
+  if (/cart/.test(text)) {
+    return <section className="live-action-mock action-cart"><i /><span>Product</span><b>2</b></section>;
+  }
+  return <section className="live-action-mock"><i /><i /><i /></section>;
+}
+
+function OtpPreviewCard({ selected, variantClass }) {
+  return (
+    <div className={`live-otp-card ${variantClass}`}>
+      <strong>{selected.title}</strong>
+      <div>{["6", "2", "", ""].map((digit, index) => <span key={index} className={index === 2 ? "focus" : ""}>{digit}</span>)}</div>
+      <small>Paste code or type one digit per cell.</small>
+    </div>
+  );
+}
+
+function getSpecificPreviewKind(selected) {
+  const text = getPreviewSearchText(selected);
+  if (!text.trim()) return "";
+  if (["accessibility", "styles", "layouts", "comparisons"].includes(selected?.category)) return "";
+
+  if (/drag-sort|drag sort/.test(text)) return "drag-sort-specific";
+  if (/dictionary-pagination|dictionary pagination/.test(text)) return "dictionary-pagination-specific";
+  if (selected?.category === "dictionary" && /dictionary-toast|\btoast\b/.test(text)) return "dictionary-toast-specific";
+  if (/dictionary-not-found-state|not-found-state|not found state/.test(text)) return "not-found-state-specific";
+  if (/states-multi-select|multi-select|multi select/.test(text)) return "multi-select-state";
+  if (selected?.category === "states" && (/\bsorting\b|\bsort\b/.test(text))) return "sorting-state";
+  if (/captions-on|captions-off|captions on|captions off/.test(text)) return "caption-state";
+  if (/awaiting-confirmation|awaiting confirmation/.test(text)) return "awaiting-confirmation-state";
+  if (/awaiting-shipment|awaiting shipment/.test(text)) return "shipment-state";
+  if (selected?.category === "states" && /retrieving|available|unavailable/.test(text)) return "availability-state";
+  if (selected?.category === "states" && /\bbusy\b|\baway\b|skipped|unassigned|assigned|low-priority|low priority/.test(text)) return "task-status-state";
+
+  if (/success-message|success message/.test(text)) return "pattern-success-message";
+  if (/warning-message|warning message/.test(text)) return "pattern-warning-message";
+  if (/info-message|info message/.test(text)) return "pattern-info-message";
+  if (/system-announcement|announcement-board|announcement board|system announcement/.test(text)) return "pattern-announcement";
+  if (/notification-settings|notification settings/.test(text)) return "pattern-notification-settings";
+  if (/mention-notification|unread-reminder|mention-reminder|mention notification|unread reminder|mention reminder/.test(text)) return "pattern-reminder";
+  if (/update-prompt|update prompt/.test(text)) return "pattern-update";
+  if (/reconnect-notice|reconnect notice/.test(text)) return "pattern-reconnect";
+  if (/first-load|first load/.test(text)) return "pattern-first-load";
+  if (/version-upgrade|version upgrade/.test(text)) return "pattern-version-upgrade";
+  if (/resource-expired|resource expired/.test(text)) return "pattern-expired";
+  if (/empty-project|empty project/.test(text)) return "pattern-empty-project";
+  if (/retry-failed-action|retry failed action/.test(text)) return "pattern-retry-failed";
+
+  if (/currency-selector|currency selector/.test(text)) return "currency-selector-specific";
+  if (/country-selector|country selector/.test(text)) return "country-selector-specific";
+  if (/timezone-selector|timezone selector/.test(text)) return "timezone-selector-specific";
+  if (/city-selector|region-selector|city selector|region selector/.test(text)) return "geo-selector-specific";
+  if (/sku-selector|size-selector|shipping-method-selector|sku selector|size selector|shipping method selector/.test(text)) return "commerce-selector-specific";
+  if (/font-size-selector|font-selector|font size selector|font selector/.test(text)) return "font-selector-specific";
+  if (/variable-picker|variable picker/.test(text)) return "variable-picker-specific";
+  if (/mention-picker|mention picker/.test(text)) return "mention-picker-specific";
+  if (/combobox/.test(text)) return "combobox-specific";
+  if (/cascader/.test(text)) return "cascader-specific";
+  if (/picker-overlay|picker overlay/.test(text)) return "picker-overlay-specific";
+  if (/notification-channel-selector|notification channel selector/.test(text)) return "notification-channel-selector-specific";
+
+  if (/footer-navigation|footer navigation/.test(text)) return "footer-navigation-specific";
+  if (/previous-next-navigation|previous next navigation|previous-next|previous next/.test(text)) return "previous-next-specific";
+  if (/anchor-navigation|anchor navigation/.test(text)) return "anchor-navigation-specific";
+  if (/infinite-scroll-navigation|infinite scroll navigation|infinite-scroll/.test(text)) return "infinite-scroll-specific";
+  if (/recent-navigation|favorite-navigation|recent navigation|favorite navigation/.test(text)) return "recent-favorite-navigation-specific";
+
+  if (/props-table|props table/.test(text)) return "props-table-specific";
+  if (/table-filter|table filter/.test(text)) return "table-filter-specific";
+  if (/saved-view|saved view/.test(text)) return "saved-view-specific";
+  if (/empty-table-state|empty table state/.test(text)) return "empty-table-specific";
+  if (/aggregate-row|aggregate row/.test(text)) return "aggregate-row-specific";
+  if (/group-row|group row/.test(text)) return "group-row-specific";
+
+  if (/product-list|product list/.test(text)) return "product-list-specific";
+  if (/order-list|order list/.test(text)) return "order-list-specific";
+  if (/product-gallery|product gallery/.test(text)) return "product-gallery-specific";
+  if (/product-reviews|product reviews/.test(text)) return "product-reviews-specific";
+  if (/subscription-management|subscription management/.test(text)) return "subscription-management-specific";
+  if (/permissions-settings|file-permissions|authorized-apps|keyboard-shortcuts-settings|login-history|permissions settings|file permissions|authorized apps|keyboard shortcuts settings|login history/.test(text)) return "security-list-specific";
+  if (/danger-zone|danger zone/.test(text)) return "danger-zone-specific";
+  if (/ticket-list|ticket list/.test(text)) return "ticket-list-specific";
+  if (/faq-list|faq-item|docs-page|help-center-entry|support-entry|glossary|keyboard-shortcuts-help|faq list|faq item|docs page|help center entry|support entry|keyboard shortcuts help/.test(text)) return "help-entry-specific";
+  if (/ticket-status|status-page-entry|service-status|ticket status|status page entry|service status/.test(text)) return "service-status-specific";
+  if (/image-annotation|image annotation/.test(text)) return "image-annotation-specific";
+  if (/image-carousel|image carousel/.test(text)) return "image-carousel-specific";
+
+  if (/error-message|network-error|server-error|timeout|rate-limited|rate limited/.test(text)) return "pattern-error-state";
+  if (/partial-success|partial success/.test(text)) return "partial-success-state";
+  if (/offline-notice|offline notice|offline-mode|offline mode/.test(text)) return "offline-banner";
+  if (/rate-experience|rate experience/.test(text)) return "rating-feedback";
+  if (/ai-feedback|ai feedback/.test(text)) return "ai-feedback";
+  if (/^online$|states-online|\bonline\b|^connected$|\bconnected\b|undelivered|unsynced|unpublished/.test(text)) return "connection-state";
+  if (/loaded|complete-data|complete data|partial-data|partial data|stale-data|stale data|cached|has-more|has more|no-more|no more|end-of-pagination|end of pagination/.test(text)) return "data-state";
+  if (/validation-success|submit-success|query-success|filters-cleared|tool-call-success|validation success|submit success|query success|filters cleared|tool call success/.test(text)) return "operation-success-state";
+  if (/dictionary-loading-overlay|loading overlay/.test(text)) return "loading-overlay-specific";
+  if (/dictionary-alert-dialog|alert dialog/.test(text)) return "alert-dialog-specific";
+  if (/dictionary-confirmation-dialog|confirmation dialog/.test(text)) return "confirmation-dialog-specific";
+  if (/search-box|search box|mobile-search-bar|mobile search bar/.test(text)) return "search-box-specific";
+  if (/dictionary-error-state|offline-state|server-error-state|rate-limit-state|error state|offline state|server error state|rate limit state/.test(text)) return "error-state-specific";
+  if (/mobile-qr-scanner|barcode-scanner|qr scanner|barcode scanner/.test(text)) return "qr-scanner";
+  if (/share-sheet|share sheet/.test(text)) return "action-sheet-specific";
+  if (/mobile-empty-state|mobile empty state/.test(text)) return "empty-result";
+  if (/mobile-pull-to-refresh|pull to refresh/.test(text)) return "pull-refresh-specific";
+  if (/mobile-swipe-action|swipe action|drag-sort|drag sort/.test(text)) return "swipe-action-specific";
+  if (/maintenance|maintenance notice|maintenance state/.test(text)) return "maintenance-state";
+  if (/\bsteps\b|step item|progress stepper|tutorial steps/.test(text)) return "steps-control";
+  if (/tab-panel|tab panel/.test(text)) return "tab-panel-specific";
+  if (/keyboard-shortcuts-panel|keyboard shortcuts panel|shortcut-help-dialog|shortcut help dialog|shortcut table|keyboardshortcuttable/.test(text)) return "shortcut-panel";
+  if (/shortcut-entry|shortcut entry/.test(text)) return "shortcut-entry";
+  if (/offline-banner|offline banner/.test(text)) return "offline-banner";
+  if (/warning-result|warning result/.test(text)) return "warning-result";
+  if (/fieldset|field-set|field set/.test(text)) return "fieldset-specific";
+  if (/wizard-form|wizard form|multi step form/.test(text)) return "wizard-form-specific";
+  if (/checkout-steps|checkout steps|checkout stepper/.test(text)) return "checkout-stepper";
+  if (/language-selector|language selector/.test(text)) return "i18n-selector";
+  if (/role-selector|role selector/.test(text)) return "role-selector-specific";
+  if (/layer-selector|layer selector|floor-selector|floor selector|radius-selector|radius selector/.test(text)) return "map-selector";
+  if (/navigation-rail|navigation rail/.test(text)) return "navigation-rail-specific";
+  if (/page-number|page number/.test(text)) return "page-number-specific";
+  if (/comparison-table|comparison table/.test(text)) return "comparison-table-specific";
+  if (/api-reference-table|api reference table|proptable|prop table/.test(text)) return "api-table-specific";
+  if (/table-pagination|table pagination/.test(text)) return "table-pagination-specific";
+  if (/table-toolbar|table toolbar/.test(text)) return "table-toolbar-specific";
+  if (/variantmatrix|state.?matrix|variant matrix|state matrix/.test(text)) return "matrix-table";
+  if (/product-card|product card/.test(text)) return "product-card-specific";
+  if (/product-detail|product detail/.test(text)) return "product-detail-specific";
+  if (/variant-selector|variant selector/.test(text)) return "variant-selector-specific";
+  if (/social-login-button|social login button/.test(text)) return "social-login-button";
+  if (/card-number-field|card number field/.test(text)) return "card-number-field";
+  if (/security-settings|security settings/.test(text)) return "security-settings";
+  if (/api-key-list|api key list/.test(text)) return "api-key-list";
+  if (/image-editor|image editor/.test(text)) return "image-editor-specific";
+  if (/support-chat|support chat/.test(text)) return "support-chat";
+  if (/docsnav|docs navigation/.test(text)) return "docs-navigation";
+  if (/docstoc|docs table of contents|table-of-contents|table of contents/.test(text)) return "toc";
+  if (/themetoggle|theme toggle|densitytoggle|density toggle|languagetoggle|language toggle/.test(text)) return "react-toggle-specific";
+  if (/colorswatch|color swatch/.test(text)) return "color-swatch-specific";
+  if (/spacingscale|spacing scale/.test(text)) return "spacing-scale-specific";
+  if (/typographyscale|typography scale/.test(text)) return "typography-scale-specific";
+  if (/motiontimeline|motion timeline/.test(text)) return "motion-timeline-specific";
+  if (/statusbadge|status badge/.test(text)) return "status-badge-specific";
+  if (/loadingstate|loading state/.test(text)) return "loading-state-specific";
+  if (/media-list-item|media list item/.test(text)) return "media-list-item";
+  if (/stop-ai-generation|stop ai generation|stop-generating|stop generating|continue generation|regenerate/.test(text)) return "ai-generation-control";
+  if (/states-stopped|\bstopped\b|continuable|tool-calling|tool calling/.test(text)) return /tool/.test(text) ? "ai-tool-call-status" : "ai-generation-control";
+  if (/prompt-composer|prompt composer/.test(text)) return "ai-prompt-composer";
+  if (/context-attachment|context attachment/.test(text)) return "ai-context-attachment";
+  if (/context-panel|context panel|file-context-card|file context card|web-context-card|web context card/.test(text)) return "ai-context-panel";
+  if (/streaming-text|streaming text/.test(text)) return "ai-streaming-text";
+  if (/tool-call-status|tool call status/.test(text)) return "ai-tool-call-status";
+  if (/tool-call-log|tool call log/.test(text)) return "ai-tool-call-log";
+  if (/apply-suggestion|apply suggestion/.test(text)) return "ai-suggestion-action";
+  if (/confidence-indicator|confidence indicator|low-confidence|high-confidence|needs-human-confirmation|human confirmation/.test(text)) return "ai-confidence-indicator";
+  if (/grounding-indicator|grounding indicator|citations-available|citations-missing|citation|citations|grounded|ungrounded/.test(text)) return "ai-grounding-indicator";
+  if (/context-too-long|quota-exceeded|context too long|quota exceeded/.test(text)) return "ai-usage";
+  if (/model-unavailable|content-filtered|model unavailable|content filtered/.test(text)) return "ai-safety-status";
+  if (/external-link|external link/.test(text)) return "external-link";
+  if (/skip-link|skip link/.test(text)) return "skip-link";
+  if (/table-of-contents|table of contents/.test(text)) return "toc";
+  if (/breadcrumb-item|breadcrumb item/.test(text)) return "breadcrumb-item";
+  if (/bottom-navigation|bottom navigation|bottom nav|dictionary-bottom-navigation|tab-bar|tab bar/.test(text)) return "bottom-navigation-specific";
+  if (/action-sheet|action sheet|dictionary-action-sheet/.test(text)) return "action-sheet-specific";
+  if (/date-range-picker|date range picker|date-picker|date picker|time-picker|time picker|dictionary-date|dictionary-time/.test(text)) return "date-time-picker";
+  if (/dictionary-otp-input|otp input|verification code|one-time code|pin input/.test(text)) return "otp-input-specific";
+  if (/dictionary-data-grid|dictionary-tree-table|dictionary-pivot-table|data grid|tree table|pivot table/.test(text)) return "structured-table";
+  if (/dictionary-tree|tree-view|tree view|directory-tree|file-tree|organization-tree|permission-tree|checkable-tree|draggable-tree/.test(text)) return "tree-view";
+  if (/tree-select|tree select/.test(text)) return "tree-select";
+  if (/\btransfer\b|transfer-list|dual-list|dual list/.test(text)) return "transfer-list";
+  if (/icon-picker|icon picker/.test(text)) return "icon-picker";
+  if (/emoji-picker|emoji picker/.test(text)) return "emoji-picker";
+  if (/like-selection|like selection|reaction/.test(text)) return "reaction-picker";
+  if (/column-settings|column settings|column-picker|column picker|column-visibility|column visibility/.test(text)) return "column-control";
+  if (/split-button|split button/.test(text)) return "split-button-specific";
+  if (/bulk-action-bar|bulk action bar|row-actions|row actions|card-actions|card actions/.test(text)) return "action-bar";
+  if (/pricing-table|pricing table/.test(text)) return "pricing-table";
+  if (/docs-navigation|docs navigation|document navigation/.test(text)) return "docs-navigation";
+  if (/role-permissions|role permissions/.test(text)) return "role-permission-matrix";
+  if (/permission-request|permission request/.test(text)) return "access-request";
+  if (/permission-denied|permission denied|unauthorized|forbidden/.test(text)) return "access-denied";
+  if (/decorative-icon|decorative icon/.test(text)) return "decorative-icon";
+  if (/brand-icon|brand icon/.test(text)) return "brand-icon";
+  if (/expand-icon|expand icon/.test(text)) return "expand-icon";
+  if (/close-button|close button/.test(text)) return "close-button";
+  if (/more-button|more button/.test(text)) return "more-button";
+  if (/help-button|help button/.test(text)) return "help-button";
+  if (/favorite-button|favorite button/.test(text)) return "favorite-button";
+  if (/components-tag|dictionary-tag|\btag\b|chip/.test(text)) return "tag-chip";
+
+  if (/card-header|card header/.test(text)) return "card-header";
+  if (/card-footer|card footer/.test(text)) return "card-footer";
+  if (/stat-card|metric card|stat card/.test(text)) return "stat-card";
+  if (/profile-card|profile card|components-profile-card-2/.test(text)) return "profile-card";
+  if (/detail-list|detail list/.test(text)) return "detail-list";
+  if (/avatar-group|avatar group/.test(text)) return "avatar-group";
+  if (/countdown/.test(text)) return "countdown";
+  if (/result-page|result page|success state|components-success-state/.test(text)) return "result-page";
+  if (/unauthenticated/.test(text)) return "auth-empty";
+  if (/empty-result|no results|empty result/.test(text)) return "empty-result";
+
+  if (/bottom-sheet-selection|mobile-filtering/.test(text)) return "mobile-task-sheet";
+  if (/sku-bottom-sheet|sku bottom sheet/.test(text)) return "sku-sheet";
+  if (/address-sheet|address sheet/.test(text)) return "address-sheet-specific";
+  if (/payment-method-sheet|payment method sheet/.test(text)) return "payment-method-sheet-specific";
+  if (/bottom-sheet|bottom sheet|dictionary-bottom-sheet/.test(text)) return "bottom-sheet";
+  if (/navigation-drawer|mobile-navigation-drawer|navigation drawer/.test(text)) return "navigation-drawer";
+  if (/detail-drawer|detail drawer/.test(text)) return "detail-drawer";
+  if (/notification-center|notification center/.test(text)) return "notification-center";
+  if (/fullscreen-modal|full-screen modal|fullscreen modal/.test(text)) return "fullscreen-modal";
+  if (/non-modal-dialog|non-modal dialog/.test(text)) return "non-modal-dialog";
+  if (/form-dialog|form dialog/.test(text)) return "form-dialog";
+  if (/backdrop/.test(text)) return "backdrop";
+  if (/portal/.test(text)) return "portal";
+  if (/session-timeout-dialog|session timeout dialog/.test(text)) return "session-timeout";
+  if (/permission-dialog|permission dialog|permission-request/.test(text)) return "permission-dialog";
+  if (/share-dialog|share dialog/.test(text)) return "share-dialog";
+  if (/lightbox/.test(text)) return "lightbox";
+  if (/mobile-toast|mobile toast/.test(text)) return "mobile-toast";
+  if (/snackbar/.test(text)) return "snackbar";
+  if (/system-notification|system notification/.test(text)) return "system-notification";
+  if (/info-alert|info alert/.test(text)) return "info-alert";
+
+  if (/map-legend|map legend/.test(text)) return "map-legend";
+  if (/map-marker|map marker|marker-cluster|marker cluster/.test(text)) return "map-marker";
+  if (/map-chart|map chart|geo-heatmap|geo heatmap|heatmap-layer|heatmap layer/.test(text)) return "map-visual";
+  if (/\bheatmap\b|heat map/.test(text)) return "chart-heatmap";
+  if (/empty-chart-state|empty chart state/.test(text)) return "chart-empty-state";
+  if (/chart-loading-state|chart loading state/.test(text)) return "chart-loading-state";
+  if (/empty-map-state|empty map state/.test(text)) return "map-empty-state";
+  if (/map-error-state|map error state/.test(text)) return "map-error-state";
+  if (/treemap/.test(text)) return "chart-treemap";
+  if (/chart-tooltip|chart tooltip/.test(text)) return "chart-tooltip";
+  if (/chart-refresh|chart refresh/.test(text)) return "chart-refresh";
+  if (/chart-export|chart export/.test(text)) return "chart-export";
+  if (/flowchart-editor|flowchart editor/.test(text)) return "flowchart-editor";
+  if (/diff-viewer|diff viewer/.test(text)) return "diff-viewer";
+  if (/markdown-editor|markdown editor/.test(text)) return "markdown-editor";
+  if (/rich-text-editor|text-editor|rich text editor|text editor/.test(text)) return "rich-text-editor";
+  if (/formula-editor|formula editor/.test(text)) return "formula-editor";
+  if (/editor-toolbar|formatting-toolbar|floating-formatting-toolbar|editor toolbar|formatting toolbar/.test(text)) return "editor-toolbar";
+  if (/preview-toggle|preview toggle/.test(text)) return "preview-toggle";
+
+  if (/upload-list|upload list/.test(text)) return "upload-list";
+  if (/upload-status|upload status/.test(text)) return "upload-status";
+  if (/save-status|save status/.test(text)) return "save-status";
+  if (/image-picker|image picker|photo-library-picker|photo library picker/.test(text)) return "image-picker";
+  if (/file-picker|file picker/.test(text)) return "file-picker";
+  if (/folder-tree|folder tree/.test(text)) return "folder-tree";
+  if (/broken-image-state|broken image/.test(text)) return "broken-image";
+  if (/image-placeholder|placeholder-image|placeholder image/.test(text)) return "image-placeholder";
+  if (/image-upload|image upload|image-insert|image insert/.test(text)) return "image-upload";
+  if (/product-image-carousel|product image carousel/.test(text)) return "product-carousel";
+  if (/image-gallery|image gallery|image-carousel|image carousel/.test(text)) return "image-grid";
+  if (/pdf-viewer|pdf viewer/.test(text)) return "document-viewer";
+  if (/file-thumbnail|file thumbnail/.test(text)) return "file-thumbnail";
+  if (/patterns-file-preview|file-preview|file preview/.test(text)) return "document-viewer";
+  if (/\bfolder\b/.test(text)) return "folder";
+  if (/file-path|file path/.test(text)) return "file-path";
+  if (/file-version|file version/.test(text)) return "file-version";
+  if (/file-grid|file grid/.test(text)) return "file-grid";
+  if (/code-file-viewer|code file viewer/.test(text)) return "code-file-viewer";
+  if (/avatar-upload|avatar upload/.test(text)) return "avatar-upload";
+  if (/document-viewing|document viewing|pdf-reading|pdf reading|document viewer|pdf reader/.test(text)) return "document-viewer";
+  if (/video-playback|video playback|audio-playback|audio playback|file playback|media playback/.test(text)) return "media-viewer";
+  if (/rename-file|rename file|move-file|move file|delete-file|delete file|file-download|file download|file-share|file share|patterns-rename-file|patterns-move-file|patterns-file-download|patterns-file-share/.test(text)) return "file-operation";
+  if (/image-grid|image grid/.test(text)) return "image-grid";
+  if (/image-cropper|crop image|image cropper/.test(text)) return "image-cropper";
+  if (/image-compare|image compare/.test(text)) return "image-compare";
+  if (/image-viewer|image preview|responsive-image|cover-image|\bthumbnail\b|\bimage\b/.test(text)) return "image-viewer";
+  if (/waveform/.test(text)) return "waveform";
+
+  if (/product-grid|product grid/.test(text)) return "product-grid";
+  if (/product-price|original-price|discount-price|price display/.test(text)) return "price-display";
+  if (/coupon-input|coupon input/.test(text)) return "coupon-input";
+  if (/quantity-selector|quantity selector/.test(text)) return "quantity-selector";
+  if (/components-payment-form|card-form|card form|payment form/.test(text)) return "payment-form";
+  if (/login-panel|signup-panel|login form|signup form|forgot-password|reset-password|components-login-form|components-signup-form/.test(text)) return "auth-form";
+  if (/user-menu|account-menu|user menu|account menu/.test(text)) return "account-menu";
+  if (/session-management|session management/.test(text)) return "session-management";
+  if (/account-deletion|account deletion/.test(text)) return "account-deletion";
+  if (/token-meter|quota-meter|usage-meter/.test(text)) return "usage-meter";
+  if (/backup-codes|backup codes/.test(text)) return "backup-codes";
+
+  if (/model-selector|tool-selector|mode-selector|model selector|tool selector|mode selector/.test(text)) return "ai-selector";
+  if (/prompt-suggestions|prompt-template|prompt-variables|prompt suggestions|prompt template|prompt variables/.test(text)) return "prompt-assist";
+  if (/generated-result|ai-translation-result|ai-rewrite-suggestion|inline-suggestion|generated result|inline suggestion/.test(text)) return "ai-result";
+  if (/ai-feedback-form|ai feedback form/.test(text)) return "ai-feedback";
+  if (/token-usage|cost-estimate|context-window-notice|token usage|cost estimate|context window/.test(text)) return "ai-usage";
+
+  if (/locale-selector|currency-selector|timezone-selector|country-selector|locale selector|currency selector|timezone selector|country selector/.test(text)) return "i18n-selector";
+  if (/address-format-form|phone-number-input|address format|phone number/.test(text)) return "locale-form";
+  if (/locale-aware-search|locale-aware-sort|localized search|localized sorting/.test(text)) return "locale-search";
+  if (/rtl-toggle|rtl toggle/.test(text)) return "rtl-toggle";
+  if (/unit-switcher|measurement-system-switcher|unit switcher|measurement system/.test(text)) return "unit-switcher";
+  if (/multilingual-content-editor|multilingual content editor/.test(text)) return "multilingual-editor";
+
+  if (/checkout-bar|sticky-checkout|cart-bar/.test(text)) return "mobile-checkout-bar";
+  if (/mobile-coupon|coupon-sheet|coupon sheet/.test(text)) return "mobile-coupon";
+  if (/mobile-order-card|order-card-2|mobile order card/.test(text)) return "mobile-order-card";
+  if (/mobile-checkout|checkout-mobile/.test(text)) return "mobile-checkout-bar";
+  if (/mobile-sorting|mobile-sort-sheet/.test(text)) return "mobile-sort-sheet";
+  if (/sticky-bottom-action/.test(text)) return "sticky-bottom-action";
+  if (/keyboard-avoidance/.test(text)) return "mobile-keyboard-avoidance";
+  if (/status-bar|status bar/.test(text)) return "mobile-status-bar";
+  if (/safe-area|safe area/.test(text)) return "mobile-safe-area";
+  if (/splash-screen|splash screen/.test(text)) return "mobile-splash-screen";
+  if (/mobile-segmented-control/.test(text)) return "mobile-segmented-control";
+  if (/segmented-control|segmented control/.test(text)) return "segmented-control-specific";
+  if (/numeric-keyboard|number keyboard/.test(text)) return "mobile-numeric-keyboard";
+  if (/keyboard-accessory-bar|keyboard accessory/.test(text)) return "mobile-keyboard-accessory";
+  if (/native-picker|wheel-picker|native picker|wheel picker/.test(text)) return "mobile-wheel-picker";
+  if (/mobile-location-picker|location picker/.test(text)) return "mobile-location-picker";
+  if (/current-location-indicator|current location indicator|location-pin|location pin|current-location-button|current location button/.test(text)) return "location-control";
+  if (/biometric-prompt|face-id-prompt|touch-id-prompt|biometric prompt|face id|touch id/.test(text)) return "biometric-prompt";
+  if (/mobile-haptic-feedback|haptic feedback/.test(text)) return "haptic-feedback";
+  if (/mobile-command-entry|command entry/.test(text)) return "mobile-command-entry";
+  if (/mobile-camera-capture|camera-capture|camera capture/.test(text)) return "mobile-camera-capture";
+  if (/nfc-scan|nfc scan/.test(text)) return "nfc-scan";
+  if (/bluetooth-connection|bluetooth connection/.test(text)) return "bluetooth-connection";
+  if (/orientation-notice|orientation notice/.test(text)) return "orientation-notice";
+  if (/mobile-map-view|map view/.test(text)) return "mobile-map-view";
+  if (/locate-me-button|locate me/.test(text)) return "locate-me";
+  if (/sku-bottom-sheet|sku bottom sheet/.test(text)) return "sku-sheet";
+  if (/address-sheet|address sheet/.test(text)) return "address-sheet-specific";
+  if (/payment-method-sheet|payment method sheet/.test(text)) return "payment-method-sheet-specific";
+  if (/mobile-filter-sheet|mobile-filtering|bottom-sheet-selection/.test(text)) return "mobile-task-sheet";
+  if (/video-recorder|video recorder/.test(text)) return "video-recorder";
+  if (/mobile-voice-input|voice input|patterns-voice-input/.test(text)) return "voice-input";
+  if (/mobile-voice-recorder|audio-recorder|video-recorder|recording|recorder/.test(text)) return "recorder";
+  if (/push-permission|location-permission|camera-permission|permission prompt/.test(text)) return "mobile-permission";
+  if (/waiting-upload|upload-paused|upload-resumed|upload-canceled|previewing/.test(text)) return "file-state";
+  if (/in-stock|low-stock|out-of-stock|preorder/.test(text)) return "stock-state";
+  if (/pending-payment|payment-processing|payment-success|payment-failed|states-payment/.test(text)) return "payment-state";
+  if (/subscription-active|subscription-expired|cancel-subscription/.test(text)) return "subscription-state";
+  if (/column-hidden|column-visible|row-disabled|row-expanded|row-collapsed|column-frozen|column-pinned|resizing-column|cell-editing|row-editing/.test(text)) return "grid-state";
+
+  if (/dictionary-command-palette|command palette/.test(text)) return "command-palette-specific";
+  if (/kanban/.test(text)) return "kanban";
+  if (/activity-feed|activity feed/.test(text)) return "activity-feed";
+  if (/thumbs-feedback|thumbs feedback/.test(text)) return "thumbs-feedback";
+  if (/scan-qr-code|scan qr code|scan qr/.test(text)) return "qr-scanner";
+  if (/qr-login|qr login/.test(text)) return "qr-login";
+  if (/download-invoice|download invoice/.test(text)) return "download-invoice";
+  if (/remove-from-cart|remove from cart/.test(text)) return "cart-removal";
+  if (/order-confirmation|order confirmation/.test(text)) return "order-confirmation-specific";
+  if (/request-refund|return-item|remove-from-cart|order-confirmation/.test(text)) return "commerce-recovery";
+
+  return "";
+}
+
+const selectorPreviewKinds = [
+  "currency-selector-specific",
+  "country-selector-specific",
+  "timezone-selector-specific",
+  "geo-selector-specific",
+  "commerce-selector-specific",
+  "font-selector-specific",
+  "variable-picker-specific",
+  "mention-picker-specific",
+  "combobox-specific",
+  "cascader-specific",
+  "picker-overlay-specific",
+  "notification-channel-selector-specific",
+];
+
+const feedbackPreviewKinds = [
+  "pattern-success-message",
+  "pattern-warning-message",
+  "pattern-info-message",
+  "pattern-announcement",
+  "pattern-notification-settings",
+  "pattern-reminder",
+  "pattern-update",
+  "pattern-reconnect",
+  "pattern-first-load",
+  "pattern-version-upgrade",
+  "pattern-expired",
+  "pattern-empty-project",
+  "pattern-retry-failed",
+  "dictionary-toast-specific",
+];
+
+const statePreviewKinds = [
+  "not-found-state-specific",
+  "multi-select-state",
+  "sorting-state",
+  "caption-state",
+  "awaiting-confirmation-state",
+  "shipment-state",
+  "availability-state",
+  "task-status-state",
+];
+
+const navigationPreviewKinds = [
+  "footer-navigation-specific",
+  "previous-next-specific",
+  "anchor-navigation-specific",
+  "infinite-scroll-specific",
+  "recent-favorite-navigation-specific",
+];
+
+function getSelectorPreviewData(kind, selected) {
+  const text = getPreviewSearchText(selected);
+  if (kind === "currency-selector-specific") {
+    return { badge: "Currency", caption: "Currency code and symbol stay explicit.", options: ["CNY - yuan", "USD - dollar", "EUR - euro"], active: 1 };
+  }
+  if (kind === "country-selector-specific") {
+    return { badge: "Country", caption: "Country selection uses country names, not locales.", options: ["China", "United States", "Germany"], active: 0 };
+  }
+  if (kind === "timezone-selector-specific") {
+    return { badge: "Timezone", caption: "Offsets and city labels prevent ambiguous time choices.", options: ["UTC+08 Shanghai", "UTC+00 London", "UTC-07 Los Angeles"], active: 0 };
+  }
+  if (kind === "geo-selector-specific") {
+    return /region/.test(text)
+      ? { badge: "Region", caption: "Region choices are grouped by geography.", options: ["East China", "North America", "Western Europe"], active: 0 }
+      : { badge: "City", caption: "City selector shows place names with search-ready labels.", options: ["Shanghai", "Beijing", "Shenzhen"], active: 0 };
+  }
+  if (kind === "commerce-selector-specific") {
+    if (/shipping/.test(text)) return { badge: "Shipping", caption: "Shipping methods include speed and cost.", options: ["Standard free", "Express $12", "Store pickup"], active: 1 };
+    if (/sku/.test(text)) return { badge: "SKU", caption: "SKU options expose the exact purchasable variant.", options: ["SKU-BLK-M", "SKU-BLU-L", "SKU-GRN-S"], active: 0 };
+    return { badge: "Size", caption: "Size selector communicates availability per option.", options: ["S", "M - selected", "L - low stock"], active: 1 };
+  }
+  if (kind === "font-selector-specific") {
+    return /size/.test(text)
+      ? { badge: "Type size", caption: "Font size choices preview their scale.", options: ["12 px", "16 px", "24 px"], active: 1 }
+      : { badge: "Font", caption: "Font choices preview family names.", options: ["Inter", "Roboto Mono", "Source Serif"], active: 0 };
+  }
+  if (kind === "variable-picker-specific") {
+    return { badge: "Variable", caption: "Template variables are inserted as tokens.", options: ["{{first_name}}", "{{plan_name}}", "{{renewal_date}}"], active: 0 };
+  }
+  if (kind === "mention-picker-specific") {
+    return { badge: "Mention", caption: "Mention picker shows people, teams, or channels.", options: ["@alex", "@design-team", "#release"], active: 0 };
+  }
+  if (kind === "cascader-specific") {
+    return { badge: "Cascader", caption: "Hierarchical choices show parent and child path.", options: ["Asia / China", "Europe / Germany", "America / US"], active: 0 };
+  }
+  if (kind === "picker-overlay-specific") {
+    return { badge: "Overlay", caption: "Picker overlay keeps trigger, search, and choices connected.", options: ["Search field", "Pinned choices", "Confirm footer"], active: 1 };
+  }
+  if (kind === "notification-channel-selector-specific") {
+    return { badge: "Channel", caption: "Notification channels state delivery surface.", options: ["Email", "Push", "Slack"], active: 1 };
+  }
+  return { badge: "Combobox", caption: "Combobox combines text input, filtering, and option selection.", options: ["Search result", "Suggested item", "Create new"], active: 0 };
+}
+
+function getFeedbackPreviewData(kind, selected) {
+  const text = getPreviewSearchText(selected);
+  if (kind === "pattern-success-message") return { tone: "success", icon: Check, title: "Saved successfully", body: "The change is live for the workspace.", action: "View record" };
+  if (kind === "pattern-warning-message") return { tone: "warning", icon: Info, title: "Review required", body: "Some settings may affect active users.", action: "Review" };
+  if (kind === "pattern-info-message") return { tone: "info", icon: Info, title: "Heads up", body: "This information helps the user understand the next step.", action: "Got it" };
+  if (kind === "pattern-announcement") return { tone: "info", icon: BookOpen, title: /board/.test(text) ? "Announcement board" : "System announcement", body: "Maintenance starts at 02:00 UTC.", action: "Read update" };
+  if (kind === "pattern-notification-settings") return { tone: "info", icon: SlidersHorizontal, title: "Notification settings", body: "Email, push, and workspace channels can be tuned separately.", action: "Open settings" };
+  if (kind === "pattern-reminder") return { tone: "info", icon: MessageCircle, title: /mention/.test(text) ? "You were mentioned" : "Unread reminder", body: "A relevant update needs attention.", action: "Open thread" };
+  if (kind === "pattern-update") return { tone: "info", icon: RefreshCcw, title: "Update available", body: "Refresh when ready to load the newest version.", action: "Refresh" };
+  if (kind === "pattern-reconnect") return { tone: "warning", icon: RefreshCcw, title: "Connection lost", body: "Trying to reconnect without losing local edits.", action: "Retry now" };
+  if (kind === "pattern-first-load") return { tone: "info", icon: Sparkles, title: "Preparing workspace", body: "Loading the first useful screen and core data.", action: "Continue" };
+  if (kind === "pattern-version-upgrade") return { tone: "success", icon: ArrowUp, title: "Version upgraded", body: "New components and fixes are ready.", action: "See changes" };
+  if (kind === "pattern-expired") return { tone: "warning", icon: CalendarClock, title: "Resource expired", body: "Request a fresh link or regenerate the file.", action: "Regenerate" };
+  if (kind === "pattern-empty-project") return { tone: "empty", icon: LayoutGrid, title: "No projects yet", body: "Create a project or import an existing workspace.", action: "Create project" };
+  if (kind === "pattern-retry-failed") return { tone: "danger", icon: RefreshCcw, title: "Action failed", body: "The previous attempt did not complete.", action: "Retry action" };
+  return { tone: "success", icon: Check, title: "File archived", body: "The toast gives one clear status and optional undo.", action: "Undo" };
+}
+
+function getStatePreviewData(kind, selected) {
+  const text = getPreviewSearchText(selected);
+  if (kind === "not-found-state-specific") return { tone: "empty", title: "Not found", body: "The requested record no longer exists.", meta: "404", action: "Back to list" };
+  if (kind === "multi-select-state") return { tone: "info", title: "3 selected", body: "Bulk actions are available for the current selection.", meta: "Multi select", action: "Clear" };
+  if (kind === "sorting-state") return { tone: "info", title: "Sorted by newest", body: "The active sort is visible and reversible.", meta: "Sort", action: "Change sort" };
+  if (kind === "caption-state") return /off/.test(text)
+    ? { tone: "warning", title: "Captions off", body: "The media still offers a captions control.", meta: "CC off", action: "Turn on" }
+    : { tone: "success", title: "Captions on", body: "Captions are visible and synchronized.", meta: "CC on", action: "Settings" };
+  if (kind === "awaiting-confirmation-state") return { tone: "warning", title: "Awaiting confirmation", body: "The action is paused until the user confirms.", meta: "Pending", action: "Confirm" };
+  if (kind === "shipment-state") return { tone: "info", title: "Awaiting shipment", body: "Order is paid and waiting for fulfillment.", meta: "Order", action: "View order" };
+  if (kind === "availability-state") {
+    if (/retrieving/.test(text)) return { tone: "info", title: "Retrieving availability", body: "Checking current inventory before enabling purchase.", meta: "Checking", action: "Refresh" };
+    if (/unavailable/.test(text)) return { tone: "danger", title: "Unavailable", body: "This item cannot be selected right now.", meta: "Blocked", action: "Notify me" };
+    return { tone: "success", title: "Available", body: "This choice can be selected now.", meta: "Ready", action: "Select" };
+  }
+  if (/away/.test(text)) return { tone: "warning", title: "Away", body: "The assignee is not currently active.", meta: "Presence", action: "Reassign" };
+  if (/busy/.test(text)) return { tone: "warning", title: "Busy", body: "The user is active but not available.", meta: "Presence", action: "Message" };
+  if (/skipped/.test(text)) return { tone: "empty", title: "Skipped", body: "This step was intentionally bypassed.", meta: "Workflow", action: "Restore" };
+  if (/unassigned/.test(text)) return { tone: "warning", title: "Unassigned", body: "No owner has been selected.", meta: "Owner", action: "Assign" };
+  if (/low-priority|low priority/.test(text)) return { tone: "info", title: "Low priority", body: "The item is queued behind urgent work.", meta: "Priority", action: "Change" };
+  return { tone: "success", title: "Assigned", body: "The item has an owner and can move forward.", meta: "Owner", action: "View owner" };
+}
+
+function SpecificLivePreview({ selected, kind, variantClass }) {
+  const title = selected.title;
+  const previewText = getPreviewSearchText(selected);
+
+  if (kind === "external-link" || kind === "skip-link") {
+    return (
+      <div className={`live-specific-card specific-link ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind === "external-link" ? "New tab" : "Focus visible"}</span></header>
+        <section><Link2 size={18} /><b>{kind === "external-link" ? "docs.example.com" : "Skip to main content"}</b><ChevronRight size={16} /></section>
+        <p>{kind === "external-link" ? "Shows destination, external target, and open behavior before navigation." : "Appears on keyboard focus and jumps directly to the main landmark."}</p>
+      </div>
+    );
+  }
+
+  if (["decorative-icon", "brand-icon", "expand-icon"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-icon ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind === "decorative-icon" ? "aria-hidden" : kind === "brand-icon" ? "Brand" : "Disclosure"}</span></header>
+        <section>
+          {kind === "brand-icon" ? <b className="brand-mark">UI</b> : kind === "expand-icon" ? <button type="button"><ChevronRight size={22} /> Expanded</button> : <i aria-hidden="true" />}
+          <p>{kind === "decorative-icon" ? "Decorative icons support text and do not receive focus." : kind === "brand-icon" ? "Brand marks need clear space, contrast, and single-color fallback." : "Disclosure icons mirror expanded and collapsed state."}</p>
+        </section>
+      </div>
+    );
+  }
+
+  if (["close-button", "more-button", "help-button", "favorite-button"].includes(kind)) {
+    const Icon = kind === "close-button" ? X : kind === "more-button" ? SlidersHorizontal : kind === "help-button" ? CircleHelp : Bookmark;
+    const label = kind === "close-button" ? "Close panel" : kind === "more-button" ? "More actions" : kind === "help-button" ? "Open help" : "Saved";
+    return (
+      <div className={`live-specific-card specific-button ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><button type="button" aria-label={label}><Icon size={20} /></button></header>
+        <section><span>{label}</span><small>{kind === "more-button" ? "Menu opened" : kind === "favorite-button" ? "Pressed state" : "Target stays explicit"}</small></section>
+      </div>
+    );
+  }
+
+  if (kind === "tag-chip") {
+    return (
+      <div className={`live-filter-chip-card specific-tag-chip ${variantClass}`}>
+        <strong>{title}</strong>
+        <div><span>Design <X size={13} /></span><span className="selected">Selected</span><span>Beta</span></div>
+        <button type="button">Clear tags</button>
+      </div>
+    );
+  }
+
+  if (selectorPreviewKinds.includes(kind)) {
+    const data = getSelectorPreviewData(kind, selected);
+    return (
+      <div className={`live-specific-card specific-control semantic-specific selector-specific ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{data.badge}</span></header>
+        <section className="specific-selector contextual-selector">
+          {kind === "combobox-specific" && <label><Search size={15} /><input readOnly value="Search choices" /></label>}
+          {data.options.map((option, index) => (
+            <button key={option} type="button" className={index === data.active ? "active" : ""}>{option}</button>
+          ))}
+          <span>{data.caption}</span>
+        </section>
+      </div>
+    );
+  }
+
+  if (["steps-control", "tab-panel-specific", "shortcut-panel", "shortcut-entry", "offline-banner", "warning-result", "fieldset-specific", "wizard-form-specific", "role-selector-specific", "map-selector", "navigation-rail-specific", "page-number-specific", "react-toggle-specific", "color-swatch-specific", "spacing-scale-specific", "typography-scale-specific", "motion-timeline-specific", "status-badge-specific", "loading-state-specific", "pattern-error-state", "partial-success-state", "rating-feedback", "connection-state", "data-state", "operation-success-state", "loading-overlay-specific", "alert-dialog-specific", "confirmation-dialog-specific", "search-box-specific", "error-state-specific", "pull-refresh-specific", "swipe-action-specific", "drag-sort-specific", "dictionary-pagination-specific", ...feedbackPreviewKinds, ...statePreviewKinds, ...navigationPreviewKinds].includes(kind)) {
+    const isLayer = /layer/.test(getPreviewSearchText(selected));
+    const isFloor = /floor/.test(getPreviewSearchText(selected));
+    const isRadius = /radius/.test(getPreviewSearchText(selected));
+    const stateText = previewText;
+    const isOffline = /offline|disconnected|undelivered|unsynced|unpublished/.test(stateText);
+    const isRate = /rate/.test(stateText);
+    const isTimeout = /timeout/.test(stateText);
+    const isPartial = /partial/.test(stateText);
+    const feedback = feedbackPreviewKinds.includes(kind) ? getFeedbackPreviewData(kind, selected) : null;
+    const statePreview = statePreviewKinds.includes(kind) ? getStatePreviewData(kind, selected) : null;
+    const FeedbackIcon = feedback?.icon || Info;
+    return (
+      <div className={`live-specific-card specific-control semantic-specific ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{selected.category === "react" ? "React UI" : feedback ? "Feedback" : statePreview ? "State" : navigationPreviewKinds.includes(kind) ? "Navigation" : "Control"}</span></header>
+        {feedback && <section className={`specific-result ${feedback.tone}`}><FeedbackIcon size={28} /><b>{feedback.title}</b><span>{feedback.body}</span><button>{feedback.action}</button></section>}
+        {statePreview && <section className={`specific-result ${statePreview.tone}`}><b>{statePreview.title}</b><span>{statePreview.body}</span><small>{statePreview.meta}</small><button>{statePreview.action}</button></section>}
+        {kind === "footer-navigation-specific" && <nav className="specific-footer-nav"><button>Terms</button><button className="active">Docs</button><button>Status</button><button>Contact</button></nav>}
+        {kind === "previous-next-specific" && <section className="specific-prev-next"><button>Previous</button><b>Page 2 of 8</b><button>Next</button></section>}
+        {kind === "anchor-navigation-specific" && <nav className="specific-anchor-nav"><a>Overview</a><a className="active">Usage</a><a>API</a><a>FAQ</a></nav>}
+        {kind === "infinite-scroll-specific" && <section className="specific-infinite-scroll"><article /><article /><article /><b>Loading more results</b></section>}
+        {kind === "recent-favorite-navigation-specific" && <nav className="specific-recent-nav"><button><CalendarClock size={15} />Recent</button><button className="active"><Bookmark size={15} />Favorites</button><button><Search size={15} />Find</button></nav>}
+        {kind === "dictionary-pagination-specific" && <section className="specific-page-number"><button>Prev</button><button>1</button><button className="active">2</button><button>3</button><button>Next</button></section>}
+        {kind === "steps-control" && <section className="specific-steps"><b className="done">1. Cart</b><b className="active">2. Shipping</b><b>3. Pay</b><span>Current step has label and progress.</span></section>}
+        {kind === "tab-panel-specific" && <section className="specific-tab-panel"><nav><button className="active">Overview</button><button>Specs</button><button>Activity</button></nav><main><strong>Overview panel</strong><p>Panel content changes with the selected tab.</p></main></section>}
+        {kind === "shortcut-panel" && <section className="specific-shortcuts"><b>Command</b><b>Shortcut</b><span>Open search</span><kbd>Ctrl K</kbd><span>Save changes</span><kbd>Ctrl S</kbd><span>Close panel</span><kbd>Esc</kbd></section>}
+        {kind === "shortcut-entry" && <section className="specific-command-entry"><Search size={16} /><b>Search commands</b><kbd>Ctrl K</kbd></section>}
+        {kind === "offline-banner" && <section className="specific-banner warning"><b>Offline mode</b><span>Changes are saved locally and will sync after reconnect.</span><button>Retry</button></section>}
+        {kind === "warning-result" && <section className="specific-result warning"><Info size={28} /><b>Needs attention</b><span>Some items could not be processed.</span><button>Review issues</button></section>}
+        {kind === "pattern-error-state" && <section className="specific-result danger"><Info size={28} /><b>{isRate ? "Rate limit reached" : isTimeout ? "Request timed out" : "Something failed"}</b><span>{isRate ? "Wait 58 seconds before retrying." : isTimeout ? "The server did not respond in time." : "Check the issue and retry the operation."}</span><button>{isRate ? "View quota" : "Retry"}</button></section>}
+        {kind === "partial-success-state" && <section className="specific-result warning"><Check size={28} /><b>Partially completed</b><span>8 items succeeded, 2 need review.</span><button>Review failed items</button></section>}
+        {kind === "rating-feedback" && <section className="specific-rating"><b>Rate this experience</b><div><button>1</button><button>2</button><button>3</button><button className="active">4</button><button>5</button></div><textarea readOnly value="Tell us what worked well..." /></section>}
+        {kind === "connection-state" && <section className={`specific-connection ${isOffline ? "offline" : "online"}`}><b>{isOffline ? "Needs sync" : "Connected"}</b><span>{isOffline ? "Message is queued until the connection returns." : "Realtime updates are active."}</span><button>{isOffline ? "Retry sync" : "View status"}</button></section>}
+        {kind === "data-state" && <section className="specific-data-state"><b>{isPartial ? "Partial data" : /no-more|end-of-pagination/.test(stateText) ? "End of list" : /cached|stale/.test(stateText) ? "Cached data" : "Data loaded"}</b><span>{isPartial ? "Some rows are hidden until refresh completes." : /no-more|end-of-pagination/.test(stateText) ? "No more results to load." : /cached|stale/.test(stateText) ? "Showing saved data from the last refresh." : "128 rows are ready."}</span><div><i /><i /><i /></div></section>}
+        {kind === "operation-success-state" && <section className="specific-result success"><Check size={28} /><b>{/filters/.test(stateText) ? "Filters cleared" : /tool/.test(stateText) ? "Tool call succeeded" : /query/.test(stateText) ? "Query completed" : "Validation passed"}</b><span>{/filters/.test(stateText) ? "Showing all results again." : "The next step is ready."}</span><button>Continue</button></section>}
+        {kind === "loading-overlay-specific" && <section className="specific-loading-overlay"><main><i /><i /><i /></main><div><b>Loading</b><span>Keep the layout in place while data arrives.</span></div></section>}
+        {kind === "alert-dialog-specific" && <section className="specific-dialog-mini danger"><b>Warning</b><span>This action may affect active users.</span><footer><button>Cancel</button><button>Continue</button></footer></section>}
+        {kind === "confirmation-dialog-specific" && <section className="specific-dialog-mini"><b>Confirm changes</b><span>Review before applying this update.</span><footer><button>Back</button><button>Confirm</button></footer></section>}
+        {kind === "search-box-specific" && <section className="specific-search-box"><Search size={17} /><input readOnly value="Search UI components" /><button>Clear</button><div><span>Button</span><span>Search field</span><span>Filter panel</span></div></section>}
+        {kind === "error-state-specific" && <section className="specific-result danger"><Info size={28} /><b>{isOffline ? "Offline" : isRate ? "Rate limit" : "Server error"}</b><span>{isOffline ? "Reconnect to sync changes." : isRate ? "Try again after the cooldown." : "The request failed on the server."}</span><button>{isRate ? "Wait and retry" : "Retry"}</button></section>}
+        {kind === "pull-refresh-specific" && <section className="specific-pull-refresh"><b>Pull to refresh</b><i /><span>Release at the threshold to reload.</span><main><p /><p /><p /></main></section>}
+        {kind === "swipe-action-specific" && <section className="specific-swipe-action"><article><span>Message from Alex</span><button>Archive</button><button className="danger">Delete</button></article><b>Drag handle</b></section>}
+        {kind === "drag-sort-specific" && <section className="specific-drag-sort"><article><b>1</b><span>Inbox rules</span><button>::</button></article><article className="active"><b>2</b><span>Billing alerts</span><button>::</button></article><article><b>3</b><span>Release notes</span><button>::</button></article></section>}
+        {kind === "fieldset-specific" && <fieldset className="specific-fieldset"><legend>Billing address</legend><label>Street<input readOnly value="88 Market St" /></label><label>City<input readOnly value="Shanghai" /></label></fieldset>}
+        {kind === "wizard-form-specific" && <section className="specific-wizard-form"><div><b className="done">Account</b><b className="active">Profile</b><b>Confirm</b></div><label>Company<input readOnly value="Kandong UI" /></label><button>Next step</button></section>}
+        {kind === "role-selector-specific" && <section className="specific-selector"><button className="active">Admin</button><button>Editor</button><button>Viewer</button><span>Role controls permissions.</span></section>}
+        {kind === "map-selector" && <section className="specific-selector map-selector"><button className="active">{isLayer ? "Streets" : isFloor ? "1F" : isRadius ? "1 km" : "Map"}</button><button>{isLayer ? "Satellite" : isFloor ? "2F" : isRadius ? "3 km" : "Traffic"}</button><button>{isLayer ? "Traffic" : isFloor ? "B1" : isRadius ? "5 km" : "Zones"}</button><span>{isLayer ? "Map layer" : isFloor ? "Indoor floor" : "Search radius"}</span></section>}
+        {kind === "navigation-rail-specific" && <nav className="specific-nav-rail"><button className="active"><Grid2X2 size={16} />Home</button><button><Search size={16} />Search</button><button><Bookmark size={16} />Saved</button><button><UserRound size={16} />Me</button></nav>}
+        {kind === "page-number-specific" && <section className="specific-page-number"><button>1</button><button className="active">2</button><button>3</button><span>...</span><button>12</button></section>}
+        {kind === "react-toggle-specific" && <section className="specific-react-toggle"><button className="active">Light</button><button>Dark</button><button>System</button><span>Token-aware toggle component</span></section>}
+        {kind === "color-swatch-specific" && <section className="specific-swatch-grid">{["#111827", "#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#f8fafc"].map((color) => <b key={color} style={{ background: color }}><span>{color}</span></b>)}</section>}
+        {kind === "spacing-scale-specific" && <section className="specific-scale spacing">{[4, 8, 12, 16, 24].map((size) => <b key={size}><i style={{ width: `${size * 3}px` }} />{size}px</b>)}</section>}
+        {kind === "typography-scale-specific" && <section className="specific-scale type"><b className="h1">Heading</b><b className="body">Body text</b><b className="caption">Caption</b></section>}
+        {kind === "motion-timeline-specific" && <section className="specific-motion-timeline"><b>0ms</b><i /><b>160ms</b><i /><b>320ms</b><span>Enter, hold, exit</span></section>}
+        {kind === "status-badge-specific" && <section className="specific-status-badges"><b className="success">Active</b><b className="warning">Pending</b><b className="danger">Blocked</b></section>}
+        {kind === "loading-state-specific" && <section className="specific-loading-state"><i /><b /><b /><span>Loading data with reserved layout.</span></section>}
+      </div>
+    );
+  }
+
+  if (["comparison-table-specific", "api-table-specific", "table-pagination-specific", "table-toolbar-specific", "matrix-table", "props-table-specific", "table-filter-specific", "saved-view-specific", "empty-table-specific", "aggregate-row-specific", "group-row-specific"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-table ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>Table</span></header>
+        {kind === "comparison-table-specific" && <section><b>Feature</b><b>Starter</b><b>Pro</b><span>SAML</span><span>No</span><span>Yes</span><span>Seats</span><span>3</span><span>25</span></section>}
+        {kind === "api-table-specific" && <section><b>Prop</b><b>Type</b><b>Default</b><span>variant</span><span>string</span><span>solid</span><span>disabled</span><span>boolean</span><span>false</span></section>}
+        {kind === "props-table-specific" && <section><b>Prop</b><b>Type</b><b>Required</b><span>value</span><span>string</span><span>Yes</span><span>onChange</span><span>function</span><span>No</span></section>}
+        {kind === "table-pagination-specific" && <section className="specific-table-pagination"><b>Rows 21-40 of 128</b><div><button>Prev</button><button className="active">2</button><button>3</button><button>Next</button></div></section>}
+        {kind === "table-toolbar-specific" && <section className="specific-table-toolbar"><Search size={16} /><button>Filter</button><button>Columns</button><button>Export</button><span>3 selected</span></section>}
+        {kind === "table-filter-specific" && <section className="specific-table-toolbar"><Search size={16} /><button className="active">Status: active</button><button>Date range</button><button>Clear</button></section>}
+        {kind === "saved-view-specific" && <section><b>Saved view</b><b>Filters</b><b>Owner</b><span>At risk accounts</span><span>3 rules</span><span>Alex</span><span>Renewals</span><span>2 rules</span><span>Sales</span></section>}
+        {kind === "empty-table-specific" && <section className="specific-table-empty"><CircleHelp size={28} /><b>No rows</b><span>Adjust filters or import a CSV.</span><button>Import rows</button></section>}
+        {kind === "aggregate-row-specific" && <section><b>Metric</b><b>Current</b><b>Total</b><span>Revenue</span><span>$12.4k</span><span>$98k</span><span>Rows</span><span>24</span><span>128</span></section>}
+        {kind === "group-row-specific" && <section><b>Group</b><b>Items</b><b>Status</b><span>Enterprise</span><span>18 rows</span><span>Expanded</span><span>SMB</span><span>42 rows</span><span>Collapsed</span></section>}
+        {kind === "matrix-table" && <section><b>Variant</b><b>Default</b><b>Disabled</b><span>Primary</span><span>Pass</span><span>Pass</span><span>Ghost</span><span>Pass</span><span>Needs review</span></section>}
+      </div>
+    );
+  }
+
+  if (["product-card-specific", "product-detail-specific", "variant-selector-specific", "social-login-button", "card-number-field", "security-settings", "api-key-list", "support-chat", "product-list-specific", "order-list-specific", "product-gallery-specific", "product-reviews-specific", "subscription-management-specific", "security-list-specific", "danger-zone-specific", "ticket-list-specific", "help-entry-specific", "service-status-specific"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-domain ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind.includes("product") || kind.includes("order") || kind.includes("subscription") || kind.includes("variant") ? "Commerce" : kind.includes("security") || kind.includes("api-key") || kind.includes("danger") ? "Security" : kind.includes("ticket") || kind.includes("help") || kind.includes("status") ? "Support" : "Domain"}</span></header>
+        {kind === "product-card-specific" && <section className="specific-product-card"><i /><b>Everyday tote</b><strong>$68</strong><span>In stock</span><button>Add to cart</button></section>}
+        {kind === "product-detail-specific" && <section className="specific-product-detail"><aside><i /><i /><i /></aside><main><b>Wireless Kit</b><strong>$168</strong><span>Color: Black</span><button>Buy now</button></main></section>}
+        {kind === "variant-selector-specific" && <section className="specific-selector"><b>Color</b><button>Black</button><button className="active">Blue</button><b>Size</b><button>M</button><button>L</button><span>3 left in stock</span></section>}
+        {kind === "product-list-specific" && <section className="specific-product-list"><article><i /><b>Tote</b><span>$68</span></article><article><i /><b>Desk lamp</b><span>$42</span></article><article><i /><b>Notebook</b><span>$16</span></article></section>}
+        {kind === "order-list-specific" && <section className="specific-order-list"><b>Order #1024</b><span>Paid - shipping today</span><b>Order #1025</b><span>Refund requested</span><b>Order #1026</b><span>Awaiting payment</span></section>}
+        {kind === "product-gallery-specific" && <section className="specific-product-gallery"><i className="hero" /><i /><i /><i /></section>}
+        {kind === "product-reviews-specific" && <section className="specific-review-list"><b>4.8 average</b><span>Alex: Great build quality.</span><span>Mia: Shipping was fast.</span><button>Write review</button></section>}
+        {kind === "subscription-management-specific" && <section className="specific-subscription"><b>Pro monthly</b><span>Renews Jul 21</span><div><button>Change plan</button><button className="danger">Cancel</button></div></section>}
+        {kind === "social-login-button" && <section className="specific-social-login"><button>G Continue with Google</button><button>GH Continue with GitHub</button><button>A Continue with Apple</button></section>}
+        {kind === "card-number-field" && <section className="specific-card-field"><label>Card number<input readOnly value="4242 4242 4242 4242" /></label><b>Visa</b><span>Valid card number</span></section>}
+        {kind === "security-settings" && <section className="specific-security-list"><label><span>Two-factor authentication</span><input type="checkbox" defaultChecked /></label><label><span>Session alerts</span><input type="checkbox" /></label><button>Rotate password</button></section>}
+        {kind === "security-list-specific" && <section className="specific-security-list"><label><span>File permissions</span><input type="checkbox" defaultChecked /></label><label><span>Authorized apps</span><input type="checkbox" /></label><label><span>Login history alerts</span><input type="checkbox" defaultChecked /></label></section>}
+        {kind === "danger-zone-specific" && <section className="specific-danger-zone"><b>Danger zone</b><span>Deleting this workspace cannot be undone.</span><input readOnly value="DELETE" /><button className="danger">Delete workspace</button></section>}
+        {kind === "api-key-list" && <section className="specific-api-keys"><b>Production key</b><span>Read/write - used today</span><button>Revoke</button><b>Analytics key</b><span>Read only - 12 days ago</span><button>Rotate</button></section>}
+        {kind === "support-chat" && <section className="specific-support-chat"><b>Support online</b><p>Hi, how can we help with your billing issue?</p><span>You: I need an invoice.</span><footer><input readOnly value="Type a reply..." /><button>Send</button></footer></section>}
+        {kind === "ticket-list-specific" && <section className="specific-ticket-list"><b>#4821 Login issue</b><span>Open - high</span><b>#4822 Invoice request</b><span>Waiting on customer</span><b>#4823 Feature question</b><span>Solved</span></section>}
+        {kind === "help-entry-specific" && <section className="specific-help-entry"><Search size={17} /><b>Search help articles</b><span>FAQ, glossary, docs, and shortcut help live here.</span><button>Open article</button></section>}
+        {kind === "service-status-specific" && <section className="specific-service-status"><b className="success">API operational</b><b className="warning">Search degraded</b><b>Uptime 99.98%</b><button>Subscribe</button></section>}
+      </div>
+    );
+  }
+
+  if (kind === "image-editor-specific") {
+    return (
+      <div className={`live-specific-card specific-media image-editor-specific ${variantClass}`}>
+        <header><strong>{title}</strong><button type="button">Apply</button></header>
+        <section className="specific-image-editor"><nav><button>Crop</button><button>Adjust</button><button>Annotate</button></nav><main><i /><b /><b /></main><aside><span>Brightness</span><b /><span>Crop 4:3</span></aside></section>
+      </div>
+    );
+  }
+
+  if (["bottom-navigation-specific", "action-sheet-specific", "date-time-picker", "otp-input-specific", "structured-table", "tree-view", "tree-select", "transfer-list", "icon-picker", "emoji-picker", "reaction-picker", "column-control", "split-button-specific", "action-bar", "segmented-control-specific", "pricing-table", "docs-navigation", "role-permission-matrix", "access-request", "access-denied", "checkout-stepper"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-control ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind.includes("navigation") ? "Navigation" : kind.includes("table") ? "Data" : kind.includes("permission") || kind.includes("access") ? "Access" : "Control"}</span></header>
+        {kind === "bottom-navigation-specific" && <nav className="specific-bottom-nav"><button className="active">Home</button><button>Search</button><button>Saved</button><button>Profile</button></nav>}
+        {kind === "action-sheet-specific" && <section className="specific-action-sheet"><b /><button>Share</button><button>Copy link</button><button className="danger">Delete</button><button>Cancel</button></section>}
+        {kind === "date-time-picker" && <section className="specific-date-picker"><header><b>Jun 2026</b><span>14:30</span></header><div>{Array.from({ length: 14 }).map((_, index) => <i key={index} className={index === 8 ? "selected" : ""}>{index + 10}</i>)}</div></section>}
+        {kind === "otp-input-specific" && <section className="specific-otp">{["6", "2", "", ""].map((digit, index) => <b key={index} className={index === 2 ? "focus" : ""}>{digit}</b>)}<small>Paste one-time code</small></section>}
+        {kind === "structured-table" && <section className="specific-structured-table"><b>Name</b><b>Q1</b><b>Q2</b><span>Parent / Child row</span><span>$42k</span><span>$58k</span></section>}
+        {kind === "tree-view" && <section className="specific-tree"><b>Components</b><span>Button</span><span>Input</span><b>Patterns</b><span>Checkout</span></section>}
+        {kind === "tree-select" && <section className="specific-tree-select"><button>Choose item</button><b>Components</b><label><input type="checkbox" defaultChecked /> Button</label><label><input type="checkbox" /> Input</label></section>}
+        {kind === "transfer-list" && <section className="specific-transfer"><aside><b>Available</b><span>Viewer</span><span>Editor</span></aside><nav><button>→</button><button>←</button></nav><aside><b>Selected</b><span>Admin</span></aside></section>}
+        {kind === "icon-picker" && <section className="specific-picker-grid icons"><Search size={18} /><Check size={18} /><Share2 size={18} /><Bookmark size={18} /><SlidersHorizontal size={18} /><Info size={18} /></section>}
+        {kind === "emoji-picker" && <section className="specific-picker-grid emoji"><b>😀</b><b>🎉</b><b>👍</b><b>❤️</b><b>🔥</b><b>✅</b></section>}
+        {kind === "reaction-picker" && <section className="specific-reaction"><button className="active">Like</button><button>Love</button><button>Insightful</button><span>12 selected</span></section>}
+        {kind === "column-control" && <section className="specific-column-control"><label><input type="checkbox" defaultChecked /> Name</label><label><input type="checkbox" defaultChecked /> Status</label><label><input type="checkbox" /> Cost</label><button>Pin column</button></section>}
+        {kind === "split-button-specific" && <section className="specific-split-button"><button>Save</button><button><ChevronRight size={15} /></button><div><span>Save as draft</span><span>Save and publish</span></div></section>}
+        {kind === "action-bar" && <section className="specific-action-bar"><span>3 selected</span><button>Archive</button><button>Export</button><button className="danger">Delete</button></section>}
+        {kind === "segmented-control-specific" && <section className="specific-segmented"><button className="active">List</button><button>Board</button><button>Calendar</button></section>}
+        {kind === "pricing-table" && <section className="specific-pricing-table"><article><b>Starter</b><strong>$12</strong><span>Basic</span></article><article className="featured"><b>Pro</b><strong>$29</strong><span>Team</span></article><article><b>Scale</b><strong>$79</strong><span>SAML</span></article></section>}
+        {kind === "docs-navigation" && <section className="specific-docs-nav"><aside><b>Guide</b><span>Install</span><span className="active">Components</span><span>API</span></aside><main><strong>Components</strong><p /></main></section>}
+        {kind === "role-permission-matrix" && <section className="specific-role-matrix"><b>Role</b><b>Read</b><b>Write</b><span>Admin</span><span>Yes</span><span>Yes</span><span>Viewer</span><span>Yes</span><span>No</span></section>}
+        {kind === "access-request" && <section className="specific-access"><b>Request access</b><span>Role approval required before continuing.</span><button>Request access</button></section>}
+        {kind === "access-denied" && <section className="specific-access denied"><b>Access denied</b><span>You need permission to view this resource.</span><button>Sign in</button></section>}
+        {kind === "checkout-stepper" && <section className="specific-checkout-stepper"><b className="done">Address</b><b className="active">Payment</b><b>Review</b><footer><span>2 of 3</span><button>Continue checkout</button></footer></section>}
+      </div>
+    );
+  }
+
+  if (["card-header", "card-footer", "stat-card", "profile-card", "detail-list", "avatar-group", "countdown", "result-page", "auth-empty", "empty-result", "toc", "breadcrumb-item", "maintenance-state"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-content ${kind} ${variantClass}`}>
+        {kind === "card-header" && <><header><strong>Quarterly report</strong><button type="button">Edit</button></header><section><span>Owner</span><b>Design Ops</b></section></>}
+        {kind === "card-footer" && <><main><strong>Project card</strong><p>Summary content sits above the footer slot.</p></main><footer><span>Updated today</span><button type="button">Open</button></footer></>}
+        {kind === "stat-card" && <><small>{title}</small><strong className="metric-value">128K</strong><section><b>+12.4%</b><i /><i /><i /></section></>}
+        {kind === "profile-card" && <><section className="profile-row"><b>AL</b><div><strong>Alex Lee</strong><span>Product Designer</span></div></section><footer><button>Message</button><button>View profile</button></footer></>}
+        {kind === "detail-list" && <><strong>{title}</strong>{["Status: Active", "Owner: Alex", "Updated: Today"].map((row) => <div key={row}><span>{row.split(": ")[0]}</span><b>{row.split(": ")[1]}</b></div>)}</>}
+        {kind === "avatar-group" && <><strong>{title}</strong><section className="avatar-stack"><b>A</b><b>M</b><b>K</b><span>+8</span></section><small>Shows overlap, count overflow, and presence.</small></>}
+        {kind === "countdown" && <><strong>{title}</strong><div className="timer">04:58</div><button type="button">Extend</button></>}
+        {kind === "result-page" && <><Check size={34} /><strong>Payment complete</strong><span>Receipt #2048 is ready.</span><button type="button">View receipt</button></>}
+        {kind === "auth-empty" && <><UserRound size={34} /><strong>Sign in required</strong><span>Log in to save this item and continue.</span><button type="button">Log in</button></>}
+        {kind === "empty-result" && <><Search size={32} /><strong>No matching results</strong><span>Clear filters or try another keyword.</span><button type="button">Clear filters</button></>}
+        {kind === "toc" && <><strong>{title}</strong><nav className="specific-toc"><a>Intro</a><a className="active">Usage</a><a>API</a><a>Examples</a></nav><small>Shows section anchors and current scroll position.</small></>}
+        {kind === "breadcrumb-item" && <><strong>{title}</strong><section className="specific-crumb"><span>Home</span><ChevronRight size={14} /><b>Current item</b></section><small>Represents one crumb, current state, and separator relationship.</small></>}
+        {kind === "maintenance-state" && <><Info size={34} /><strong>Scheduled maintenance</strong><span>Payments are paused until 02:00 UTC.</span><section><b>Impact: checkout</b><b>ETA: 35 min</b></section><button type="button">Subscribe updates</button></>}
+      </div>
+    );
+  }
+
+  if (["bottom-sheet", "navigation-drawer", "detail-drawer", "notification-center", "fullscreen-modal", "non-modal-dialog", "form-dialog", "backdrop", "portal", "session-timeout", "permission-dialog", "share-dialog", "lightbox", "mobile-toast", "snackbar", "system-notification", "info-alert"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-overlay ${kind} ${variantClass}`}>
+        <main><i /><i /><i /></main>
+        <section>
+          <header><strong>{title}</strong><span>{kind.includes("sheet") ? "Bottom" : kind.includes("drawer") ? "Panel" : kind.includes("toast") || kind === "snackbar" ? "Message" : "Overlay"}</span></header>
+          {kind === "navigation-drawer" && ["Dashboard", "Components", "Settings"].map((row, index) => <button key={row} className={index === 1 ? "active" : ""}>{row}</button>)}
+          {kind === "detail-drawer" && ["Order #1024", "Status: Shipped", "Total: $140"].map((row) => <b key={row}>{row}</b>)}
+          {kind === "notification-center" && ["Unread mention", "Build finished", "Invoice ready"].map((row) => <b key={row}>{row}</b>)}
+          {kind === "form-dialog" && <><input readOnly value="name@example.com" /><button>Submit</button></>}
+          {kind === "session-timeout" && <><strong className="timer">01:30</strong><button>Extend session</button></>}
+          {kind === "permission-dialog" && <><p>Allow camera access for scanning?</p><div><button>Not now</button><button>Allow</button></div></>}
+          {kind === "share-dialog" && <><input readOnly value="https://uiux.wiki/item" /><div><button>Copy</button><button>Invite</button></div></>}
+          {kind === "lightbox" && <><div className="lightbox-frame" /><footer><button>Prev</button><button>Zoom</button><button>Next</button></footer></>}
+          {kind === "backdrop" && <><p>Dimmed scrim behind the active dialog.</p><button>Click outside</button></>}
+          {kind === "portal" && <><b>App root</b><ChevronRight size={16} /><b>Overlay root</b></>}
+          {kind === "fullscreen-modal" && <><p>Full viewport body with persistent close action.</p><button>Close</button></>}
+          {kind === "non-modal-dialog" && <><p>Floating dialog keeps page controls reachable.</p><button>Done</button></>}
+          {(kind === "bottom-sheet" || kind === "mobile-toast" || kind === "snackbar" || kind === "system-notification" || kind === "info-alert") && <><p>{kind === "snackbar" ? "File archived." : kind === "info-alert" ? "Plan changes take effect next cycle." : "Mobile-safe message surface."}</p><button>{kind === "snackbar" ? "Undo" : "OK"}</button></>}
+        </section>
+      </div>
+    );
+  }
+
+  if (["chart-treemap", "chart-heatmap", "chart-empty-state", "chart-loading-state", "chart-tooltip", "chart-refresh", "chart-export", "map-legend", "map-visual", "map-marker", "map-empty-state", "map-error-state"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-chart ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind === "chart-refresh" ? "Updated 2m ago" : kind === "chart-export" ? "CSV / PDF" : kind === "map-legend" ? "Map key" : kind.startsWith("map-") || kind === "map-visual" ? "Spatial data" : "Data"}</span></header>
+        {kind === "map-legend" ? (
+          <section className="map-legend-preview">
+            <b><i />Open</b>
+            <b><i />Busy</b>
+            <b><i />Outage</b>
+            <span>Layer legend</span>
+          </section>
+        ) : kind === "map-visual" || kind === "map-marker" ? (
+          <section className="map-visual-preview">
+            <i />
+            <b />
+            <b />
+            <b />
+            <em>{kind === "map-marker" ? "Selected pin" : "Heat 72%"}</em>
+          </section>
+        ) : kind === "map-empty-state" || kind === "map-error-state" ? (
+          <section className={`map-state-preview ${kind}`}>
+            <i />
+            <b>{kind === "map-error-state" ? "Map unavailable" : "No places in this area"}</b>
+            <span>{kind === "map-error-state" ? "Reload layers or check network." : "Zoom out or clear filters."}</span>
+            <button>{kind === "map-error-state" ? "Retry" : "Clear filters"}</button>
+          </section>
+        ) : kind === "chart-treemap" ? (
+          <section className="treemap"><b /><b /><b /><b /></section>
+        ) : kind === "chart-heatmap" ? (
+          <section className="chart-heatmap-grid">{Array.from({ length: 20 }).map((_, index) => <b key={index} className={`level-${index % 5}`} />)}<span>Mon-Fri intensity</span></section>
+        ) : kind === "chart-empty-state" || kind === "chart-loading-state" ? (
+          <section className={`chart-state-preview ${kind}`}>
+            {kind === "chart-loading-state" ? <><i /><i /><i /></> : <CircleHelp size={30} />}
+            <b>{kind === "chart-loading-state" ? "Loading chart data" : "No chart data"}</b>
+            <span>{kind === "chart-loading-state" ? "Axes and legend stay reserved." : "Choose a date range with data."}</span>
+          </section>
+        ) : (
+          <section className="chart-bars">{[38, 72, 54, 86, 62].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}<em>{kind === "chart-tooltip" ? "$12.4K" : kind === "chart-refresh" ? "Refresh" : "Export"}</em></section>
+        )}
+      </div>
+    );
+  }
+
+  if (["flowchart-editor", "diff-viewer", "markdown-editor", "rich-text-editor", "formula-editor", "editor-toolbar", "preview-toggle", "code-file-viewer", "multilingual-editor"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-editor ${kind} ${variantClass}`}>
+        <nav><button>B</button><button>I</button><button>Link</button><span>{kind === "diff-viewer" ? "Diff" : kind === "preview-toggle" ? "Edit / Preview" : "Saved"}</span></nav>
+        {kind === "flowchart-editor" && <section className="flowchart"><b>Start</b><i /><b>Review</b><i /><b>Ship</b></section>}
+        {kind === "diff-viewer" && <section className="diff"><b>- old line</b><b>+ new line</b><b>+ added state</b></section>}
+        {kind === "formula-editor" && <section><input readOnly value="SUM(revenue) / COUNT(users)" /><small>Result: 42.8</small></section>}
+        {kind === "preview-toggle" && <section className="toggle-preview"><button>Edit</button><button className="active">Preview</button><button>Split</button></section>}
+        {kind === "multilingual-editor" && <section><b>EN source</b><b>ZH translation</b><span>Missing: JA</span></section>}
+        {!["flowchart-editor", "diff-viewer", "formula-editor", "preview-toggle", "multilingual-editor"].includes(kind) && <section><b># Heading</b><p>Editable content with preview and formatting controls.</p></section>}
+      </div>
+    );
+  }
+
+  if (["file-thumbnail", "folder", "folder-tree", "file-path", "file-version", "file-grid", "file-picker", "avatar-upload", "document-viewer", "media-viewer", "media-list-item", "file-operation", "upload-list", "upload-status", "product-carousel", "image-picker", "image-grid", "image-cropper", "image-compare", "image-viewer", "image-placeholder", "image-upload", "broken-image", "waveform", "image-annotation-specific", "image-carousel-specific"].includes(kind)) {
+    const operation = /delete/.test(getPreviewSearchText(selected)) ? "Delete" : /move/.test(getPreviewSearchText(selected)) ? "Move" : /share/.test(getPreviewSearchText(selected)) ? "Share" : /download/.test(getPreviewSearchText(selected)) ? "Download" : "Rename";
+    return (
+      <div className={`live-specific-card specific-media ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><button type="button">{kind === "avatar-upload" ? "Replace" : kind === "file-operation" ? operation : kind.includes("upload") ? "Manage" : "Open"}</button></header>
+        {kind === "file-grid" || kind === "image-grid" ? <section className="media-grid">{Array.from({ length: 6 }).map((_, index) => <i key={index} />)}</section> : null}
+        {kind === "file-path" && <section className="path-row"><span>Home</span><ChevronRight size={14} /><span>Reports</span><ChevronRight size={14} /><b>Q2.pdf</b></section>}
+        {kind === "file-version" && <ol><li className="done">v3 current</li><li>v2 yesterday</li><li>v1 draft</li></ol>}
+        {kind === "folder" && <section className="folder-tile"><b /><span>Design assets</span><small>24 files</small></section>}
+        {kind === "folder-tree" && <section className="folder-tree-list"><b>Design assets</b><span>Images</span><span>Icons</span><span>Exports</span></section>}
+        {kind === "file-picker" && <section className="file-picker-list"><span>report.pdf</span><span>brief.docx</span><span>assets.zip</span><button>Choose file</button></section>}
+        {kind === "avatar-upload" && <section className="avatar-upload"><b>AL</b><i /></section>}
+        {kind === "document-viewer" && <section className="document-reader"><aside><b>PDF</b><span>12 pages</span></aside><main><i /><i /><i /></main><footer><button>Outline</button><button>Zoom</button></footer></section>}
+        {kind === "media-viewer" && <section className="media-player-frame"><Play size={24} fill="currentColor" /><b /><span>01:24 / 03:40</span></section>}
+        {kind === "media-list-item" && <section className="media-list-item"><i><Play size={16} fill="currentColor" /></i><div><b>Episode preview</b><span>03:42 · Ready to play</span></div><button>Play</button></section>}
+        {kind === "file-operation" && <section className="file-operation-row"><b>report.pdf</b><span>{operation} this file</span><button className={operation === "Delete" ? "danger" : ""}>{operation}</button></section>}
+        {kind === "upload-list" && <section className="upload-queue"><b>design-spec.pdf</b><span>72%</span><b>cover.png</b><span>Queued</span><b>video-demo.mp4</b><span>Retry</span></section>}
+        {kind === "upload-status" && <section className="upload-status-card"><b>Uploading assets.zip</b><div className="meter"><i /></div><span>4.8 MB of 12 MB</span><button>Pause</button></section>}
+        {kind === "product-carousel" && <section className="product-carousel-preview"><button>Prev</button><i /><button>Next</button><footer><b className="active" /><b /><b /></footer></section>}
+        {kind === "image-carousel-specific" && <section className="product-carousel-preview image-carousel-preview"><button>Prev</button><i /><button>Next</button><footer><b className="active" /><b /><b /></footer></section>}
+        {kind === "image-picker" && <section className="image-picker-grid">{Array.from({ length: 4 }).map((_, index) => <i key={index} className={index === 1 ? "selected" : ""} />)}<button>Choose image</button></section>}
+        {kind === "image-annotation-specific" && <section className="image-annotation-preview"><i /><b>Comment pin</b><span>Crop boundary</span><button>Resolve</button></section>}
+        {kind === "image-cropper" && <section className="cropper"><i /><b /></section>}
+        {kind === "image-compare" && <section className="compare"><i /><i /><b /></section>}
+        {kind === "image-placeholder" && <section className="image-placeholder-card"><i /><b /><span>Waiting for image</span></section>}
+        {kind === "image-upload" && <section className="image-upload-dropzone"><b>+</b><span>Drop image or browse</span></section>}
+        {kind === "broken-image" && <section className="broken-image-card"><b>!</b><span>Image failed to load</span><button>Retry</button></section>}
+        {kind === "waveform" && <section className="waveform">{Array.from({ length: 18 }).map((_, index) => <i key={index} style={{ height: `${18 + (index % 5) * 8}px` }} />)}</section>}
+        {kind === "image-viewer" && <section className="image-frame"><i /></section>}
+        {kind === "file-thumbnail" && <section className="file-thumb"><b>PDF</b><span>report.pdf</span></section>}
+      </div>
+    );
+  }
+
+  if (["product-grid", "price-display", "coupon-input", "quantity-selector", "payment-form", "auth-form", "account-menu", "session-management", "account-deletion", "usage-meter", "backup-codes", "stock-state", "payment-state", "subscription-state", "commerce-recovery", "download-invoice", "cart-removal", "order-confirmation-specific"].includes(kind)) {
+    const commerceText = getPreviewSearchText(selected);
+    const stockCopy = /out-of-stock|out of stock/.test(commerceText)
+      ? { title: "Out of stock", detail: "Notify customers when this item returns.", action: "Notify me" }
+      : /preorder/.test(commerceText)
+        ? { title: "Preorder", detail: "Ships after launch window opens.", action: "Preorder" }
+        : /in-stock|in stock/.test(commerceText)
+          ? { title: "In stock", detail: "24 units available", action: "Add to cart" }
+          : { title: "Low stock", detail: "Only 3 left", action: "Add to cart" };
+    const paymentCopy = /pending-payment|pending payment/.test(commerceText)
+      ? { title: "Payment pending", detail: "Waiting for customer confirmation.", action: "Pay now" }
+      : /processing|payment-processing|payment processing/.test(commerceText)
+        ? { title: "Payment processing", detail: "Bank authorization in progress.", action: "View status" }
+        : /success|payment-success|payment success/.test(commerceText)
+          ? { title: "Payment successful", detail: "Receipt is ready.", action: "View receipt" }
+          : { title: "Payment failed", detail: "Visa ending 4242", action: "Retry payment" };
+    const subscriptionCopy = /expired/.test(commerceText)
+      ? { title: "Subscription expired", detail: "Access is paused until renewal.", action: "Renew plan" }
+      : /cancel/.test(commerceText)
+        ? { title: "Cancel subscription", detail: "Plan remains active until Jul 21.", action: "Confirm cancel" }
+        : { title: "Renews Jul 21", detail: "Pro monthly plan", action: "Manage plan" };
+    return (
+      <div className={`live-specific-card specific-commerce ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind.includes("payment") ? "$140.80" : kind.includes("subscription") ? "Pro" : "Commerce"}</span></header>
+        {kind === "product-grid" && <section className="product-grid">{Array.from({ length: 4 }).map((_, index) => <article key={index}><i /><b>$ {29 + index * 10}</b><button>Add</button></article>)}</section>}
+        {kind === "price-display" && <section><span className="old-price">$99</span><strong className="metric-value">$69</strong><small>30% off, tax included</small></section>}
+        {kind === "coupon-input" && <section className="inline-form"><input readOnly value="SAVE20" /><button>Apply</button></section>}
+        {kind === "quantity-selector" && <section className="quantity-row"><button>-</button><b>2</b><button>+</button><small>8 in stock</small></section>}
+        {kind === "payment-form" && <section><label>Card number<input readOnly value="4242 4242 4242 4242" /></label><button>Pay now</button></section>}
+        {kind === "auth-form" && <section><label>Email<input readOnly value="alex@example.com" /></label><label>Password<input readOnly type="password" value="password" /></label><button>Sign in</button></section>}
+        {kind === "account-menu" && <section className="account-menu"><b>AL</b><span>alex@example.com</span><button>Log out</button></section>}
+        {kind === "session-management" && <section><b>MacBook Pro</b><span>Shanghai - active now</span><button>Revoke</button></section>}
+        {kind === "account-deletion" && <section><input readOnly value="DELETE" /><button className="danger">Delete account</button></section>}
+        {kind === "usage-meter" && <section><b>72% used</b><div className="meter"><i /></div><small>Resets Jun 30</small></section>}
+        {kind === "backup-codes" && <section className="backup-codes">{["8F4K-2A", "92LM-7P", "USED"].map((code) => <b key={code}>{code}</b>)}</section>}
+        {kind === "stock-state" && <section><b className="stock">{stockCopy.title}</b><span>{stockCopy.detail}</span><button>{stockCopy.action}</button></section>}
+        {kind === "payment-state" && <section><b>{paymentCopy.title}</b><span>{paymentCopy.detail}</span><button>{paymentCopy.action}</button></section>}
+        {kind === "subscription-state" && <section><b>{subscriptionCopy.title}</b><span>{subscriptionCopy.detail}</span><button>{subscriptionCopy.action}</button></section>}
+        {kind === "commerce-recovery" && <section><b>Refund requested</b><span>Reason: wrong size</span><button>Track request</button></section>}
+        {kind === "download-invoice" && <section><b>Invoice #2048</b><span>PDF ready</span><button>Download PDF</button></section>}
+        {kind === "cart-removal" && <section className="cart-removal"><b>Wireless Kit removed</b><span>Item moved out of cart.</span><button>Undo</button></section>}
+        {kind === "order-confirmation-specific" && <section className="order-confirmation"><b>Order #1024 confirmed</b><span>Paid by Visa ending 4242</span><button>View order</button></section>}
+      </div>
+    );
+  }
+
+  if (["ai-selector", "prompt-assist", "ai-result", "ai-feedback", "ai-usage", "ai-generation-control", "ai-prompt-composer", "ai-context-attachment", "ai-context-panel", "ai-streaming-text", "ai-tool-call-status", "ai-tool-call-log", "ai-suggestion-action", "ai-confidence-indicator", "ai-grounding-indicator", "ai-safety-status"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-ai ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>AI</span></header>
+        {kind === "ai-selector" && <section><button className="active">Fast model</button><button>Reasoning model</button><small>128k context</small></section>}
+        {kind === "prompt-assist" && <section className="prompt-chips"><b>{`{{tone}}`}</b><b>{`{{audience}}`}</b><b>Summarize</b></section>}
+        {kind === "ai-result" && <section><p>Generated answer with cited source and apply/reject actions.</p><div><button>Apply</button><button>Reject</button></div></section>}
+        {kind === "ai-feedback" && <section><div><button>Good</button><button>Bad</button></div><textarea readOnly value="Missing detail about edge cases." /></section>}
+        {kind === "ai-usage" && <section><b>38k / 128k tokens</b><div className="meter"><i /></div><small>Estimated cost $0.42</small></section>}
+        {kind === "ai-generation-control" && <section><p>Generating response...</p><div className="meter"><i /></div><div><button>Stop</button><button>Continue</button><button>Regenerate</button></div></section>}
+        {kind === "ai-prompt-composer" && <section className="ai-prompt-composer"><textarea readOnly value="Summarize the uploaded design notes for a product team." /><footer><b>2 attachments</b><button>Generate</button></footer></section>}
+        {kind === "ai-context-attachment" && <section className="ai-context-attachment"><b>Context</b><span>design-spec.pdf</span><span>meeting-notes.md</span><button>Add source</button></section>}
+        {kind === "ai-context-panel" && <section className="ai-context-panel"><aside><b>Sources</b><span>file.pdf</span><span>web page</span></aside><main><b>Selected context</b><p>3 chunks attached to the next prompt.</p><button>Remove source</button></main></section>}
+        {kind === "ai-streaming-text" && <section className="ai-streaming-preview"><p>Drafting answer<span className="cursor">|</span></p><b /><b /><small>Streaming token by token</small></section>}
+        {kind === "ai-tool-call-status" && <section className="ai-tool-status"><b className="running">Search docs</b><b>Read file</b><b className="done">Summarize result</b></section>}
+        {kind === "ai-tool-call-log" && <section className="ai-tool-log"><b>Tool call log</b><ol><li>search_docs(query)</li><li>read_file(src/App.jsx)</li><li>summarize_context()</li></ol><button>View trace</button></section>}
+        {kind === "ai-suggestion-action" && <section className="ai-suggestion-preview"><p>Replace vague button copy with a clear action label.</p><div><button>Apply suggestion</button><button>Dismiss</button></div></section>}
+        {kind === "ai-confidence-indicator" && <section className="ai-confidence-preview"><strong>Confidence 84%</strong><div className="meter"><i /></div><small>High confidence with two cited sources.</small></section>}
+        {kind === "ai-grounding-indicator" && <section className="ai-grounding-preview"><b>Grounded</b><span>3 sources attached</span><ol><li>Design spec</li><li>Usage logs</li><li>Help article</li></ol></section>}
+        {kind === "ai-safety-status" && <section className="ai-safety-status"><b>Needs review</b><span>Model unavailable or content filtered.</span><button>Try another model</button></section>}
+      </div>
+    );
+  }
+
+  if (["i18n-selector", "locale-form", "locale-search", "rtl-toggle", "unit-switcher"].includes(kind)) {
+    return (
+      <div className={`live-specific-card specific-i18n ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>Locale</span></header>
+        {kind === "i18n-selector" && <section><label><input type="radio" defaultChecked /> zh-CN</label><label><input type="radio" /> en-US</label><label><input type="radio" /> ar-SA</label></section>}
+        {kind === "locale-form" && <section><input readOnly value="+86 138 0000 0000" /><input readOnly value="Shanghai, China" /></section>}
+        {kind === "locale-search" && <section><Search size={16} /><b>Åland / Aalborg / 阿里</b><small>Locale-aware order</small></section>}
+        {kind === "rtl-toggle" && <section dir="rtl"><button>RTL</button><span>{"البداية -> النهاية"}</span></section>}
+        {kind === "unit-switcher" && <section><button className="active">km</button><button>mi</button><button>kg</button><button>lb</button></section>}
+      </div>
+    );
+  }
+
+  if (kind === "save-status") {
+    return (
+      <div className={`live-specific-card specific-status save-status ${variantClass}`}>
+        <header><strong>{title}</strong><span>Autosave</span></header>
+        <section className="save-status-card">
+          <b>All changes saved</b>
+          <div className="status-steps"><i className="done" /><i className="done" /><i /></div>
+          <span>Last saved 14 seconds ago</span>
+          <button>View version</button>
+        </section>
+      </div>
+    );
+  }
+
+  if (["mobile-checkout-bar", "mobile-coupon", "mobile-order-card", "mobile-task-sheet", "mobile-sort-sheet", "sticky-bottom-action", "mobile-keyboard-avoidance", "mobile-status-bar", "mobile-safe-area", "mobile-splash-screen", "mobile-segmented-control", "mobile-numeric-keyboard", "mobile-keyboard-accessory", "mobile-wheel-picker", "mobile-location-picker", "location-control", "biometric-prompt", "haptic-feedback", "mobile-command-entry", "mobile-camera-capture", "nfc-scan", "bluetooth-connection", "orientation-notice", "mobile-map-view", "locate-me", "sku-sheet", "address-sheet-specific", "payment-method-sheet-specific", "voice-input", "recorder", "video-recorder", "mobile-permission", "file-state", "grid-state", "command-palette-specific", "kanban", "activity-feed", "thumbs-feedback", "qr-login", "qr-scanner"].includes(kind)) {
+    const mobileText = getPreviewSearchText(selected);
+    const permissionCopy = /push/.test(mobileText)
+      ? "Allow push notifications for updates?"
+      : /camera/.test(mobileText)
+        ? "Allow camera access for scanning?"
+        : "Allow location while using the app?";
+    const fileStateCopy = /waiting-upload|waiting upload/.test(mobileText)
+      ? { file: "design-spec.pdf", status: "Waiting in queue", action: "Start upload" }
+      : /upload-resumed|upload resumed/.test(mobileText)
+        ? { file: "design-spec.pdf", status: "Uploading again at 58%", action: "Pause" }
+        : /upload-canceled|upload canceled/.test(mobileText)
+          ? { file: "design-spec.pdf", status: "Upload canceled", action: "Restart" }
+          : /previewing/.test(mobileText)
+            ? { file: "report.pdf", status: "Preview opening", action: "Open" }
+            : { file: "report.pdf", status: "Paused at 42%", action: "Resume" };
+    return (
+      <div className={`live-specific-card specific-mobile ${kind} ${variantClass}`}>
+        <header><strong>{title}</strong><span>{kind.startsWith("mobile") ? "Mobile" : "State"}</span></header>
+        {kind === "mobile-checkout-bar" && <footer className="sticky-bar"><span>2 items</span><strong>$168</strong><button>Checkout</button></footer>}
+        {kind === "mobile-coupon" && <section className="coupon-ticket"><strong>$20 OFF</strong><span>Orders over $99</span><button>Claim</button></section>}
+        {kind === "mobile-order-card" && <section><b>Order #1024</b><span>Shipped today</span><div><button>Track</button><button>Refund</button></div></section>}
+        {kind === "mobile-task-sheet" && <section className="bottom-task"><b /><label><input type="checkbox" defaultChecked /> Available</label><label><input type="checkbox" /> On sale</label><button>Apply</button></section>}
+        {kind === "mobile-sort-sheet" && <section className="bottom-task sort-sheet"><b /><label><input type="radio" name="mobile-sort" defaultChecked /> Newest first</label><label><input type="radio" name="mobile-sort" /> Price low to high</label><button>Apply sort</button></section>}
+        {kind === "sticky-bottom-action" && <footer className="sticky-bar sticky-action"><span>Ready</span><strong>Primary action</strong><button>Continue</button></footer>}
+        {kind === "mobile-keyboard-avoidance" && <section className="keyboard-avoidance"><input readOnly value="alex@example.com" /><b>Keyboard</b><button>Done</button></section>}
+        {kind === "mobile-status-bar" && <section className="mobile-status-bar-preview"><span>9:41</span><b /><b /><b /></section>}
+        {kind === "mobile-safe-area" && <section className="mobile-safe-area-preview"><header>Safe top</header><main>Content stays inside safe area</main><footer>Home indicator</footer></section>}
+        {kind === "mobile-splash-screen" && <section className="mobile-splash-preview"><b>UI</b><span>Loading workspace...</span></section>}
+        {kind === "mobile-segmented-control" && <section className="mobile-segmented-preview"><button className="active">Day</button><button>Week</button><button>Month</button></section>}
+        {kind === "mobile-numeric-keyboard" && <section className="mobile-keypad-preview">{["1","2","3","4","5","6","7","8","9",".","0","⌫"].map((key) => <button key={key}>{key}</button>)}</section>}
+        {kind === "mobile-keyboard-accessory" && <section className="mobile-keyboard-accessory-preview"><div><button>Done</button><button>Next</button></div><b>Keyboard</b></section>}
+        {kind === "mobile-wheel-picker" && <section className="mobile-wheel-picker-preview"><span>09</span><b>10</b><span>11</span><span>AM</span><b>PM</b></section>}
+        {kind === "mobile-location-picker" && <section className="mobile-location-picker-preview"><i /><b>Choose location</b><button>Use current</button></section>}
+        {kind === "location-control" && <section className="location-control-preview"><i /><b>Current location</b><span>Accuracy 12 m</span><button>Use pin</button></section>}
+        {kind === "biometric-prompt" && <section className="biometric-prompt-preview"><b>Face ID</b><span>Authenticate to continue</span><button>Use passcode</button></section>}
+        {kind === "haptic-feedback" && <section className="haptic-feedback-preview"><button>Press</button><span>Haptic pulse</span><i /><i /><i /></section>}
+        {kind === "mobile-command-entry" && <section className="mobile-command-entry-preview"><Search size={16} /><b>Run command</b><span>⌘K</span></section>}
+        {kind === "mobile-camera-capture" && <section className="camera-capture"><i /><b /><button>Capture</button></section>}
+        {kind === "nfc-scan" && <section className="nfc-scan"><b>NFC</b><span>Hold near reader</span><i /></section>}
+        {kind === "bluetooth-connection" && <section className="bluetooth-connection"><b>Bluetooth</b><span>Keyboard MX pairing...</span><div className="meter"><i /></div></section>}
+        {kind === "orientation-notice" && <section className="orientation-notice"><b>Rotate device</b><span>Landscape is required for this view.</span><button>Got it</button></section>}
+        {kind === "mobile-map-view" && <section className="mobile-map-view"><i /><b>Current location</b><span>Nearby results</span></section>}
+        {kind === "locate-me" && <section className="locate-me"><i /><button>Locate me</button><span>Accuracy 12 m</span></section>}
+        {kind === "sku-sheet" && <section className="sku-sheet"><b>Color</b><div><button>Black</button><button className="active">Blue</button></div><b>Size</b><div><button>M</button><button>L</button></div><button>Add to cart</button></section>}
+        {kind === "address-sheet-specific" && <section className="address-sheet"><b>Ship to</b><label><input type="radio" defaultChecked /> Home · 88 Market St</label><label><input type="radio" /> Office · 12 Lake Rd</label><button>Use address</button></section>}
+        {kind === "payment-method-sheet-specific" && <section className="payment-method-sheet"><b>Payment method</b><label><input type="radio" defaultChecked /> Visa ending 4242</label><label><input type="radio" /> PayPal</label><button>Pay now</button></section>}
+        {kind === "voice-input" && <section><button className="mic">Mic</button><p>Transcribing voice input...</p></section>}
+        {kind === "recorder" && <section className="waveform">{Array.from({ length: 14 }).map((_, index) => <i key={index} style={{ height: `${18 + (index % 4) * 9}px` }} />)}<button>Stop</button></section>}
+        {kind === "video-recorder" && <section className="video-recorder-preview"><i /><span>REC 00:12</span><button>Stop</button></section>}
+        {kind === "mobile-permission" && <section><p>{permissionCopy}</p><div><button>Not now</button><button>Allow</button></div></section>}
+        {kind === "file-state" && <section><b>{fileStateCopy.file}</b><span>{fileStateCopy.status}</span><button>{fileStateCopy.action}</button></section>}
+        {kind === "grid-state" && <section className="grid-state-table"><b>Name</b><b className="pinned">Status</b><span>Row editing</span><input readOnly value="Active" /></section>}
+        {kind === "command-palette-specific" && <section><div><Search size={16} /><span>Search commands</span></div><b>Open file</b><b>Toggle theme</b></section>}
+        {kind === "kanban" && <section className="kanban"><b>Todo</b><b>Doing</b><b>Done</b></section>}
+        {kind === "activity-feed" && <section><b>Alex commented</b><span>2 min ago</span><b>Build deployed</b></section>}
+        {kind === "thumbs-feedback" && <section><button>Thumbs up</button><button>Thumbs down</button><textarea readOnly value="Tell us why" /></section>}
+        {kind === "qr-login" && <section className="qr-frame"><b /><b /><b /><span>Scan to log in</span></section>}
+        {kind === "qr-scanner" && <section className="qr-frame"><b /><b /><b /><span>Align QR code inside the frame</span></section>}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function SpecificMiniPreview({ kind, className }) {
+  const group =
+    kind.includes("chart") || kind.startsWith("map-") ? "chart" :
+    kind.includes("editor") || kind.includes("diff") || kind.includes("formula") ? "editor" :
+    kind.includes("mobile") || kind.includes("sheet") || kind.includes("toast") || kind.includes("recorder") || kind.includes("voice") || kind.includes("qr") || kind.includes("scan") || kind.includes("keyboard") || kind.includes("sticky") || kind.includes("bluetooth") || kind.includes("nfc") || kind.includes("orientation") || kind.includes("camera") || kind.includes("map") || kind.includes("locate") || kind.includes("location") || kind.includes("sku") || kind.includes("address") || kind.includes("biometric") || kind.includes("haptic") || kind.includes("command-entry") || kind.includes("safe-area") || kind.includes("splash") || kind.includes("status-bar") || kind.includes("segmented") ? "mobile" :
+    kind.includes("payment") || kind.includes("cart") || kind.includes("stock") || kind.includes("coupon") ? "commerce" :
+    kind.includes("ai") || kind.includes("prompt") || kind.includes("generation") ? "ai" :
+    kind.includes("i18n") || kind.includes("locale") || kind.includes("rtl") || kind.includes("unit") ? "i18n" :
+    kind.includes("image") || kind.includes("file") || kind.includes("folder") || kind.includes("upload") || kind.includes("carousel") || kind.includes("waveform") || kind.includes("media") || kind.includes("document") ? "media" :
+    kind.includes("drawer") || kind.includes("modal") || kind.includes("dialog") || kind.includes("lightbox") ? "overlay" :
+    kind.includes("save-status") ? "status" :
+    "ui";
+
+  return (
+    <span className={className}>
+      <span className={`mini-specific ${group} ${kind}`}>
+        {group === "chart" && <><i /><i /><i /><b /></>}
+        {group === "editor" && <><strong>B</strong><b /><b /><em /></>}
+        {group === "mobile" && (
+          kind.includes("checkout") || kind.includes("cart") ? <><i /><b>$168</b><strong /></> :
+          kind.includes("sort") ? <><b /><strong /><strong /></> :
+          kind.includes("task-sheet") || kind.includes("filter") ? <><b /><i /><i /><em /></> :
+          kind.includes("recorder") || kind.includes("voice") ? <><i /><i /><i /><strong /></> :
+          kind.includes("permission") || kind.includes("biometric") ? <><b>Allow</b><i /><strong /></> :
+          kind.includes("map") || kind.includes("locate") ? <><i /><b /><b /><strong /></> :
+          kind.includes("nfc") ? <><b>NFC</b><i /><strong /></> :
+          kind.includes("bluetooth") ? <><b>BT</b><i /><i /><strong /></> :
+          kind.includes("camera") || kind.includes("video") ? <><i /><b>REC</b><strong /></> :
+          kind.includes("keyboard") ? <><b>1</b><b>2</b><b>3</b><strong /></> :
+          kind.includes("segmented") ? <><b>Day</b><i /><i /><strong /></> :
+          <><b /><i /><i /><strong /></>
+        )}
+        {group === "commerce" && <><i /><b>$</b><strong /></>}
+        {group === "ai" && <><Sparkles size={14} /><b /><b /></>}
+        {group === "i18n" && <><b>zh</b><i /><b>RTL</b></>}
+        {group === "media" && <><i /><i /><b /></>}
+        {group === "overlay" && <><i /><b /><b /></>}
+        {group === "status" && <><b /><i /><i /><strong /></>}
+        {group === "ui" && <><b /><i /><i /></>}
+      </span>
+    </span>
+  );
+}
+
 function ComponentLivePreview({ selected, term, variant = "" }) {
-  const id = selected.id;
+  const id = selected.preview && selected.preview !== "generic" ? selected.preview : selected.id;
   const variantIndex = getVariantIndex(selected, variant);
   const variantClass = getVariantPreviewClass(variant, variantIndex);
   const isDangerVariant = variantHas(variant, ["错误", "危险", "删除", "失败"]);
@@ -4047,6 +5446,35 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   const hasIconVariant = variantHas(variant, ["图标", "搜索", "建议", "命令"]);
   const hasClearVariant = variantHas(variant, ["清除"]);
   const hasRecommendationVariant = variantHas(variant, ["建议", "推荐"]);
+  const specificKind = getSpecificPreviewKind(selected);
+
+  if (specificKind) {
+    const specificPreview = <SpecificLivePreview selected={selected} kind={specificKind} variantClass={variantClass} />;
+    if (specificPreview) return specificPreview;
+  }
+
+  if (taxonomyPreviewTypes.has(selected.preview)) {
+    return <TaxonomyLivePreview selected={selected} variant={variant} variantClass={variantClass} />;
+  }
+
+  if (id === "button") {
+    const action = getSemanticAction(selected);
+    const ActionIcon = action.icon;
+    return (
+      <div className={`live-button-card live-semantic-action ${action.kind} ${variantClass}`}>
+        <button type="button" className={action.kind === "danger" ? "danger" : ""}>
+          <ActionIcon size={18} />
+          <span>{action.label}</span>
+        </button>
+        <small>{action.helper}</small>
+        <ActionMockup action={action} selected={selected} />
+      </div>
+    );
+  }
+
+  if (id === "otp-input") {
+    return <OtpPreviewCard selected={selected} variantClass={variantClass} />;
+  }
 
   if (id === "button") {
     return (
@@ -4058,7 +5486,7 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
-  if (["text-field", "textarea", "search", "password-field", "autocomplete"].includes(id)) {
+  if (["text", "text-field", "textarea", "search", "password-field", "autocomplete"].includes(id)) {
     return (
       <div className={`live-card live-form-card ${variantClass}`}>
         <label>{selected.title}</label>
@@ -4138,12 +5566,60 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   }
 
   if (["table", "data-grid"].includes(id)) {
+    const tableText = getPreviewSearchText(selected);
+    const tableAction = /export/.test(tableText) ? "Export" : /import/.test(tableText) ? "Import" : /copy/.test(tableText) ? "Copy" : "";
+    if (/filter|sort|selection|props table|api reference|pagination|tree table|data grid/.test(tableText)) {
+      const heads = /props|api/.test(tableText) ? ["Name", "Type", "Default"] : ["Name", "Status", "Updated"];
+      return (
+        <div className={`live-table live-data-grid-variant ${variantClass}`}>
+          {heads.map((head, index) => <b key={head}>{head}{/filter/.test(tableText) && index === 1 ? " Filter" : /sort/.test(tableText) && index === 2 ? " Sort" : ""}</b>)}
+          {["Row A", "Active", "Today", "Row B", "Pending", "Yesterday", "Row C", "Done", "Jun 21"].map((cell, index) => (
+            <span key={`${cell}-${index}`}>{/selection/.test(tableText) && index % 3 === 0 ? "☑ " : ""}{cell}</span>
+          ))}
+        </div>
+      );
+    }
+    if (tableAction) {
+      const ActionIcon = tableAction === "Export" ? Download : tableAction === "Import" ? ArrowUp : Copy;
+      return (
+        <div className={`live-table live-data-grid-variant table-action-preview ${variantClass}`}>
+          <header><strong>{selected.title}</strong><button type="button"><ActionIcon size={15} /> {tableAction}</button></header>
+          {["Name", "Status", "Updated"].map((head) => <b key={head}>{head}</b>)}
+          {["Q2 revenue", "Ready", "Today", "Customers", "Ready", "Jun 21"].map((cell, index) => (
+            <span key={`${cell}-${index}`}>{cell}</span>
+          ))}
+        </div>
+      );
+    }
     return (
       <div className={`live-table ${variantClass}`}>
         {["名称", "状态", "时间"].map((head) => <b key={head}>{head}</b>)}
         {["订单 A", "完成", "今天", "订单 B", "待处理", "昨天", "订单 C", "失败", "周一"].map((cell, index) => (
           <span key={`${cell}-${index}`} className={cell === "失败" ? "danger-text" : cell === "完成" ? "success-text" : ""}>{cell}</span>
         ))}
+      </div>
+    );
+  }
+
+  if (id === "card" && /invoice|receipt/.test(getPreviewSearchText(selected))) {
+    const isInvoice = /invoice/.test(getPreviewSearchText(selected));
+    return (
+      <div className={`live-document-card ${isInvoice ? "invoice" : "receipt"} ${variantClass}`}>
+        <header><strong>{isInvoice ? "Invoice #INV-2026-018" : "Receipt #RC-2048"}</strong><span>{isInvoice ? "Due" : "Paid"}</span></header>
+        <section><b>{isInvoice ? "ACME Design Ltd." : "Card ending 2048"}</b><i /></section>
+        <div><span>Subtotal</span><b>$128.00</b></div>
+        <div><span>{isInvoice ? "Tax" : "Paid at"}</span><b>{isInvoice ? "$12.80" : "10:32"}</b></div>
+        <footer><span>Total</span><strong>$140.80</strong></footer>
+      </div>
+    );
+  }
+
+  if (id === "card" && /order card/.test(getPreviewSearchText(selected))) {
+    return (
+      <div className={`live-order-card ${variantClass}`}>
+        <header><strong>Order #1024</strong><span>Shipped</span></header>
+        <main><i /><div><b>Wireless Kit</b><span>2 items · $168</span></div></main>
+        <footer><button type="button">Track</button><button type="button">Support</button></footer>
       </div>
     );
   }
@@ -4167,7 +5643,39 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
-  if (id === "empty-state") {
+  if (id === "empty" || id === "empty-state") {
+    const text = getPreviewSearchText(selected);
+    if (/cart|basket/.test(text)) {
+      return (
+        <div className={`live-empty-cart-card ${variantClass}`}>
+          <Box size={34} />
+          <strong>Cart is empty</strong>
+          <span>Add saved items or continue shopping before checkout.</span>
+          <section><i /><i /><i /></section>
+          <button type="button">Continue shopping</button>
+        </div>
+      );
+    }
+    if (/help|faq|support/.test(text)) {
+      return (
+        <div className={`live-empty-help-card ${variantClass}`}>
+          <div><Search size={18} /><span>No articles found</span></div>
+          <strong>{selected.title}</strong>
+          <p>Try another keyword or contact support.</p>
+          <button type="button">Contact support</button>
+        </div>
+      );
+    }
+    if (/file|document/.test(text)) {
+      return (
+        <div className={`live-empty-file-card ${variantClass}`}>
+          <Download size={32} />
+          <strong>No files yet</strong>
+          <span>Upload a document to make preview and file actions available.</span>
+          <button type="button">Upload file</button>
+        </div>
+      );
+    }
     return (
       <div className={`live-empty-card ${variantClass}`}>
         <CircleHelp size={34} />
@@ -4217,12 +5725,93 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
+  if (id === "file-preview") {
+    const text = getPreviewSearchText(selected);
+    if (/image|background/.test(text)) {
+      return (
+        <div className={`live-image-preview-card ${variantClass}`}>
+          <section><i /><i /><i /></section>
+          <footer><button type="button">Zoom</button><button type="button">Crop</button></footer>
+        </div>
+      );
+    }
+    if (/document|pdf|reading mode|file viewer/.test(text)) {
+      return (
+        <div className={`live-file-preview-card document-viewer ${variantClass}`}>
+          <aside><strong>DOC</strong><span>12 pages</span></aside>
+          <main><header><button>−</button><span>82%</span><button>+</button></header><b /><b /><b /><i /></main>
+          <footer><span>Outline</span><span>Comments</span><span>Download</span></footer>
+        </div>
+      );
+    }
+    return (
+      <div className={`live-file-preview-card ${variantClass}`}>
+        <aside><strong>PDF</strong><span>12 pages</span></aside>
+        <main><header><button>−</button><span>82%</span><button>+</button></header><b /><b /><b /><i /></main>
+      </div>
+    );
+  }
+
+  if (id === "file-action") {
+    const action = getSemanticAction(selected);
+    const ActionIcon = action.icon;
+    const target = /invoice/.test(getPreviewSearchText(selected)) ? "invoice.pdf" : /image/.test(getPreviewSearchText(selected)) ? "cover.png" : "report.pdf";
+    return (
+      <div className={`live-file-action-card ${variantClass}`}>
+        <strong>{selected.title}</strong>
+        <div><span>{target}</span><button type="button"><ActionIcon size={15} /> {action.label}</button></div>
+        <small>{action.helper}</small>
+      </div>
+    );
+  }
+
+  if (id === "file-action") {
+    return (
+      <div className={`live-file-action-card ${variantClass}`}>
+        <strong>{selected.title}</strong>
+        <div><span>report.pdf</span><button type="button">Rename</button><button type="button">Move</button></div>
+        <small>File actions show the target file and the operation, not an upload dropzone.</small>
+      </div>
+    );
+  }
+
   if (id === "slider") {
     return (
       <div className={`live-slider-card ${variantClass}`}>
         <strong>{variantHas(variant, ["范围"]) ? "价格 20 - 80" : "音量 62%"}</strong>
         <input type="range" defaultValue={variantHas(variant, ["刻度"]) ? "80" : "62"} />
         <span>滑杆适合连续数值，而不是少量固定选项。</span>
+      </div>
+    );
+  }
+
+  if (id === "switcher") {
+    return (
+      <div className={`live-switcher-card ${variantClass}`}>
+        <header>
+          <strong>{variant || selected.title}</strong>
+          <span>Current</span>
+        </header>
+        <div>
+          {["Workspace", "Team", "Archive"].map((label, index) => (
+            <button key={label} type="button" className={index === 0 ? "active" : ""}>{label}</button>
+          ))}
+        </div>
+        <small>Switcher changes context directly, instead of opening a long option menu.</small>
+      </div>
+    );
+  }
+
+  if (id === "quantity-stepper") {
+    return (
+      <div className={`live-quantity-stepper-card ${variantClass}`}>
+        <strong>{selected.title}</strong>
+        <div>
+          <button type="button" aria-label="Decrease">-</button>
+          <span>2</span>
+          <button type="button" aria-label="Increase">+</button>
+        </div>
+        <small>Use steppers for small bounded quantities with clear minimum and maximum.</small>
       </div>
     );
   }
@@ -4238,6 +5827,26 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
             </i>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (id === "form") {
+    const rows = getFormRows(selected);
+    return (
+      <div className={`live-form-card live-context-form ${variantClass}`}>
+        <strong>{selected.title}</strong>
+        {rows.map((row, index) => (
+          <label key={row}>
+            <span>{row}</span>
+            {index === rows.length - 1 && /filter|settings|preferences/.test(getPreviewSearchText(selected)) ? (
+              <input type="checkbox" defaultChecked={index === 1} />
+            ) : (
+              <input defaultValue={index === 0 && /search/.test(getPreviewSearchText(selected)) ? "dashboard" : ""} />
+            )}
+          </label>
+        ))}
+        <button type="button">{/payment/.test(getPreviewSearchText(selected)) ? "Pay now" : /filter/.test(getPreviewSearchText(selected)) ? "Apply filters" : /search/.test(getPreviewSearchText(selected)) ? "Search" : "Submit"}</button>
       </div>
     );
   }
@@ -4261,6 +5870,39 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
         <label><input type="radio" name="demo-radio" defaultChecked /> 默认选项</label>
         <label className="live-toggle"><span>自动保存</span><i /></label>
         <input type="range" defaultValue="62" />
+      </div>
+    );
+  }
+
+  if (["menu", "dropdown", "select", "context-menu"].includes(id)) {
+    const isDropdown = id === "dropdown" || id === "select";
+    const options = isDropdown ? getSelectOptions(selected) : getMenuOptions(selected, isDropdown);
+    const isColor = /color/.test(getPreviewSearchText(selected));
+    const pickerText = getPreviewSearchText(selected);
+    if (isDropdown && /file picker|image picker|avatar picker|payment method/.test(pickerText)) {
+      return (
+        <div className={`live-picker-card ${/image|avatar/.test(pickerText) ? "image-picker" : /payment/.test(pickerText) ? "payment-picker" : "file-picker"} ${variantClass}`}>
+          <header><strong>{selected.title}</strong><button type="button">Choose</button></header>
+          {/file/.test(pickerText) && <section>{["report.pdf", "invoice.pdf", "brief.doc"].map((file) => <span key={file}><b />{file}</span>)}</section>}
+          {/image|avatar/.test(pickerText) && <section>{Array.from({ length: 6 }).map((_, index) => <i key={index} className={index === 1 ? "selected" : ""} />)}</section>}
+          {/payment/.test(pickerText) && <section>{["Visa ending 4242", "PayPal", "Apple Pay"].map((method, index) => <label key={method}><input type="radio" name="pay-method" defaultChecked={index === 0} />{method}</label>)}</section>}
+        </div>
+      );
+    }
+    return (
+      <div className={`live-menu-card ${isDropdown ? "dropdown" : ""} ${isColor ? "color-picker" : ""} ${variantClass}`}>
+        <div className="live-menu-trigger">
+          <span>{variant || selected.title}</span>
+          <ChevronRight size={18} />
+        </div>
+        <div className="live-menu-popover">
+          {options.map((label, index) => (
+            <span key={label} className={/delete/i.test(label) ? "danger-text" : ""}>
+              {isColor && <i style={{ background: label }} />}
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
     );
   }
@@ -4305,6 +5947,16 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
+  if (id === "back-button") {
+    return (
+      <div className={`live-back-button-card ${variantClass}`}>
+        <header><button type="button"><ChevronRight size={18} /> Back</button><span>Detail</span></header>
+        <main><strong>{variant || selected.title}</strong><p>{selected.plain}</p></main>
+        <footer><i /><span>Returns to previous list without losing scroll position.</span></footer>
+      </div>
+    );
+  }
+
   if (["top-navigation", "sidebar", "breadcrumb", "pagination", "stepper", "bottom-navigation", "back-button"].includes(id)) {
     return (
       <div className={`live-nav-card ${id} ${variantClass}`}>
@@ -4328,7 +5980,36 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
+  if (id === "action-sheet") {
+    return (
+      <div className={`live-action-sheet-card ${variantClass}`}>
+        <main><i /><i /><i /></main>
+        <section>
+          <b />
+          <button type="button">分享</button>
+          <button type="button">复制链接</button>
+          <button type="button" className="danger">删除</button>
+          <button type="button">取消</button>
+        </section>
+      </div>
+    );
+  }
+
   if (id === "drawer") {
+    const drawerText = getPreviewSearchText(selected);
+    if (/filter|sort|cart/.test(drawerText)) {
+      return (
+        <div className={`live-drawer-card live-context-drawer ${variantClass}`}>
+          <aside>
+            <strong>{selected.title}</strong>
+            {/filter/.test(drawerText) && <><label><input type="checkbox" defaultChecked /> Active</label><label><input type="checkbox" /> On sale</label><button>Apply filters</button></>}
+            {/sort/.test(drawerText) && <><label><input type="radio" name="drawer-sort" defaultChecked /> Newest first</label><label><input type="radio" name="drawer-sort" /> Top rated</label></>}
+            {/cart/.test(drawerText) && <><span>Wireless Kit ×2</span><span>Total $168</span><button>Checkout</button></>}
+          </aside>
+          <main><i /><i /><i /></main>
+        </div>
+      );
+    }
     return (
       <div className={`live-drawer-card ${variantClass}`}>
         <aside><strong>{variant || "抽屉标题"}</strong><span>设置</span><span>通知</span><span>账户</span></aside>
@@ -4407,6 +6088,16 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
+  if (id === "tag" && /filter/.test(getPreviewSearchText(selected))) {
+    return (
+      <div className={`live-filter-chip-card ${variantClass}`}>
+        <strong>Applied filters</strong>
+        <div><span>Status: Active <X size={13} /></span><span>Owner: Me <X size={13} /></span></div>
+        <button type="button">Clear all</button>
+      </div>
+    );
+  }
+
   if (["badge", "avatar", "tag"].includes(id)) {
     return (
       <div className={`live-social-card ${variantClass}`}>
@@ -4423,10 +6114,11 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   if (id === "filter-panel") {
     return (
       <div className={`live-filter-card ${variantClass}`}>
-        <strong>{variant || "筛选"}</strong>
-        <label><input type="checkbox" defaultChecked /> 可用</label>
-        <label><input type="checkbox" /> 促销</label>
+        <strong>{variant || selected.title}</strong>
+        <label><input type="checkbox" defaultChecked /> Active</label>
+        <label><input type="checkbox" /> Promotion</label>
         <div><span>0</span><i /><span>100</span></div>
+        <button type="button">Apply filters</button>
       </div>
     );
   }
@@ -4434,10 +6126,10 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   if (id === "sort-control") {
     return (
       <div className={`live-sort-card ${variantClass}`}>
-        <span>排序</span>
-        <button type="button">{variant || "最新优先"}</button>
-        <button type="button">价格升序</button>
-        <button type="button">评分最高</button>
+        <span>Sort</span>
+        <button type="button">Newest first</button>
+        <button type="button">Price ascending</button>
+        <button type="button">Top rated</button>
       </div>
     );
   }
@@ -4453,6 +6145,15 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   }
 
   if (id === "media-player") {
+    if (/voice|recorder|recording|audio recorder|video recorder/.test(getPreviewSearchText(selected))) {
+      return (
+        <div className={`live-recorder-card ${variantClass}`}>
+          <header><span className="recording-dot" /><strong>{/video/.test(getPreviewSearchText(selected)) ? "Video recording" : "Voice recording"}</strong><b>00:18</b></header>
+          <section>{Array.from({ length: 18 }).map((_, index) => <i key={index} style={{ height: `${18 + (index % 5) * 8}px` }} />)}</section>
+          <footer><button type="button">Pause</button><button type="button">Stop</button></footer>
+        </div>
+      );
+    }
     return (
       <div className={`live-media-card ${variantClass}`}>
         <section><Play size={28} fill="currentColor" /></section>
@@ -4462,6 +6163,54 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
   }
 
   if (id === "shopping-cart") {
+    const text = getPreviewSearchText(selected);
+    if (/payment status|refund status|order status/.test(text)) {
+      const status = /refund/.test(text)
+        ? { title: "Refund processing", meta: "$48.00", step: "Bank transfer" }
+        : /payment/.test(text)
+          ? { title: "Payment received", meta: "$140.80", step: "Receipt issued" }
+          : { title: "Order shipped", meta: "#1024", step: "Out for delivery" };
+      return (
+        <div className={`live-commerce-status-card ${variantClass}`}>
+          <header><strong>{selected.title}</strong><span>{status.meta}</span></header>
+          <section><b>{status.title}</b><small>{status.step}</small></section>
+          <ol>
+            <li className="done">Created</li>
+            <li className="done">{/refund/.test(text) ? "Approved" : "Paid"}</li>
+            <li>{/refund/.test(text) ? "Refunded" : "Delivered"}</li>
+          </ol>
+        </div>
+      );
+    }
+    if (/payment form/.test(text)) {
+      return (
+        <div className={`live-payment-form-card ${variantClass}`}>
+          <strong>Payment</strong>
+          <label>Card number<input value="4242 4242 4242 4242" readOnly /></label>
+          <div><label>MM/YY<input value="06/28" readOnly /></label><label>CVC<input value="123" readOnly /></label></div>
+          <button type="button">Pay $140.80</button>
+        </div>
+      );
+    }
+    if (/coupon/.test(text)) {
+      return (
+        <div className={`live-coupon-card ${variantClass}`}>
+          <strong>$20 OFF</strong>
+          <span>Orders over $99</span>
+          <button type="button">Apply coupon</button>
+        </div>
+      );
+    }
+    if (/order summary|order detail|checkout/.test(text)) {
+      return (
+        <div className={`live-order-summary-card ${variantClass}`}>
+          <header><strong>Order summary</strong><span>#1024</span></header>
+          <div><span>Items</span><b>$128.00</b></div>
+          <div><span>Shipping</span><b>$12.00</b></div>
+          <footer><span>Total</span><strong>$140.00</strong></footer>
+        </div>
+      );
+    }
     return (
       <div className={`live-cart-card ${variantClass}`}>
         <strong>{variant || "购物车"}</strong>
@@ -4484,17 +6233,676 @@ function ComponentLivePreview({ selected, term, variant = "" }) {
     );
   }
 
+  if (id === "barcode" && /scanner|scan|qr/.test(getPreviewSearchText(selected))) {
+    return (
+      <div className={`live-scanner-card ${variantClass}`}>
+        <header><strong>{variant || selected.title}</strong><span>Camera</span></header>
+        <section><b /><b /><b /><b /><i /></section>
+        <footer><span>Align QR or barcode inside the frame</span></footer>
+      </div>
+    );
+  }
+
+  if (id === "barcode") {
+    return (
+      <div className={`live-barcode-card ${variantClass}`}>
+        <strong>{variant || selected.title}</strong>
+        <div className="live-barcode-lines">{Array.from({ length: 18 }).map((_, index) => <i key={index} />)}</div>
+        <span>Code 128 / QR / scan result</span>
+      </div>
+    );
+  }
+
   return (
     <div className={`live-generic-card ${variantClass}`}>
-      <MiniPreview type={selected.preview} large />
+      <MiniPreview type={selected.preview} entry={selected} large />
       <strong>{variant || term?.title || selected.title}</strong>
       <p>{term?.plain || selected.plain}</p>
     </div>
   );
 }
 
+function getPreviewSearchText(selected) {
+  return [selected?.id, selected?.title, selected?.english, selected?.group].join(" ").toLowerCase();
+}
+
+function getA11yPreviewKind(selected, type) {
+  if (type !== "a11y" && type !== "a11y-focus") return type;
+  const text = getPreviewSearchText(selected);
+  if (/name|description|aria-label|aria-description|label/.test(text)) return "a11y-name";
+  if (/semantic|landmark|heading|skip/.test(text)) return "a11y-structure";
+  if (/focus|keyboard|shortcut|tab/.test(text)) return "a11y-focus";
+  if (/reader|live|announcement|announced|status/.test(text)) return "a11y-announcement";
+  if (/contrast|color blind|high contrast|palette/.test(text)) return "a11y-contrast";
+  if (/reduced motion|motion/.test(text)) return "a11y-motion";
+  if (/touch target|target size|target/.test(text)) return "a11y-target";
+  if (/form|association|error association/.test(text)) return "a11y-form";
+  if (/alt text|caption|chart description|image|video/.test(text)) return "a11y-alt-text";
+  if (/test|audit|check/.test(text)) return "a11y-testing";
+  return type === "a11y-focus" ? "a11y-focus" : "a11y-name";
+}
+
+function getI18nPreviewKind(selected, type) {
+  if (type !== "i18n") return type;
+  const text = getPreviewSearchText(selected);
+  if (/language|locale/.test(text)) return "i18n-locale";
+  if (/translation|missing/.test(text)) return "i18n-translation";
+  if (/plural/.test(text)) return "i18n-plural";
+  if (/date|time|number|currency|unit|address|phone|name order|format/.test(text)) return "i18n-format";
+  if (/rtl|ltr|bidirectional|direction/.test(text)) return "i18n-direction";
+  if (/long text|truncation|expansion/.test(text)) return "i18n-text";
+  if (/search|sorting|sort/.test(text)) return "i18n-search";
+  if (/compliance|region/.test(text)) return "i18n-compliance";
+  return "i18n-locale";
+}
+
+function getStatusPreviewKind(selected, type = "status-indicator") {
+  if (type !== "status-indicator") return type;
+  const text = getPreviewSearchText(selected);
+  if (/empty|no results|not found|404/.test(text)) return "empty";
+  if (/status message/.test(text)) return "alert";
+  if (/file validation|virus scan|virus scanning|scan failed/.test(text)) return "security";
+  if (/virus scanning/.test(text)) return "security";
+  if (/transcoding|saving|autosaving|reviewing|in-review|sending|bulk action running/.test(text)) return "progress";
+  if (/media states/.test(text) && /\bended\b/.test(text)) return "media-player";
+  if (/(date|calendar)/.test(text) && /\bended\b/.test(text)) return "date-picker";
+  if (/stopped|buffering|fullscreen|picture-in-picture|replay|seeking|captions|muted|unmuted/.test(text)) return "media-player";
+  if (/yesterday|past|future|has-events|no-events|all-day|recurring event|scheduled|upcoming|booked/.test(text)) return "date-picker";
+  if (/unsorted|ascending|descending/.test(text)) return "sort-control";
+  if (/unfiltered|filtered/.test(text)) return "filter-panel";
+  if (/column frozen|column pinned|resizing column|cell editing|row editing/.test(text)) return "data-grid";
+  if (/bulk selecting/.test(text)) return "checkbox";
+  if (/unsaved/.test(text)) return "editor";
+  if (/conflict resolved|published|restored|copied|shipped|returned|archived|refreshed/.test(text)) return "toast";
+  if (/conflict|rejected|deleted|soft-deleted|locked|blocked|overdue|high-priority|discontinued|not-purchasable/.test(text)) return "alert";
+  if (/checking-out|in-transit|returning|trialing/.test(text)) return "shopping-cart";
+  if (/read receipt/.test(text)) return "status-indicator";
+  if (/\bunread\b|\bread\b|\bmentioned\b/.test(text)) return "notification";
+  if (/pinned|unpinned|liked|unliked|following|not-following/.test(text)) return "button";
+  if (/editing/.test(text)) return "editor";
+  if (/previewing/.test(text)) return "media-player";
+  if (/character counter|counter|countdown/.test(text)) return "badge";
+  if (/autosave|draft/.test(text)) return "editor";
+  if (/account settings|configuration summary/.test(text)) return "form";
+  if (/unsupported format/.test(text)) return "alert";
+  if (/loading|pending|progress|processing|syncing|generating|streaming|uploading|downloading|validating|submitting|requesting|reconnecting|queued|sorting|dragging/.test(text)) return "progress";
+  if (/failed|error|warning|risk|denied|forbidden|unauthorized|unauthenticated|timeout|expired|rate limit|server|invalid|over limit|offline|disconnected|canceled|too large|selection limit|not-droppable|degraded|broken/.test(text)) return "alert";
+  if (/success|completed|approved|saved|synced|delivered|done|passed|sent|valid\b|under limit|resumed|connected|online/.test(text)) return "toast";
+  if (/selected|checked|partially selected|select all|single select|multi select/.test(text)) return "checkbox";
+  if (/expanded|collapsed|accordion|row expanded|row collapsed/.test(text)) return "accordion";
+  if (/focus|keyboard focus|focus visible/.test(text)) return "a11y-focus";
+  if (/readonly|editable|non-editable|filled|filling|typing|touched|untouched|dirty|pristine|original value|autofilled|password visible|password hidden|required|optional/.test(text)) return "text";
+  if (/disabled|enabled|active|hover|pressed|default|clickable|non-clickable|visited|highlighted|current|open|closed|visible|hidden|resettable|previous item|next item|creatable|droppable|grouped|ungrouped/.test(text)) return "button";
+  if (/playing|paused|muted|camera|recording|live|media|audio|video/.test(text)) return "media-player";
+  if (/payment|order|cart|stock|subscription|invoice|refund/.test(text)) return "shopping-cart";
+  if (/date|time|calendar|today|tomorrow/.test(text)) return "date-picker";
+  if (/ai|tool|citation|model|confidence|context|prompt/.test(text)) return "command-palette";
+  return "status-indicator";
+}
+
+function getTermPreviewKind(selected, type = "term-card") {
+  if (type !== "term-card") return type;
+  const text = getPreviewSearchText(selected);
+  if (/data grid/.test(text)) return "data-grid";
+  if (/tree table|pivot table|\btable\b/.test(text)) return "table";
+  if (/date picker|time picker|calendar picker|month picker|year picker|date range picker/.test(text)) return "date-picker";
+  if (/otp input|pin input|verification code|one-time code/.test(text)) return "otp-input";
+  if (/bottom navigation|bottom nav|tab bar/.test(text)) return "bottom-navigation";
+  if (/action sheet/.test(text)) return "action-sheet";
+  if (/modal|dialog|confirmation|alert dialog/.test(text)) return "modal";
+  if (/drawer|sheet|bottom sheet|side sheet/.test(text)) return "drawer";
+  if (/backdrop|overlay/.test(text)) return "modal";
+  if (/steps/.test(text)) return "stepper";
+  if (/skip link/.test(text)) return "a11y-structure";
+  if (/toast|snackbar/.test(text)) return "toast";
+  if (/notification|banner|callout|alert/.test(text)) return "alert";
+  if (/tooltip/.test(text)) return "tooltip";
+  if (/popover|hover card/.test(text)) return "popover";
+  if (/\btabs?\b|tab panel/.test(text)) return "tabs";
+  if (/pagination/.test(text)) return "pagination";
+  if (/breadcrumb/.test(text)) return "breadcrumb";
+  if (/navigation|nav bar|side navigation|rail/.test(text)) return "top-navigation";
+  if (/command|menu|dropdown|context menu|mega menu/.test(text)) return "menu";
+  if (/text field|input|textarea|password|search box|combobox|autocomplete/.test(text)) return "text";
+  if (/^dictionary-form\\b|form item/.test(text)) return "form";
+  if (/select|picker|cascader|tree select/.test(text)) return "select";
+  if (/slider|stepper|range/.test(text)) return "slider";
+  if (/checkbox/.test(text)) return "checkbox";
+  if (/radio/.test(text)) return "radio";
+  if (/switch|toggle/.test(text)) return "switch";
+  if (/file upload|dropzone/.test(text)) return "file-upload";
+  if (/table|data grid|tree table|pivot/.test(text)) return "table";
+  if (/list|tree|kanban|feed/.test(text)) return "list";
+  if (/card|stat card|metric card|source card|citation card/.test(text)) return "card";
+  if (/chart|sparkline|graph|calendar|timeline/.test(text)) return text.includes("calendar") ? "date-picker" : text.includes("timeline") ? "timeline" : "chart";
+  if (/avatar/.test(text)) return "avatar";
+  if (/badge|tag|chip/.test(text)) return "badge";
+  if (/prompt|model|ai|generated|streaming|tool call/.test(text)) return "command-palette";
+  if (/empty/.test(text)) return "empty";
+  if (/success state/.test(text)) return "toast";
+  if (/error state|warning state|permission denied|offline state|server error|rate limit|maintenance/.test(text)) return "alert";
+  if (/no results state|not found state/.test(text)) return "empty";
+  if (/loading|skeleton|spinner|progress/.test(text)) return text.includes("spinner") ? "spinner" : "progress";
+  return "term-card";
+}
+
+function A11yTaxonomyPreview({ selected, type, label, variantClass }) {
+  const kind = getA11yPreviewKind(selected, type);
+
+  if (kind === "a11y-name") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-name ${variantClass}`}>
+        <strong>{label}</strong>
+        <label><span>Name</span><input value="Email address" readOnly /></label>
+        <p>可访问名称和描述要让读屏用户知道控件身份、目的和当前状态。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-structure") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-structure ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><b>Header</b><b>Main</b><b>H2</b><b>Skip</b></section>
+        <p>语义结构、landmark、标题层级和跳过链接要形成可导航的信息骨架。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-announcement") {
+    const text = getPreviewSearchText(selected);
+    const message = /error/.test(text)
+      ? "Error. Email address is invalid."
+      : /status/.test(text)
+        ? "Status changed. Upload complete."
+        : "Saved. Upload complete.";
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-announcement ${variantClass}`}>
+        <strong>{label}</strong>
+        <article className={/error/.test(text) ? "danger" : ""}><i /> <span aria-live={/error/.test(text) ? "assertive" : "polite"}>{message}</span></article>
+        <p>状态变化要通过 live region 或等价文本被及时公告，而不是只改变颜色。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-contrast") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-contrast ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><b>AA</b><span>7.8:1</span><i /></section>
+        <p>文本、边框和状态色需要满足对比度要求，高对比模式要重新校准。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-motion") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-motion ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><span>Reduced motion</span><button type="button">On</button></section>
+        <p>减少动效应移除非必要位移，保留状态变化和操作反馈。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-target") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-target ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><button type="button">44 x 44</button><button type="button">Tap</button></section>
+        <p>触控目标要足够大，并给相邻操作留出间距。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-form") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-form ${variantClass}`}>
+        <strong>{label}</strong>
+        <label><span>Email</span><input value="name@example.com" readOnly /></label>
+        <small>Error text is associated with the field.</small>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-alt-text") {
+    const text = getPreviewSearchText(selected);
+    const caption = /video captions|captions/.test(text)
+      ? "00:18 Speaker: captions stay synchronized"
+      : "Alt text / captions / chart summary";
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-alt ${variantClass}`}>
+        <strong>{label}</strong>
+        <figure><i /><figcaption>{caption}</figcaption></figure>
+        <p>非文本内容要有等价说明，图表还需要趋势和结论。</p>
+      </div>
+    );
+  }
+
+  if (kind === "a11y-testing") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-testing ${variantClass}`}>
+        <strong>{label}</strong>
+        <ul><li>Keyboard</li><li>Reader</li><li>Contrast</li></ul>
+        <p>测试要覆盖键盘、读屏、对比度、缩放和移动端触控。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`live-taxonomy-card taxonomy-a11y taxonomy-a11y-focus ${variantClass}`}>
+      <strong>{label}</strong>
+      <section><button type="button">1</button><button type="button" className="focused">2</button><button type="button">3</button></section>
+      <p>{kind === "a11y-focus" ? "焦点顺序、陷阱和返回路径要清楚。" : "读屏公告、可访问名称和触控目标要完整。"}</p>
+    </div>
+  );
+}
+
+function I18nTaxonomyPreview({ selected, type, label, variantClass }) {
+  const kind = getI18nPreviewKind(selected, type);
+
+  if (kind === "i18n-locale") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-locale ${variantClass}`}>
+        <strong>{label}</strong>
+        <div><span>Language</span><b>中文 / EN</b></div>
+        <div><span>Region</span><b>CN / US</b></div>
+        <p>语言和地区要分开处理，避免把翻译、格式和内容偏好混在一起。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-translation") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-translation ${variantClass}`}>
+        <strong>{label}</strong>
+        <pre>checkout.submit_label</pre>
+        <div><span>Missing</span><b>Fallback</b></div>
+        <p>翻译键、缺失翻译和 fallback 要可追踪，不能只显示空白。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-plural") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-plural ${variantClass}`}>
+        <strong>{label}</strong>
+        <div><span>1</span><b>1 item</b></div>
+        <div><span>5</span><b>5 items</b></div>
+        <p>复数规则要按 locale 处理，不要用简单字符串拼接。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-format") {
+    const text = getPreviewSearchText(selected);
+    const rows =
+      /time/.test(text) ? [["24h", "14:30"], ["12h", "2:30 PM"]] :
+      /number/.test(text) ? [["US", "1,280.5"], ["DE", "1.280,5"]] :
+      /unit/.test(text) ? [["Metric", "24 km"], ["Imperial", "14.9 mi"]] :
+      /address/.test(text) ? [["CN", "Shanghai Jing'an 88"], ["US", "88 Market St, SF"]] :
+      /phone/.test(text) ? [["CN", "+86 138 0000 0000"], ["US", "+1 (415) 555-0100"]] :
+      /name order/.test(text) ? [["ZH", "Wang Xiaoming"], ["EN", "Alex Chen"]] :
+      /currency/.test(text) ? [["CNY", "CNY 1,280.00"], ["USD", "USD 178.40"]] :
+      [["Date", "2026/06/21"], ["Money", "CNY 1,280.00"]];
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-format ${variantClass}`}>
+        <strong>{label}</strong>
+        {rows.map(([key, value]) => <div key={key}><span>{key}</span><b>{value}</b></div>)}
+        <div><span>Money</span><b>¥1,280.00</b></div>
+        <p>日期、时间、数字、货币、单位和姓名地址顺序都要按地区格式化。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-direction") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-direction ${variantClass}`}>
+        <strong>{label}</strong>
+        <div><span>LTR</span><b>Start → End</b></div>
+        <div dir="rtl"><span>RTL</span><b>بداية ← نهاية</b></div>
+        <p>RTL/LTR 和双向文本要验证图标方向、阅读顺序和布局镜像。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-text") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-text ${variantClass}`}>
+        <strong>{label}</strong>
+        <article><b /> <b /> <b className="long" /></article>
+        <p>长文本扩展和本地化截断要保证按钮、卡片和表格不溢出。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-search") {
+    const isSort = /sorting|sort/.test(getPreviewSearchText(selected));
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-search ${variantClass}`}>
+        <strong>{label}</strong>
+        {isSort && <section><span>Collator</span><b>{"Aalborg -> Aland -> Shanghai"}</b></section>}
+        <div><Search size={16} /><b>Å / A / 阿</b></div>
+        <p>搜索和排序要尊重 locale collator、大小写、重音符和分词规则。</p>
+      </div>
+    );
+  }
+
+  if (kind === "i18n-compliance") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n taxonomy-i18n-compliance ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><SquareCheck size={18} /><span>Region rules</span></section>
+        <p>区域合规要覆盖文案、单位、隐私提示和本地法律要求。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`live-taxonomy-card taxonomy-i18n ${variantClass}`}>
+      <strong>{label}</strong>
+      <div><span>zh-CN</span><b>保存成功</b></div>
+      <div dir="rtl"><span>RTL</span><b>تم الحفظ</b></div>
+      <p>长文本、RTL 和地区格式都要验证。</p>
+    </div>
+  );
+}
+
+function getReactPreviewMode(selected) {
+  const text = getPreviewSearchText(selected);
+  if (/prompt|composer/.test(text)) return "prompt";
+  if (/context|source/.test(text)) return "context";
+  if (/tool-call|tool call|status/.test(text)) return "tool";
+  if (/feedback|safety|notice/.test(text)) return "feedback";
+  if (/ai|model|generated|result/.test(text)) return "ai";
+  if (/search|filter|tag|sort|category|nav/.test(text)) return "filter";
+  if (/tile|row|list|empty|header|detail|entry/.test(text)) return "list";
+  if (/segmented|switcher|slider|selector|inspector|toggle|token|icon|control/.test(text)) return "control";
+  if (/playground|variant|anatomy|guideline|code|copy|source|comparison|info|explore|example/.test(text)) return "playground";
+  if (/loading|skeleton|badge|state/.test(text)) return "state";
+  return "surface";
+}
+
+function ReactTaxonomyPreview({ selected, type, label, variantClass }) {
+  const mode = getReactPreviewMode(selected);
+  const badge = type === "react-preview" ? "Preview" : "React UI";
+  const text = getPreviewSearchText(selected);
+  const surfaceTitle =
+    /provider/.test(text) ? "Context scope" :
+    /boundary/.test(text) ? "Boundary state" :
+    /shell|layout|root/.test(text) ? "Shell frame" :
+    /page|screen|route/.test(text) ? "Route surface" :
+    "Reusable surface";
+  const surfaceBody =
+    /provider/.test(text) ? "Shared state is scoped, named, and recoverable." :
+    /boundary/.test(text) ? "Failure, loading, and empty states stay isolated." :
+    /shell|layout|root/.test(text) ? "Navigation, content, and overlay slots are explicit." :
+    /page|screen|route/.test(text) ? "Route content exposes header, body, and primary action." :
+    "Component slots, state, and actions are visible in the preview.";
+  return (
+    <div className={`live-taxonomy-card taxonomy-react taxonomy-react-${mode} ${variantClass}`}>
+      <header><strong>{label}</strong><span>{badge}</span></header>
+      {mode === "prompt" && <section className="react-preview-prompt"><textarea readOnly value="Ask the assistant to summarize this release note." /><footer><b>2 context files</b><button>Run</button></footer></section>}
+      {mode === "context" && <section className="react-preview-context"><aside><b>Sources</b><span>design-spec.pdf</span><span>roadmap.md</span></aside><main><b>Selected context</b><span>3 chunks attached</span></main></section>}
+      {mode === "tool" && <section className="react-preview-tool"><b className="running">Search docs</b><b className="done">Read source</b><b>Summarize result</b></section>}
+      {mode === "feedback" && <section className="react-preview-feedback"><div><button>Helpful</button><button>Needs work</button></div><textarea readOnly value="Add citations for the claim." /></section>}
+      {mode === "ai" && <section className="react-preview-ai"><Sparkles size={18} /><b>Generated result</b><span>Answer card with apply, cite, and regenerate actions.</span><button>Apply</button></section>}
+      {mode === "filter" && <section className="react-preview-filter"><Search size={16} /><b>Search entries</b><input readOnly value="Search entries" /><button className="active">Design</button><button>Sort</button></section>}
+      {mode === "list" && <section className="react-preview-list"><article><b>Entry row</b><span>Updated today</span></article><article className="active"><b>Selected detail</b><span>Usage and variants</span></article><article><b>Empty state</b><span>No matches</span></article></section>}
+      {mode === "control" && <section className="react-preview-control"><button className="active">Desktop</button><button>Mobile</button><input type="range" min="0" max="100" defaultValue="64" /><b>Variant selected</b></section>}
+      {mode === "playground" && <section className="react-preview-playground"><nav><button>Preview</button><button className="active">Code</button><button>Guidelines</button></nav><pre>{`<Component variant="solid" />`}</pre></section>}
+      {mode === "state" && <section className="react-preview-state"><b>Loading state</b><div className="meter"><i /></div><span>Status badge and reserved layout stay visible.</span></section>}
+      {mode === "surface" && <section className="react-preview-surface"><b>{surfaceTitle}</b><span>{surfaceBody}</span><footer><button>Inspect props</button><button>Open preview</button></footer></section>}
+    </div>
+  );
+}
+
+function TaxonomyLivePreview({ selected, variant, variantClass }) {
+  const type = selected.preview;
+  const label = type === "i18n" || type.startsWith("i18n-") ? selected.title : variant || selected.title;
+  const group = selected.group || "UI";
+
+  if (type === "text-content") {
+    if (/date display|time display|relative time|reading time/.test(getPreviewSearchText(selected))) {
+      return (
+        <div className={`live-taxonomy-card taxonomy-time-display ${variantClass}`}>
+          <small>{group}</small>
+          <strong>{label}</strong>
+          <section><b>{/reading/.test(getPreviewSearchText(selected)) ? "5 min read" : /relative/.test(getPreviewSearchText(selected)) ? "3 min ago" : /time/.test(getPreviewSearchText(selected)) ? "14:30 UTC+8" : "2026-06-21"}</b></section>
+          <p>Display-only time values should read as formatted text, not as an interactive date picker.</p>
+        </div>
+      );
+    }
+    return (
+      <div className={`live-taxonomy-card taxonomy-text ${variantClass}`}>
+        <small>{group}</small>
+        <h4>{label}</h4>
+        <p>{selected.summary}</p>
+        <span>辅助说明 · 错误提示 · 长文本换行</span>
+      </div>
+    );
+  }
+
+  if (type === "icon-system") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-icons ${variantClass}`}>
+        <strong>{label}</strong>
+        <div>
+          <button type="button" aria-label="信息"><Info size={20} /></button>
+          <button type="button" aria-label="成功"><Check size={20} /></button>
+          <button type="button" aria-label="搜索"><Search size={20} /></button>
+          <button type="button" aria-label="更多"><SlidersHorizontal size={20} /></button>
+        </div>
+        <p>图标需要语义、尺寸和状态一致。</p>
+      </div>
+    );
+  }
+
+  if (type === "divider") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-divider ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><span /><i /><span /></section>
+        <footer><b /> <b /> <b /></footer>
+      </div>
+    );
+  }
+
+  if (type === "term-card") {
+    const termKind = getTermPreviewKind(selected, type);
+    if (termKind !== "term-card") {
+      return <ComponentLivePreview selected={{ ...selected, preview: termKind }} term={selected} variant={label} />;
+    }
+  }
+
+  if (type === "panel" || type === "term-card") {
+    if (/color panel|color/.test(getPreviewSearchText(selected))) {
+      return (
+        <div className={`live-taxonomy-card taxonomy-color-panel ${variantClass}`}>
+          <header><span>Palette</span><button type="button">Save</button></header>
+          <section>{["#111827", "#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#ffffff"].map((color) => <i key={color} style={{ background: color }} />)}</section>
+          <label>HEX<b>#2563EB</b><input value="#2563EB" readOnly /></label>
+        </div>
+      );
+    }
+    return (
+      <div className={`live-taxonomy-card taxonomy-panel ${variantClass}`}>
+        <header><span>{group}</span><button type="button">操作</button></header>
+        <strong>{label}</strong>
+        <p>{selected.plain}</p>
+        <footer><i /><i /><i /></footer>
+      </div>
+    );
+  }
+
+  if (type === "code-block" || type === "keyboard-key") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-code ${variantClass}`}>
+        <header><strong>{label}</strong><button type="button">复制</button></header>
+        {type === "keyboard-key" ? (
+          <div className="taxonomy-keys"><kbd>Ctrl</kbd><kbd>K</kbd><kbd>Enter</kbd></div>
+        ) : (
+          <pre>{`<${selected.english.replace(/\s+/g, "")} state="default" />`}</pre>
+        )}
+        <span>复制成功、长内容滚动、焦点状态都要可见。</span>
+      </div>
+    );
+  }
+
+  if (type === "status-indicator") {
+    const statusKind = getStatusPreviewKind(selected, type);
+    if (statusKind !== "status-indicator") {
+      return <ComponentLivePreview selected={{ ...selected, preview: statusKind }} variant={label} />;
+    }
+
+    return (
+      <div className={`live-taxonomy-card taxonomy-status ${variantClass}`}>
+        <strong>{label}</strong>
+        <div><span className="ok">在线</span><span className="warn">同步中</span><span className="bad">失败</span></div>
+        <p>{selected.summary}</p>
+      </div>
+    );
+  }
+
+  if (type === "chart") {
+    if (/filter|time range|export|refresh/.test(getPreviewSearchText(selected))) {
+      return (
+        <div className={`live-taxonomy-card taxonomy-chart taxonomy-chart-controls ${variantClass}`}>
+          <header><strong>{label}</strong><span>Last 30 days</span></header>
+          <nav><button>7D</button><button className="active">30D</button><button>Export</button></nav>
+          <div>{[42, 68, 54, 86, 72].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div>
+        </div>
+      );
+    }
+    return (
+      <div className={`live-taxonomy-card taxonomy-chart ${variantClass}`}>
+        <header><strong>{label}</strong><span>单位 / 趋势</span></header>
+        <div>{[42, 68, 54, 86, 72].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div>
+        <p>图表要提供标题、单位、图例和空数据状态。</p>
+      </div>
+    );
+  }
+
+  if (type === "editor") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-editor ${variantClass}`}>
+        <div className="taxonomy-toolbar"><button>B</button><button>I</button><button>链接</button><span>已保存</span></div>
+        <section><strong>{label}</strong><p>{selected.plain}</p></section>
+      </div>
+    );
+  }
+
+  if (type === "security") {
+    if (/captcha|human verification/.test(getPreviewSearchText(selected))) {
+      return (
+        <div className={`live-taxonomy-card taxonomy-security taxonomy-captcha ${variantClass}`}>
+          <strong>{label}</strong>
+          <section><SquareCheck size={18} /><span>I am not a robot</span></section>
+          <div><b /><b /><b /></div>
+          <p>Human verification needs a visible challenge state, not a password authorization panel.</p>
+        </div>
+      );
+    }
+    if (/virus|scan|file validation|validation status/.test(getPreviewSearchText(selected))) {
+      return (
+        <div className={`live-taxonomy-card taxonomy-security taxonomy-file-scan ${variantClass}`}>
+          <strong>{label}</strong>
+          <section><span>report.pdf</span><b>Scanning</b></section>
+          <div><i /><i /><i className="active" /></div>
+          <p>File security states must show the file target, scan progress, and the safe or risky outcome.</p>
+        </div>
+      );
+    }
+    return (
+      <div className={`live-taxonomy-card taxonomy-security ${variantClass}`}>
+        <strong>{label}</strong>
+        <label>身份验证<input value="••••••" readOnly /></label>
+        <div><button type="button">取消</button><button type="button">确认授权</button></div>
+        <span>权限、过期和错误状态必须可恢复。</span>
+      </div>
+    );
+  }
+
+  if (type === "map") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-map ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><i /><i /><b /></section>
+        <p>地图要有列表/输入替代、定位权限说明和加载失败路径。</p>
+      </div>
+    );
+  }
+
+  if (type === "help") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-help ${variantClass}`}>
+        <div><Search size={18} /><span>搜索帮助文档</span></div>
+        <strong>{label}</strong>
+        <p>{selected.summary}</p>
+        <button type="button">查看指南</button>
+      </div>
+    );
+  }
+
+  if (type === "a11y" || type === "a11y-focus" || type.startsWith("a11y-")) {
+    return <A11yTaxonomyPreview selected={selected} type={type} label={label} variantClass={variantClass} />;
+  }
+
+  if (type === "i18n" || type.startsWith("i18n-")) {
+    return <I18nTaxonomyPreview selected={selected} type={type} label={label} variantClass={variantClass} />;
+  }
+
+  if (type === "a11y" || type === "a11y-focus") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-a11y ${variantClass}`}>
+        <strong>{label}</strong>
+        <section><button type="button">1</button><button type="button" className="focused">2</button><button type="button">3</button></section>
+        <p>{type === "a11y-focus" ? "焦点顺序、陷阱和返回路径要清楚。" : "读屏公告、可访问名称和触控目标要完整。"}</p>
+      </div>
+    );
+  }
+
+  if (type === "i18n") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-i18n ${variantClass}`}>
+        <strong>{label}</strong>
+        <div><span>zh-CN</span><b>保存成功</b></div>
+        <div dir="rtl"><span>RTL</span><b>تم الحفظ</b></div>
+        <p>长文本、RTL 和地区格式都要验证。</p>
+      </div>
+    );
+  }
+
+  if (type === "react-component" || type === "react-preview") {
+    return <ReactTaxonomyPreview selected={selected} type={type} label={label} variantClass={variantClass} />;
+  }
+
+  if (type === "mobile-preview") {
+    return (
+      <div className={`live-taxonomy-card taxonomy-mobile ${variantClass}`}>
+        <MobilePreview type={getMobilePreviewType(selected)} />
+        <strong>{label}</strong>
+        <div className="taxonomy-phone">
+          <header>{label}</header>
+          <main><i /><i /><i /></main>
+          <footer><button type="button">主要操作</button></footer>
+        </div>
+        <p>移动端要考虑触摸、safe area、权限和非 hover 替代。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`live-taxonomy-card taxonomy-default ${variantClass}`}>
+      <strong>{label}</strong>
+      <p>{selected.summary}</p>
+      <footer><span>{group}</span><span>状态</span><span>移动端</span></footer>
+    </div>
+  );
+}
+
 function LayoutLivePreview({ selected, variant }) {
-  const template = {
+  const idTemplates = {
     "single-column": "article",
     "two-column": "split",
     "sidebar-layout": "app",
@@ -4515,7 +6923,55 @@ function LayoutLivePreview({ selected, variant }) {
     "profile-page": "profile",
     "search-results-page": "searchResults",
     "detail-page": "detail",
-  }[selected.id] || "article";
+  };
+  const previewTemplates = {
+    "layout-single": "article",
+    "layout-two": "split",
+    "layout-three": "three",
+    "layout-sidebar": "app",
+    "layout-dashboard": "dashboard",
+    "layout-feed": "feed",
+    "layout-masonry": "masonry",
+    "layout-sticky-header": "stickyHeader",
+    "layout-sticky-sidebar": "app",
+    "layout-sticky-action-bar": "stickyActionBar",
+    "layout-mobile-bottom-sheet": "bottomSheetLayout",
+    "layout-map": "mapLayout",
+    "layout-bottom-nav": "mobileBottomNav",
+    "layout-mobile-checkout": "mobileCheckout",
+    "layout-auth": "auth",
+    "layout-cart": "cart",
+    "layout-order-detail": "orderDetail",
+    "layout-payment-result": "paymentResult",
+    "layout-pricing": "pricing",
+    "layout-subscription": "subscription",
+    "layout-billing": "billing",
+    "layout-permission-settings": "permissionSettings",
+    "layout-settings": "settings",
+    "layout-split": "split",
+    "layout-wizard": "wizard",
+    "layout-checkout": "checkout",
+    "layout-detail": "detail",
+    "layout-grid": "gallery",
+    "layout-fullscreen-modal": "modal",
+    "layout-landing": "landing",
+    "layout-profile": "profile",
+    "layout-search-results": "searchResults",
+    "layout-master": "master",
+    "layout-docs-help": "docsHelp",
+    "layout-error-page": "errorPage",
+    "layout-maintenance-page": "maintenancePage",
+    "layout-inbox": "inbox",
+    "layout-chat": "chat",
+    "layout-ide": "ide",
+    "layout-whiteboard": "whiteboard",
+    "layout-kanban": "kanbanLayout",
+    "layout-calendar": "calendarLayout",
+    "layout-timeline": "timelineLayout",
+    "layout-filter-results": "filterResults",
+    "layout-mobile-chat": "mobileChat",
+  };
+  const template = idTemplates[selected.id] || previewTemplates[selected.preview] || "article";
 
   return (
     <div className={`live-layout-demo detailed-layout ${selected.preview} layout-template-${template}`}>
@@ -4530,6 +6986,94 @@ function LayoutLivePreview({ selected, variant }) {
 }
 
 function LayoutScene({ template }) {
+  if (template === "docsHelp") {
+    return (
+      <div className="layout-scene layout-docs-help-scene">
+        <aside><strong>Docs</strong><span>Getting started</span><span className="active">Components</span><span>FAQ</span></aside>
+        <main><header><Search size={16} /><span>Search help articles</span></header><article><b>Accordion FAQ</b><p /></article><article><b>API reference</b><p /></article></main>
+      </div>
+    );
+  }
+
+  if (template === "errorPage" || template === "maintenancePage") {
+    return (
+      <div className={`layout-scene layout-state-page-scene ${template}`}>
+        <main><i /><strong>{template === "errorPage" ? "404" : "Maintenance"}</strong><span>{template === "errorPage" ? "The page cannot be found." : "Service returns at 02:00 UTC."}</span><div><button>Go back</button><button>Retry</button></div></main>
+      </div>
+    );
+  }
+
+  if (template === "inbox") {
+    return (
+      <div className="layout-scene layout-inbox-scene">
+        <aside><strong>Inbox</strong><span className="active">Billing update</span><span>Design review</span><span>Release note</span></aside>
+        <main><header><b>Billing update</b><span>Today 10:24</span></header><p /><p /><footer><button>Reply</button><button>Archive</button></footer></main>
+      </div>
+    );
+  }
+
+  if (template === "chat" || template === "mobileChat") {
+    return (
+      <div className={`layout-scene ${template === "mobileChat" ? "layout-mobile-chat-scene" : "layout-chat-scene"}`}>
+        <aside><strong>Team</strong><span className="active">Alex</span><span>Mina</span><span>Support</span></aside>
+        <main><header>Alex online</header><b>Hello, can you review this?</b><span>Sure, sending notes now.</span><footer><input readOnly value="Write a message..." /><button>Send</button></footer></main>
+      </div>
+    );
+  }
+
+  if (template === "ide") {
+    return (
+      <div className="layout-scene layout-ide-scene">
+        <aside><strong>src</strong><span>App.jsx</span><span>data.js</span><span>styles.css</span></aside>
+        <main><b>function Preview()</b><p /><p /><p /></main>
+        <footer><span>Terminal</span><b>npm run build passed</b></footer>
+      </div>
+    );
+  }
+
+  if (template === "whiteboard") {
+    return (
+      <div className="layout-scene layout-whiteboard-scene">
+        <nav><button>Pen</button><button>Sticky</button><button>Shape</button></nav>
+        <main><i /><b /><b /><span>Idea map</span></main>
+      </div>
+    );
+  }
+
+  if (template === "kanbanLayout") {
+    return (
+      <div className="layout-scene layout-kanban-scene">
+        {["Todo", "Doing", "Done"].map((column, index) => <section key={column}><strong>{column}</strong><article /><article className={index === 1 ? "active" : ""} /></section>)}
+      </div>
+    );
+  }
+
+  if (template === "calendarLayout") {
+    return (
+      <div className="layout-scene layout-calendar-scene">
+        <header><strong>June 2026</strong><button>Today</button></header>
+        <main>{Array.from({ length: 14 }).map((_, index) => <b key={index} className={index === 5 || index === 9 ? "busy" : ""}>{index + 1}</b>)}</main>
+      </div>
+    );
+  }
+
+  if (template === "timelineLayout") {
+    return (
+      <div className="layout-scene layout-timeline-scene">
+        {["Draft", "Review", "Published"].map((row, index) => <article key={row}><i /><div><strong>{row}</strong><span>{index === 2 ? "Done" : "Pending"}</span></div></article>)}
+      </div>
+    );
+  }
+
+  if (template === "filterResults") {
+    return (
+      <div className="layout-scene layout-filter-results-scene">
+        <aside><strong>Filters</strong><label><input type="checkbox" defaultChecked /> In stock</label><label><input type="checkbox" /> On sale</label><button>Apply</button></aside>
+        <main>{["Result A", "Result B", "Result C"].map((row) => <article key={row}><i /><div><b>{row}</b><span>Matched item</span></div></article>)}</main>
+      </div>
+    );
+  }
+
   if (template === "dashboard") {
     return (
       <div className="layout-scene layout-dashboard-scene">
@@ -4572,6 +7116,140 @@ function LayoutScene({ template }) {
     );
   }
 
+  if (template === "mobileBottomNav") {
+    return (
+      <div className="layout-scene layout-mobile-bottom-nav-scene">
+        <main><i /><b /><b /><b /></main>
+        <nav><button className="active">Home</button><button>Search</button><button>Saved</button><button>Profile</button></nav>
+      </div>
+    );
+  }
+
+  if (template === "mobileCheckout") {
+    return (
+      <div className="layout-scene layout-mobile-checkout-scene">
+        <main>
+          <header><span>Cart</span><strong>2 items</strong></header>
+          <article><i /><div><b>Everyday tote</b><span>Qty 1</span></div><em>$88</em></article>
+          <article><i /><div><b>Desk lamp</b><span>Qty 1</span></div><em>$80</em></article>
+          <section><span>Delivery</span><b>Today, 18:00</b></section>
+        </main>
+        <footer><div><span>Total</span><strong>$168</strong></div><button>Checkout</button></footer>
+      </div>
+    );
+  }
+
+  if (template === "bottomSheetLayout") {
+    return (
+      <div className="layout-scene layout-mobile-bottom-sheet-scene">
+        <main><header>Product</header><i /><b /><b /></main>
+        <section><b /><strong>Choose options</strong><label><input type="radio" defaultChecked /> Standard</label><label><input type="radio" /> Express</label><button>Apply</button></section>
+      </div>
+    );
+  }
+
+  if (template === "stickyHeader") {
+    return (
+      <div className="layout-scene layout-sticky-header-scene">
+        <header><strong>Sticky header</strong><nav><span>Overview</span><span>Details</span><span>Activity</span></nav></header>
+        <main><article /><article /><article /><article /></main>
+      </div>
+    );
+  }
+
+  if (template === "stickyActionBar") {
+    return (
+      <div className="layout-scene layout-sticky-action-bar-scene">
+        <main><strong>Review changes</strong><p /><p /><p /></main>
+        <footer><span>3 unsaved edits</span><button>Discard</button><button>Save</button></footer>
+      </div>
+    );
+  }
+
+  if (template === "mapLayout") {
+    return (
+      <div className="layout-scene layout-map-scene">
+        <aside><strong>Layers</strong><span>Stores</span><span>Traffic</span><span>Delivery zones</span></aside>
+        <main><i /><b className="pin primary" /><b className="pin" /><b className="pin secondary" /></main>
+        <section><strong>Selected area</strong><span>12 active locations</span><button>Route</button></section>
+      </div>
+    );
+  }
+
+  if (template === "auth") {
+    return (
+      <div className="layout-scene layout-auth-scene">
+        <aside><strong>Welcome back</strong><span>Product workspace</span><i /></aside>
+        <main><strong>Sign in</strong><input placeholder="Email" /><input placeholder="Password" /><button>Continue</button></main>
+      </div>
+    );
+  }
+
+  if (template === "cart") {
+    return (
+      <div className="layout-scene layout-cart-scene">
+        <main>
+          <article><i /><span>Desk lamp</span><b>$80</b></article>
+          <article><i /><span>Everyday tote</span><b>$88</b></article>
+          <article><i /><span>Coupon</span><b>- $12</b></article>
+        </main>
+        <aside><span>Subtotal</span><strong>$168</strong><button>Checkout</button></aside>
+      </div>
+    );
+  }
+
+  if (template === "orderDetail") {
+    return (
+      <div className="layout-scene layout-order-detail-scene">
+        <main><strong>Order #1024</strong><span>Paid</span><span>Packed</span><span>Out for delivery</span></main>
+        <aside><b>$168</b><em>2 items</em><button>Track order</button></aside>
+      </div>
+    );
+  }
+
+  if (template === "paymentResult") {
+    return (
+      <div className="layout-scene layout-payment-result-scene">
+        <main><i /><strong>Payment successful</strong><span>Receipt sent to your email.</span><button>View order</button></main>
+      </div>
+    );
+  }
+
+  if (template === "pricing") {
+    return (
+      <div className="layout-scene layout-pricing-scene">
+        {["Starter", "Pro", "Team"].map((plan, index) => <article key={plan} className={index === 1 ? "featured" : ""}><span>{plan}</span><strong>{index === 0 ? "$12" : index === 1 ? "$29" : "$79"}</strong><button>{index === 1 ? "Choose" : "Compare"}</button></article>)}
+      </div>
+    );
+  }
+
+  if (template === "subscription") {
+    return (
+      <div className="layout-scene layout-subscription-scene">
+        <main><strong>Current plan</strong><b>Pro monthly</b><span>Renews Jul 21</span></main>
+        <aside><button>Change plan</button><button>Update payment</button><button>Cancel subscription</button></aside>
+      </div>
+    );
+  }
+
+  if (template === "billing") {
+    return (
+      <div className="layout-scene layout-billing-scene">
+        <main><strong>Invoices</strong><span>Jun 2026</span><span>May 2026</span><span>Apr 2026</span></main>
+        <aside><span>Payment method</span><b>Visa 4242</b><button>Download invoice</button></aside>
+      </div>
+    );
+  }
+
+  if (template === "permissionSettings") {
+    return (
+      <div className="layout-scene layout-permission-settings-scene">
+        <aside><strong>Members</strong><span>Owner</span><span>Editor</span><span>Viewer</span></aside>
+        <main><b>Role permissions</b><span>Read</span><span>Write</span><span>Invite</span></main>
+      </div>
+    );
+  }
+
   if (template === "app" || template === "master") {
     return (
       <div className="layout-scene layout-app-scene">
@@ -4600,8 +7278,8 @@ function LayoutScene({ template }) {
   if (template === "checkout") {
     return (
       <div className="layout-scene layout-checkout-scene">
-        <main><strong>收货信息</strong><input placeholder="姓名" /><input placeholder="地址" /><button>继续</button></main>
-        <aside><span>订单摘要</span><b>¥168</b><em>2 件商品</em></aside>
+        <main><strong>Shipping details</strong><input placeholder="Name" /><input placeholder="Address" /><button>Continue</button></main>
+        <aside><span>Order summary</span><b>$168</b><em>2 items</em></aside>
       </div>
     );
   }
@@ -4685,6 +7363,39 @@ function LayoutScene({ template }) {
 
 function StyleLivePreview({ selected, variant = "" }) {
   const variantClass = getVariantPreviewClass(variant, getVariantIndex(selected, variant));
+  const text = getPreviewSearchText(selected);
+  const isStateStyle = selected.preview === "style-state";
+  const isPlatformStyle = selected.preview === "style-platform";
+
+  if (isStateStyle || isPlatformStyle) {
+    const platformKind =
+      /rtl/.test(text) ? "rtl" :
+      /safe area/.test(text) ? "safe" :
+      /scrollbar/.test(text) ? "scrollbar" :
+      /cursor/.test(text) ? "cursor" :
+      /print/.test(text) ? "print" :
+      "platform";
+    return (
+      <div className={`live-style-demo semantic-style ${selected.preview} style-${platformKind} ${variantClass}`}>
+        {isStateStyle ? (
+          <>
+            <article><span>Default</span><button type="button">Action</button></article>
+            <article><span>{selected.english}</span><button type="button" disabled={/disabled/.test(text)} className={/pressed|selected/.test(text) ? "active" : ""}>Action</button></article>
+          </>
+        ) : (
+          <>
+            {platformKind === "rtl" && <article dir="rtl"><span>RTL</span><strong>Settings to Billing</strong><button type="button">Save</button></article>}
+            {platformKind === "safe" && <article className="safe-area-card"><header>Safe top</header><main>Content</main><footer>Home indicator</footer></article>}
+            {platformKind === "scrollbar" && <article className="scrollbar-card"><strong>Scrollable area</strong><p /><p /><p /><i /></article>}
+            {platformKind === "cursor" && <article className="cursor-card"><MousePointer2 size={24} /><strong>Pointer target</strong><button type="button">Hover</button></article>}
+            {platformKind === "print" && <article className="print-card"><strong>Invoice</strong><p /><p /><span>Page 1 / 2</span></article>}
+            {platformKind === "platform" && <article><span>{selected.title}</span><strong>{variant || selected.summary}</strong><button type="button">Preview</button></article>}
+            <article><span>Fallback</span><strong>{variant || selected.variants[0] || "Responsive"}</strong><button type="button">Compare</button></article>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`live-style-demo ${selected.preview} ${variantClass}`}>
@@ -4703,16 +7414,191 @@ function StyleLivePreview({ selected, variant = "" }) {
 }
 
 function MotionLivePreview({ selected, variant = "" }) {
+  const type = selected.preview || "motion-fade";
+  const label = variant || selected.title;
+  const variantClass = getVariantPreviewClass(variant, getVariantIndex(selected, variant));
+  let scene;
+
+  if (type === "motion-haptic") {
+    scene = (
+      <div className="motion-scene motion-scene-haptic">
+        <button type="button">Press</button>
+        <i /><i /><i />
+      </div>
+    );
+  } else if (type === "motion-number") {
+    scene = (
+      <div className="motion-scene motion-scene-number">
+        <strong>12,480</strong>
+        <span>+18%</span>
+      </div>
+    );
+  } else if (type === "motion-stagger") {
+    scene = (
+      <div className="motion-scene motion-scene-stagger">
+        <i /><i /><i /><i />
+      </div>
+    );
+  } else if (type === "motion-spring") {
+    scene = (
+      <div className="motion-scene motion-scene-spring">
+        <b /><b /><span>spring</span>
+      </div>
+    );
+  } else if (type === "motion-overlay") {
+    scene = (
+      <div className="motion-scene motion-scene-overlay">
+        <main><i /><i /></main>
+        <section><strong>{label}</strong><button>Done</button></section>
+      </div>
+    );
+  } else if (type === "motion-menu") {
+    scene = (
+      <div className="motion-scene motion-scene-menu">
+        <button>Open</button>
+        <nav><span>Rename</span><span>Share</span><span>Delete</span></nav>
+      </div>
+    );
+  } else if (type === "motion-tabs") {
+    scene = (
+      <div className="motion-scene motion-scene-tabs">
+        <nav><b className="active">One</b><b>Two</b><b>Three</b></nav>
+        <i />
+      </div>
+    );
+  } else if (type === "motion-pull-refresh") {
+    scene = (
+      <div className="motion-scene motion-scene-refresh">
+        <b>Pull</b>
+        <i />
+        <span>Release to refresh</span>
+      </div>
+    );
+  } else if (type === "motion-chart") {
+    scene = (
+      <div className="motion-scene motion-scene-chart">
+        {[35, 68, 48, 82, 56].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}
+      </div>
+    );
+  } else if (type === "motion-loading") {
+    scene = (
+      <div className="motion-scene motion-scene-loading">
+        <i />
+        <b />
+        <b />
+        <span />
+      </div>
+    );
+  } else if (type === "motion-success" || type === "motion-error" || type === "motion-attention") {
+    scene = (
+      <div className={`motion-scene motion-scene-feedback ${type}`}>
+        <strong>{type === "motion-error" ? "!" : type === "motion-attention" ? "i" : "✓"}</strong>
+        <span>{type === "motion-error" ? "Retry" : type === "motion-attention" ? "Notice" : "Done"}</span>
+      </div>
+    );
+  } else if (type === "motion-slide" || type === "motion-page") {
+    scene = (
+      <div className="motion-scene motion-scene-slide">
+        <aside><b /><b /></aside>
+        <main><strong>{label}</strong><i /><i /></main>
+      </div>
+    );
+  } else if (type === "motion-press" || type === "motion-scale" || type === "motion-hover") {
+    scene = (
+      <div className="motion-scene motion-scene-press">
+        <button type="button">{label}</button>
+        <span />
+      </div>
+    );
+  } else if (type === "motion-expand") {
+    scene = (
+      <div className="motion-scene motion-scene-expand">
+        <header><strong>{label}</strong><i /></header>
+        <p />
+        <p />
+      </div>
+    );
+  } else if (type === "motion-list") {
+    scene = (
+      <div className="motion-scene motion-scene-list">
+        <i />
+        <i className="active" />
+        <i />
+      </div>
+    );
+  } else if (type === "motion-drag") {
+    scene = (
+      <div className="motion-scene motion-scene-drag">
+        <b />
+        <span />
+      </div>
+    );
+  } else if (type === "motion-spatial") {
+    scene = (
+      <div className="motion-scene motion-scene-spatial">
+        <i />
+        <b />
+        <i />
+      </div>
+    );
+  } else if (type === "motion-reduced") {
+    scene = (
+      <div className="motion-scene motion-scene-reduced">
+        <strong>Reduced</strong>
+        <span />
+      </div>
+    );
+  } else {
+    scene = (
+      <div className="motion-scene motion-scene-fade">
+        <section />
+        <section />
+      </div>
+    );
+  }
+
   return (
-    <div className={`live-motion-demo ${selected.preview} ${getVariantPreviewClass(variant, getVariantIndex(selected, variant))}`}>
-      <div className="motion-target"><Play size={24} fill="currentColor" /></div>
-      <p>{variant || selected.plain}</p>
+    <div className={`live-motion-demo ${type} ${variantClass}`}>
+      {scene}
+      <p>{selected.plain}</p>
     </div>
   );
 }
 
 function PatternLivePreview({ selected, variant = "" }) {
   const config = {
+    "pattern-filter": {
+      title: "Filter results",
+      scene: "filter",
+      checks: ["Available", "Promotion", "Top rated"],
+      action: "Apply",
+    },
+    "pattern-signup": {
+      title: "Create account",
+      scene: "signup",
+      fields: ["Email", "Code", "Password"],
+      action: "Sign up",
+      steps: ["Profile", "Verify", "Done"],
+    },
+    "pattern-sort": {
+      title: "Sort results",
+      scene: "sort",
+      chips: ["Newest", "Price", "Rating"],
+      action: "Apply sort",
+    },
+    "pattern-settings": {
+      title: "Preferences",
+      scene: "settings",
+      checks: ["Notifications", "Autosave", "Reduced motion"],
+      action: "Save",
+    },
+    "pattern-error": {
+      title: "Recover error",
+      scene: "error",
+      fields: ["Check the current content and retry."],
+      action: "Retry",
+      danger: true,
+    },
     "login-pattern": {
       title: "登录账号",
       scene: "auth",
@@ -4720,7 +7606,21 @@ function PatternLivePreview({ selected, variant = "" }) {
       action: "登录",
       meta: "忘记密码?",
     },
+    "pattern-login": {
+      title: "登录账号",
+      scene: "auth",
+      fields: ["邮箱", "密码"],
+      action: "登录",
+      meta: "忘记密码?",
+    },
     "search-pattern": {
+      title: "搜索结果",
+      scene: "search",
+      fields: ["搜索 UI 关键词"],
+      action: "搜索",
+      chips: ["组件", "场景", "词典"],
+    },
+    "pattern-search": {
       title: "搜索结果",
       scene: "search",
       fields: ["搜索 UI 关键词"],
@@ -4740,7 +7640,39 @@ function PatternLivePreview({ selected, variant = "" }) {
       action: "上传",
       progress: true,
     },
+    "pattern-upload": {
+      title: "上传文件",
+      scene: "upload",
+      fields: ["拖拽或选择文件"],
+      action: "上传",
+      progress: true,
+    },
+    import: {
+      title: "Import data",
+      scene: "upload",
+      fields: ["CSV, XLSX, JSON"],
+      action: "Import",
+      progress: true,
+    },
+    export: {
+      title: "Export table",
+      scene: "operation",
+      rows: ["Filtered rows", "CSV", "Ready"],
+      action: "Export",
+    },
+    download: {
+      title: "Download file",
+      scene: "operation",
+      rows: ["Report.pdf", "Ready", "Signed URL"],
+      action: "Download",
+    },
     "checkout-pattern": {
+      title: "确认订单",
+      scene: "checkout",
+      rows: ["UI 模板包 ¥129", "图标资源 ¥39"],
+      action: "支付",
+    },
+    "pattern-checkout": {
       title: "确认订单",
       scene: "checkout",
       rows: ["UI 模板包 ¥129", "图标资源 ¥39"],
@@ -4751,6 +7683,13 @@ function PatternLivePreview({ selected, variant = "" }) {
       scene: "delete",
       fields: ["此操作无法撤销"],
       action: "确认删除",
+      danger: true,
+    },
+    "pattern-delete": {
+      title: "确认操作?",
+      scene: "delete",
+      fields: ["此操作需要确认后才能继续"],
+      action: "确认",
       danger: true,
     },
     "signup-pattern": {
@@ -4784,6 +7723,205 @@ function PatternLivePreview({ selected, variant = "" }) {
       fields: ["姓名", "电话", "备注"],
       action: "提交",
     },
+    "pattern-form": {
+      title: "处理信息",
+      scene: "form",
+      fields: ["主要输入", "补充说明", "状态反馈"],
+      action: "继续",
+    },
+    "pattern-operation": {
+      title: "Record operation",
+      scene: "operation",
+      rows: ["Draft", "Published", "Archived"],
+      action: "Apply",
+    },
+    "leave-confirmation": {
+      title: "Leave page?",
+      scene: "confirm",
+      fields: ["Unsaved edits will be kept as a draft."],
+      action: "Leave",
+    },
+    "terms-acceptance": {
+      title: "Accept terms",
+      scene: "confirm",
+      fields: ["Review terms and confirm before continuing."],
+      action: "Accept",
+    },
+    "delete-account": {
+      title: "Delete account",
+      scene: "account-security",
+      fields: ["Type DELETE to confirm account removal."],
+      action: "Delete account",
+      danger: true,
+    },
+    "device-management": {
+      title: "Device management",
+      scene: "account-security",
+      rows: ["MacBook Pro", "iPhone", "Windows PC"],
+      action: "Revoke device",
+    },
+    "api-key-management": {
+      title: "API key management",
+      scene: "account-security",
+      rows: ["sk-live-24...", "Read only", "Last used today"],
+      action: "Rotate key",
+    },
+    "edit-profile": {
+      title: "Edit profile",
+      scene: "profile-form",
+      fields: ["Display name", "Role", "Bio"],
+      action: "Save profile",
+    },
+    "view-product-detail": {
+      title: "Product detail",
+      scene: "product-detail",
+      rows: ["Wireless Kit", "$168", "In stock"],
+      action: "Add to cart",
+    },
+    "patterns-column-visibility": {
+      title: "Column visibility",
+      scene: "table-control",
+      checks: ["Name", "Status", "Updated"],
+      action: "Apply columns",
+    },
+    "bulk-selection": {
+      title: "Bulk selection",
+      scene: "table-control",
+      checks: ["Row 1", "Row 2", "Row 3"],
+      action: "Apply to selected",
+    },
+    "order-tracking": {
+      title: "Order tracking",
+      scene: "tracking",
+      rows: ["Paid", "Packed", "Out for delivery"],
+      action: "Track order",
+    },
+    "view-faq": {
+      title: "FAQ",
+      scene: "help",
+      rows: ["Shipping", "Returns", "Account"],
+      action: "Open article",
+    },
+    "contact-support": {
+      title: "Contact support",
+      scene: "help",
+      rows: ["Subject", "Priority", "Message"],
+      action: "Send message",
+    },
+    "view-ticket": {
+      title: "View ticket",
+      scene: "help",
+      rows: ["Ticket #2048", "In progress", "Last reply today"],
+      action: "Reply",
+    },
+    "release-notes": {
+      title: "Release notes",
+      scene: "help",
+      rows: ["Version 2.4", "New components", "Fixed previews"],
+      action: "Read notes",
+    },
+    archive: {
+      title: "Archive item",
+      scene: "operation",
+      rows: ["Selected item", "Active", "Will be archived"],
+      action: "Archive",
+    },
+    restore: {
+      title: "Restore item",
+      scene: "operation",
+      rows: ["Archived item", "Hidden", "Ready to restore"],
+      action: "Restore",
+    },
+    publish: {
+      title: "Publish draft",
+      scene: "operation",
+      rows: ["Draft", "Review passed", "Audience ready"],
+      action: "Publish",
+    },
+    "prevent-duplicate-submit": {
+      title: "Prevent duplicate submit",
+      scene: "operation",
+      rows: ["Submit locked", "Request pending", "Retry disabled"],
+      action: "Submitting...",
+    },
+    "save-draft": {
+      title: "Save draft",
+      scene: "operation",
+      rows: ["Draft content", "Unsaved changes", "Local copy ready"],
+      action: "Save draft",
+    },
+    autosave: {
+      title: "Autosave",
+      scene: "operation",
+      rows: ["Editing", "Saving...", "Saved 2s ago"],
+      action: "Autosave on",
+    },
+    submitting: {
+      title: "Submitting",
+      scene: "operation",
+      rows: ["Form locked", "Request pending", "Please wait"],
+      action: "Submitting...",
+    },
+    "submit-success": {
+      title: "Submit success",
+      scene: "operation",
+      rows: ["Request sent", "Server accepted", "Confirmation ready"],
+      action: "View result",
+    },
+    "submit-failure": {
+      title: "Submit failure",
+      scene: "error",
+      fields: ["Submission failed. Check errors and retry."],
+      action: "Retry submit",
+      danger: true,
+    },
+    "submit-feedback": {
+      title: "Submit feedback",
+      scene: "form",
+      fields: ["Feedback", "Category", "Contact email"],
+      action: "Submit feedback",
+    },
+    "submit-ticket": {
+      title: "Submit ticket",
+      scene: "form",
+      fields: ["Subject", "Priority", "Description"],
+      action: "Submit ticket",
+    },
+    "pattern-collaboration": {
+      title: "Team workflow",
+      scene: "collaboration",
+      rows: ["Owner", "Reviewer", "Mention"],
+      action: "Assign",
+    },
+    "pattern-feedback": {
+      title: "Feedback center",
+      scene: "feedback",
+      rows: ["Success", "Warning", "Offline"],
+      action: "Review",
+    },
+    "pattern-ai": {
+      title: "AI workflow",
+      scene: "ai",
+      rows: ["Prompt", "Draft", "Review"],
+      action: "Apply",
+    },
+    "pattern-media": {
+      title: "Media review",
+      scene: "media",
+      rows: ["Preview", "Crop", "Rename"],
+      action: "Open",
+    },
+    "pattern-mobile": {
+      title: "Mobile flow",
+      scene: "mobile",
+      action: "Continue",
+    },
+    "pattern-onboarding": {
+      title: "新手引导",
+      scene: "onboarding",
+      steps: ["欢迎", "选择目标", "开始使用"],
+      action: "下一步",
+    },
     "error-message-pattern": {
       title: "输入有误",
       scene: "error",
@@ -4792,7 +7930,15 @@ function PatternLivePreview({ selected, variant = "" }) {
       danger: true,
     },
   };
-  const data = config[selected.id] || { title: selected.title, fields: ["示例输入"], action: "继续" };
+  const specificKind = getSpecificPreviewKind(selected);
+  if (specificKind) {
+    return (
+      <div className={`live-pattern-demo detailed-pattern specific-pattern ${selected.preview} ${getVariantPreviewClass(variant, getVariantIndex(selected, variant))}`}>
+        <SpecificLivePreview selected={selected} kind={specificKind} variantClass={getVariantPreviewClass(variant, getVariantIndex(selected, variant))} />
+      </div>
+    );
+  }
+  const data = config[selected.id] || config[selected.preview] || { title: selected.title, fields: ["示例输入"], action: "继续" };
 
   return (
     <div className={`live-pattern-demo detailed-pattern ${selected.preview} ${getVariantPreviewClass(variant, getVariantIndex(selected, variant))}`}>
@@ -4832,8 +7978,8 @@ function PatternScene({ data, selected }) {
   if (data.scene === "upload") {
     return (
       <div className="pattern-panel pattern-upload-scene">
-        <div className="upload-drop"><ArrowUp size={24} /><strong>拖拽文件到这里</strong><span>PNG, PDF, ZIP</span></div>
-        <article><span>design-system.zip</span><b>62%</b></article>
+        <div className="upload-drop"><ArrowUp size={24} /><strong>{data.title}</strong><span>{data.fields?.[0] || "PNG, PDF, ZIP"}</span></div>
+        <article><span>{data.action === "Import" ? "customers.csv" : "design-system.zip"}</span><b>62%</b></article>
         <div className="live-progress-bar"><i /></div>
         <button>{data.action}</button>
       </div>
@@ -4857,6 +8003,174 @@ function PatternScene({ data, selected }) {
           <strong>{data.title}</strong>
           <p>{data.fields[0]}</p>
           <div><button>取消</button><button className="danger">{data.action}</button></div>
+        </section>
+      </div>
+    );
+  }
+
+  if (data.scene === "confirm") {
+    return (
+      <div className="pattern-panel pattern-confirm-scene">
+        <main><strong>{data.title}</strong><p>{data.fields?.[0]}</p></main>
+        <footer><button type="button">Cancel</button><button type="button">{data.action}</button></footer>
+      </div>
+    );
+  }
+
+  if (data.scene === "account-security") {
+    return (
+      <div className="pattern-panel pattern-security-scene">
+        <header><strong>{data.title}</strong><button type="button" className={data.danger ? "danger" : ""}>{data.action}</button></header>
+        <section>
+          {(data.rows || data.fields || ["Primary device", "Recovery key", "Last active"]).map((row, index) => (
+            <article key={row} className={index === 0 ? "active" : ""}><SquareCheck size={16} /><span>{row}</span><b /></article>
+          ))}
+        </section>
+      </div>
+    );
+  }
+
+  if (data.scene === "profile-form") {
+    return (
+      <div className="pattern-panel pattern-profile-form-scene">
+        <aside><b>AL</b><button type="button">Replace photo</button></aside>
+        <main>{data.fields.map((field) => <label key={field}>{field}<input readOnly value={field === "Display name" ? "Alex Lee" : ""} /></label>)}<button>{data.action}</button></main>
+      </div>
+    );
+  }
+
+  if (data.scene === "product-detail") {
+    return (
+      <div className="pattern-panel pattern-product-detail-scene">
+        <aside><i /><nav><b /><b /><b /></nav></aside>
+        <main>{data.rows.map((row) => <span key={row}>{row}</span>)}<button>{data.action}</button></main>
+      </div>
+    );
+  }
+
+  if (data.scene === "table-control") {
+    return (
+      <div className="pattern-panel pattern-table-control-scene">
+        <header><strong>{data.title}</strong><button>{data.action}</button></header>
+        <section>{(data.checks || ["Name", "Status", "Updated"]).map((check, index) => <label key={check}><input type="checkbox" defaultChecked={index < 2} /> {check}</label>)}</section>
+        <main><b>Name</b><b>Status</b><b>Updated</b><span>Selected row</span><span>Ready</span><span>Today</span></main>
+      </div>
+    );
+  }
+
+  if (data.scene === "tracking") {
+    return (
+      <div className="pattern-panel pattern-tracking-scene">
+        <strong>{data.title}</strong>
+        <ol>{data.rows.map((row, index) => <li key={row} className={index < 2 ? "done" : "active"}>{row}</li>)}</ol>
+        <button>{data.action}</button>
+      </div>
+    );
+  }
+
+  if (data.scene === "help") {
+    return (
+      <div className="pattern-panel pattern-help-scene">
+        <aside>{data.rows.map((row, index) => <button key={row} className={index === 0 ? "active" : ""}>{row}</button>)}</aside>
+        <main><strong>{data.title}</strong><p>{selected.summary}</p><button>{data.action}</button></main>
+      </div>
+    );
+  }
+
+  if (data.scene === "operation") {
+    return (
+      <div className="pattern-panel pattern-operation-scene">
+        <aside>
+          {(data.rows || ["Draft", "Published", "Archived"]).map((row, index) => (
+            <button key={row} type="button" className={index === 1 ? "active" : ""}>{row}</button>
+          ))}
+        </aside>
+        <main>
+          <strong>{selected.title}</strong>
+          <p>{selected.summary}</p>
+          <footer>
+            <button type="button">Cancel</button>
+            <button type="button">{data.action}</button>
+          </footer>
+        </main>
+      </div>
+    );
+  }
+
+  if (data.scene === "collaboration") {
+    return (
+      <div className="pattern-panel pattern-collaboration-scene">
+        <header>
+          <strong>{selected.title}</strong>
+          <button type="button">{data.action}</button>
+        </header>
+        <section>
+          {(data.rows || ["Owner", "Reviewer", "Mention"]).map((row, index) => (
+            <article key={row} className={index === 1 ? "active" : ""}>
+              <i />
+              <span>{row}</span>
+              <b />
+            </article>
+          ))}
+        </section>
+        <footer><span /> <span /> <span /></footer>
+      </div>
+    );
+  }
+
+  if (data.scene === "feedback") {
+    return (
+      <div className="pattern-panel pattern-feedback-scene">
+        <strong>{selected.title}</strong>
+        {(data.rows || ["Success", "Warning", "Offline"]).map((row, index) => (
+          <article key={row} className={index === 1 ? "warn" : index === 2 ? "muted" : "ok"}>
+            <b />
+            <span>{row}</span>
+            <button type="button">{index === 2 ? "Retry" : data.action}</button>
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  if (data.scene === "ai") {
+    return (
+      <div className="pattern-panel pattern-ai-scene">
+        <header><Sparkles size={18} /><strong>{selected.title}</strong></header>
+        <main>
+          {(data.rows || ["Prompt", "Draft", "Review"]).map((row, index) => (
+            <article key={row} className={index === 1 ? "active" : ""}>
+              <span>{row}</span>
+              <b />
+            </article>
+          ))}
+        </main>
+        <button type="button">{data.action}</button>
+      </div>
+    );
+  }
+
+  if (data.scene === "media") {
+    return (
+      <div className="pattern-panel pattern-media-scene">
+        <section><Play size={22} fill="currentColor" /><span /></section>
+        <aside>
+          {(data.rows || ["Preview", "Crop", "Rename"]).map((row, index) => (
+            <button key={row} type="button" className={index === 0 ? "active" : ""}>{row}</button>
+          ))}
+        </aside>
+      </div>
+    );
+  }
+
+  if (data.scene === "mobile") {
+    return (
+      <div className="pattern-panel pattern-mobile-scene">
+        <MobilePreview type={getMobilePreviewType(selected)} />
+        <section>
+          <strong>{selected.title}</strong>
+          <p>{selected.summary}</p>
+          <button type="button">{data.action}</button>
         </section>
       </div>
     );
@@ -5103,13 +8417,183 @@ function ExploreSection({ activeSection, onSection, onChoose }) {
   );
 }
 
-function MiniPreview({ type, large = false }) {
+function MobileMiniPreview({ type }) {
+  if (type === "scanner") return <span className="mini-mobile-kind mini-mobile-scanner"><b /><b /><b /><b /></span>;
+  if (type === "media") return <span className="mini-mobile-kind mini-mobile-media"><Play size={15} fill="currentColor" /><b /></span>;
+  if (type === "picker") return <span className="mini-mobile-kind mini-mobile-picker">{Array.from({ length: 9 }).map((_, index) => <b key={index} />)}</span>;
+  if (type === "stepper") return <span className="mini-mobile-kind mini-mobile-stepper"><b>-</b><span>2</span><b>+</b></span>;
+  if (type === "empty") return <span className="mini-mobile-kind mini-mobile-empty"><CircleHelp size={16} /><b /></span>;
+  if (type === "otp") return <span className="mini-mobile-kind mini-mobile-otp"><b /><b /><b /><b /></span>;
+  if (type === "search") return <span className="mini-mobile-kind mini-mobile-search"><Search size={14} /><b /></span>;
+  if (type === "sheet" || type === "actions") return <span className="mini-mobile-kind mini-mobile-sheet"><i /><b /><b /></span>;
+  if (type === "swipe" || type === "refresh") return <span className="mini-mobile-kind mini-mobile-gesture"><i /><b /><b /></span>;
+  if (type === "toast") return <span className="mini-mobile-kind mini-mobile-toast"><Check size={14} /><b /></span>;
+  if (type === "browser") return <span className="mini-mobile-kind mini-mobile-browser"><i /><b /><b /></span>;
+  if (type === "input") return <span className="mini-mobile-kind mini-mobile-input"><span>Label</span><b /><span>Value</span><b /></span>;
+  if (type === "banner") return <span className="mini-mobile-kind mini-mobile-banner"><i /><b /><b /></span>;
+  if (type === "permission") return <span className="mini-mobile-kind mini-mobile-permission"><strong>Allow?</strong><b /><b /></span>;
+  if (type === "loading") return <span className="mini-mobile-kind mini-mobile-loading"><b /><b /><b /></span>;
+  if (type === "list") return <span className="mini-mobile-kind mini-mobile-list"><i /><b /><i /><b /></span>;
+  if (type === "carousel") return <span className="mini-mobile-kind mini-mobile-carousel"><b /><b /><b /></span>;
+  if (type === "map") return <span className="mini-mobile-kind mini-mobile-map"><i /><b /></span>;
+  if (type === "product") return <span className="mini-mobile-kind mini-mobile-product"><i /><b /><b /></span>;
+  if (type === "tabbar") return <span className="mini-mobile-kind mini-mobile-tabbar"><i /><b /><b /><b /></span>;
+  return <span className="mini-mobile-kind mini-mobile-navbar"><i /><b /><b /></span>;
+}
+
+function A11yMiniPreview({ type }) {
+  if (type === "a11y-name") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-name"><span>Label</span><b /></span>;
+  if (type === "a11y-structure") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-structure"><em /><strong /><b /></span>;
+  if (type === "a11y-announcement") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-announcement"><i /><b /><span>Live</span></span>;
+  if (type === "a11y-contrast") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-contrast"><strong>AA</strong><b /><i /></span>;
+  if (type === "a11y-motion") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-motion"><b /><span>off</span></span>;
+  if (type === "a11y-target") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-target"><span>44</span><span>Tap</span></span>;
+  if (type === "a11y-form") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-form"><span>Input</span><b /><i /></span>;
+  if (type === "a11y-alt-text") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-alt"><i /><b>Alt</b><span /></span>;
+  if (type === "a11y-testing") return <span className="mini-taxonomy mini-a11y-kind mini-a11y-testing"><b /><b /><b /></span>;
+  return <span className="mini-taxonomy mini-taxonomy-a11y"><span>1</span><span>2</span><span>3</span></span>;
+}
+
+function I18nMiniPreview({ type }) {
+  if (type === "i18n-locale") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-locale"><b>EN</b><i /><b>CN</b></span>;
+  if (type === "i18n-translation") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-translation"><code>key</code><b /></span>;
+  if (type === "i18n-plural") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-plural"><b>1</b><span>item</span><b>5</b></span>;
+  if (type === "i18n-format") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-format"><span>日期</span><b>¥</b><i /></span>;
+  if (type === "i18n-direction") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-direction"><b>LTR</b><i /><b>RTL</b></span>;
+  if (type === "i18n-text") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-text"><b /><b /><b className="long" /></span>;
+  if (type === "i18n-search") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-search"><Search size={14} /><b>A/Å</b></span>;
+  if (type === "i18n-compliance") return <span className="mini-taxonomy mini-i18n-kind mini-i18n-compliance"><SquareCheck size={15} /><b>EU</b></span>;
+  return <span className="mini-taxonomy mini-taxonomy-i18n"><b>zh</b><i /><b>RTL</b></span>;
+}
+
+function ReactMiniPreview({ entry }) {
+  const mode = entry ? getReactPreviewMode(entry) : "surface";
+  if (mode === "prompt") return <span className="mini-taxonomy mini-taxonomy-react mini-react-prompt"><b>Prompt</b><i /><b>Run</b></span>;
+  if (mode === "context") return <span className="mini-taxonomy mini-taxonomy-react mini-react-context"><b>Src</b><i /><b>Ctx</b></span>;
+  if (mode === "tool") return <span className="mini-taxonomy mini-taxonomy-react mini-react-tool"><b>Run</b><i /><b>Done</b></span>;
+  if (mode === "feedback") return <span className="mini-taxonomy mini-taxonomy-react mini-react-feedback"><b>Good</b><i /><b>Fix</b></span>;
+  if (mode === "ai") return <span className="mini-taxonomy mini-taxonomy-react mini-react-ai"><Sparkles size={13} /><b>Result</b></span>;
+  if (mode === "filter") return <span className="mini-taxonomy mini-taxonomy-react mini-react-filter"><Search size={13} /><b>Filter</b></span>;
+  if (mode === "list") return <span className="mini-taxonomy mini-taxonomy-react mini-react-list"><b>Row</b><i /><b>Detail</b></span>;
+  if (mode === "control") return <span className="mini-taxonomy mini-taxonomy-react mini-react-control"><b>On</b><i /><b>64</b></span>;
+  if (mode === "playground") return <span className="mini-taxonomy mini-taxonomy-react mini-react-playground"><b>Code</b><i /><b>UI</b></span>;
+  if (mode === "state") return <span className="mini-taxonomy mini-taxonomy-react mini-react-state"><b>Load</b><i /><b>OK</b></span>;
+  return <span className="mini-taxonomy mini-taxonomy-react mini-react-surface"><b>UI</b><i /><b>Slot</b></span>;
+}
+
+function MiniPreview({ type, large = false, entry = null }) {
   const className = `mini-preview preview-${type} ${large ? "large" : ""}`;
+  const specificKind = entry ? getSpecificPreviewKind(entry) : "";
+
+  if (specificKind) {
+    return <SpecificMiniPreview kind={specificKind} className={className} />;
+  }
+
+  if (type === "a11y" || type === "a11y-focus" || type.startsWith("a11y-")) {
+    return <span className={className}><A11yMiniPreview type={getA11yPreviewKind(entry, type)} entry={entry} /></span>;
+  }
+
+  if (type === "i18n" || type.startsWith("i18n-")) {
+    return <span className={className}><I18nMiniPreview type={getI18nPreviewKind(entry, type)} entry={entry} /></span>;
+  }
+
+  if (type === "mobile-preview") {
+    return <span className={className}><MobileMiniPreview type={getMobilePreviewType(entry)} /></span>;
+  }
+
+  if (type === "status-indicator" && entry) {
+    const statusKind = getStatusPreviewKind(entry, type);
+    if (statusKind !== "status-indicator") return <MiniPreview type={statusKind} large={large} entry={entry} />;
+  }
+
+  if (type === "term-card" && entry) {
+    const termKind = getTermPreviewKind(entry, type);
+    if (termKind !== "term-card") return <MiniPreview type={termKind} large={large} entry={entry} />;
+  }
+
+  if (entry && type === "pattern-operation") {
+    const action = getSemanticAction(entry);
+    const ActionIcon = action.icon;
+    return (
+      <span className={className}>
+        <span className={`pattern-mini-card pattern-mini-operation semantic ${action.kind}`}>
+          <span className="pattern-mini-files"><span /><span /><span /></span>
+          <span className="pattern-mini-dialog"><strong>{entry.english || entry.title}</strong><span /><span className="pattern-mini-button"><ActionIcon size={12} /> {action.label}</span></span>
+        </span>
+      </span>
+    );
+  }
 
   if (type.includes("layout")) return <LayoutPreview type={type} large={large} />;
   if (type.includes("style")) return <StylePreview type={type} large={large} />;
   if (type.includes("motion")) return <MotionPreview type={type} large={large} />;
   if (type.includes("pattern")) return <PatternPreview type={type} large={large} />;
+
+  if (entry && type === "button") {
+    const action = getSemanticAction(entry);
+    const ActionIcon = action.icon;
+    return (
+      <span className={className}>
+        <span className={`mini-semantic-button ${action.kind}`}>
+          <ActionIcon size={13} />
+          {action.kind === "filter" && <em><i /><i /><i /></em>}
+          {action.kind === "sort" && <em><b /><b /></em>}
+          {action.kind === "copy" && <code>URL</code>}
+          {action.kind === "share" && <em><i /><i /></em>}
+          {action.kind === "danger" && <strong>!</strong>}
+          {!["filter", "sort", "copy", "share", "danger"].includes(action.kind) && <b />}
+        </span>
+      </span>
+    );
+  }
+
+  if (type === "otp-input") {
+    return (
+      <span className={className}>
+        <span className="mini-otp-input"><b>6</b><b>2</b><b /><b /></span>
+      </span>
+    );
+  }
+
+  if (entry && ["menu", "dropdown", "select", "context-menu"].includes(type)) {
+    const isDropdown = type === "dropdown" || type === "select";
+    const options = isDropdown ? getSelectOptions(entry) : getMenuOptions(entry, isDropdown);
+    return (
+      <span className={className}>
+        <span className="mini-context-menu">
+          <strong>{entry.title}<ChevronRight size={13} /></strong>
+          <em>{options.slice(0, 2).map((option) => <span key={option}>{option}</span>)}</em>
+        </span>
+      </span>
+    );
+  }
+
+  if (entry && type === "form" && /filter|search|feedback|settings/.test(getPreviewSearchText(entry))) {
+    const rows = getFormRows(entry);
+    return (
+      <span className={className}>
+        <span className="mini-context-form"><strong>{entry.title}</strong>{rows.slice(0, 2).map((row) => <b key={row} />)}<i /></span>
+      </span>
+    );
+  }
+
+  if (entry && type === "file-action") {
+    const action = getSemanticAction(entry);
+    const ActionIcon = action.icon;
+    return (
+      <span className={className}>
+        <span className="mini-file-action semantic"><b>{entry.title || action.label}</b><ActionIcon size={13} /><i /></span>
+      </span>
+    );
+  }
+
+  if (entry && type === "tag" && /filter/.test(getPreviewSearchText(entry))) {
+    return (
+      <span className={className}>
+        <span className="mini-filter-chips"><b>Status ×</b><b>Owner ×</b></span>
+      </span>
+    );
+  }
 
   switch (type) {
     case "button":
@@ -5169,6 +8653,15 @@ function MiniPreview({ type, large = false }) {
           </span>
         </span>
       );
+    case "action-sheet":
+      return (
+        <span className={className}>
+          <span className="mini-action-sheet">
+            <i><b /><b /><b /></i>
+            <em><span>分享</span><span>复制</span><span>删除</span></em>
+          </span>
+        </span>
+      );
     case "dropdown":
     case "select":
       return (
@@ -5221,6 +8714,18 @@ function MiniPreview({ type, large = false }) {
           <span className="mini-slider"><i /><b /></span>
         </span>
       );
+    case "switcher":
+      return (
+        <span className={className}>
+          <span className="mini-switcher"><b>App</b><i /><b>Team</b></span>
+        </span>
+      );
+    case "quantity-stepper":
+      return (
+        <span className={className}>
+          <span className="mini-quantity-stepper"><b>-</b><span>2</span><b>+</b></span>
+        </span>
+      );
     case "date-picker":
     case "calendar":
       return (
@@ -5232,6 +8737,18 @@ function MiniPreview({ type, large = false }) {
       return (
         <span className={className}>
           <span className="mini-upload"><ArrowUp size={16} /><b>上传文件</b></span>
+        </span>
+      );
+    case "file-preview":
+      return (
+        <span className={className}>
+          <span className="mini-file-preview"><strong>PDF</strong><b /><b /></span>
+        </span>
+      );
+    case "file-action":
+      return (
+        <span className={className}>
+          <span className="mini-file-action"><b>file.pdf</b><i /><i /></span>
         </span>
       );
     case "autocomplete":
@@ -5460,6 +8977,117 @@ function MiniPreview({ type, large = false }) {
           <span className="mini-cart"><b>2</b><i /><strong>¥168</strong></span>
         </span>
       );
+    case "text-content":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-text"><strong>标题</strong><b /><b /><i /></span>
+        </span>
+      );
+    case "icon-system":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-icons"><Info size={15} /><Check size={15} /><Search size={15} /><SlidersHorizontal size={15} /></span>
+        </span>
+      );
+    case "divider":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-divider"><b /><i /><b /></span>
+        </span>
+      );
+    case "panel":
+    case "term-card":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-panel"><strong /><b /><b /><i /></span>
+        </span>
+      );
+    case "code-block":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-code"><b /><b /><b /><i /></span>
+        </span>
+      );
+    case "keyboard-key":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-keys"><kbd>⌘</kbd><kbd>K</kbd><kbd>↵</kbd></span>
+        </span>
+      );
+    case "barcode":
+      return (
+        <span className={className}>
+          <span className="mini-barcode">{Array.from({ length: 16 }).map((_, index) => <i key={index} />)}</span>
+        </span>
+      );
+    case "status-indicator":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-status"><b /><b /><b /></span>
+        </span>
+      );
+    case "chart":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-chart"><i /><i /><i /><i /></span>
+        </span>
+      );
+    case "editor":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-editor"><em /><b /><b /><b /></span>
+        </span>
+      );
+    case "security":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-security"><SquareCheck size={16} /><b /><i /></span>
+        </span>
+      );
+    case "map":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-map"><i /><i /><b /></span>
+        </span>
+      );
+    case "help":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-help"><Search size={14} /><b /><b /></span>
+        </span>
+      );
+    case "a11y":
+    case "a11y-focus":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-a11y"><span>1</span><span>2</span><span>3</span></span>
+        </span>
+      );
+    case "i18n":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-i18n"><b>zh</b><i /><b>RTL</b></span>
+        </span>
+      );
+    case "react-component":
+    case "react-preview":
+      return (
+        <span className={className}>
+          <ReactMiniPreview entry={entry} />
+        </span>
+      );
+    case "mobile-preview":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-mobile"><strong /><b /><i /></span>
+        </span>
+      );
+    case "taxonomy":
+      return (
+        <span className={className}>
+          <span className="mini-taxonomy mini-taxonomy-default"><b /><span /><i /></span>
+        </span>
+      );
     case "empty":
       return (
         <span className={className}>
@@ -5564,6 +9192,60 @@ function PatternPreview({ type, large }) {
         <span className="pattern-mini-card pattern-mini-danger">
           <span className="pattern-mini-files"><span /><span /><span /></span>
           <span className="pattern-mini-dialog"><strong>删除?</strong><span /><span className="pattern-mini-button">确认</span></span>
+        </span>
+      );
+    }
+
+    if (scene === "operation") {
+      return (
+        <span className="pattern-mini-card pattern-mini-operation">
+          <span className="pattern-mini-files"><span /><span /><span /></span>
+          <span className="pattern-mini-dialog"><strong>Record</strong><span /><span className="pattern-mini-button">Apply</span></span>
+        </span>
+      );
+    }
+
+    if (scene === "collaboration") {
+      return (
+        <span className="pattern-mini-card pattern-mini-collaboration">
+          <span className="pattern-mini-avatars"><i /><i /><i /></span>
+          <span className="pattern-mini-thread"><span /><span /><span /></span>
+        </span>
+      );
+    }
+
+    if (scene === "feedback") {
+      return (
+        <span className="pattern-mini-card pattern-mini-feedback">
+          <span className="pattern-mini-notice ok"><i /><span /></span>
+          <span className="pattern-mini-notice warn"><i /><span /></span>
+          <span className="pattern-mini-notice muted"><i /><span /></span>
+        </span>
+      );
+    }
+
+    if (scene === "ai") {
+      return (
+        <span className="pattern-mini-card pattern-mini-ai">
+          <span className="pattern-mini-ai-prompt"><Sparkles size={13} /><span /></span>
+          <span className="pattern-mini-ai-result"><b /><b /><b /></span>
+        </span>
+      );
+    }
+
+    if (scene === "media") {
+      return (
+        <span className="pattern-mini-card pattern-mini-media">
+          <span className="pattern-mini-media-view"><Play size={15} fill="currentColor" /></span>
+          <span className="pattern-mini-media-tools"><b /><b /><b /></span>
+        </span>
+      );
+    }
+
+    if (scene === "mobile") {
+      return (
+        <span className="pattern-mini-card pattern-mini-mobile">
+          <span className="pattern-mini-phone"><i /><b /><b /></span>
         </span>
       );
     }
