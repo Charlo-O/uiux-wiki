@@ -259,6 +259,26 @@ function slugifyItem(value, fallback) {
   return slug || fallback;
 }
 
+function buildPreviewId(entry) {
+  return [
+    entry.category,
+    entry.id,
+    slugifyItem(entry.title || entry.english, entry.id),
+    entry.previewBase || entry.preview || "generic",
+  ].filter(Boolean).join(":");
+}
+
+function normalizePreviewBase(entry) {
+  const explicitBase = entry.previewBase;
+  if (explicitBase && !String(explicitBase).includes(":")) return explicitBase;
+  const preview = explicitBase || entry.preview || "generic";
+  if (String(preview).includes(":")) {
+    const parts = String(preview).split(":").filter(Boolean);
+    return parts[parts.length - 1] || "generic";
+  }
+  return preview;
+}
+
 function categoryFromHeading(heading) {
   const match = generatedSectionMap.find(([needle]) => heading.includes(needle));
   return match ? match[1] : "components";
@@ -354,17 +374,28 @@ function inferPreview(title, english, category, group) {
   const coreText = `${title} ${english}`.toLowerCase();
 
   if (category === "states") {
+    if (/incomplete|未完成/.test(coreText)) return "status-indicator";
+    if (/canceled|cancelled|retried|retryable/.test(coreText)) return "status-indicator";
     if (/filters cleared/.test(coreText)) return "toast";
     if (/undelivered|unsynced|unpublished/.test(coreText)) return "status-indicator";
     if (/^online$|^connected$|online |connected /.test(coreText)) return "status-indicator";
+    if (/timeout|version outdated|update required/.test(coreText)) return "alert";
+    if (/upload paused/.test(coreText)) return "progress";
+    if (/电商与交易状态/.test(text) && /delivered/.test(coreText)) return "shopping-cart";
+    if (/通知、消息与社交状态/.test(text) && /delivered|muted|unmuted/.test(coreText)) return "status-indicator";
+    if (/媒体状态/.test(text) && /stopped/.test(coreText)) return "media-player";
+    if (/playing|paused|\bmuted\b|camera|recording|\blive\b|media/.test(coreText)) return "media-player";
+    if (/in stock|low stock|out of stock|preorder|pending payment|payment processing|payment success|payment failed|subscription active|subscription expired|payment|\border\b|cart|stock|subscription/.test(coreText)) return "shopping-cart";
+    if (/current date|current time|today|tomorrow|\bdate\b|\btime\b|calendar/.test(coreText)) return "date-picker";
+    if (/citations available|citations missing|content filtered|context too long|continuable|grounded|ungrounded|high confidence|low confidence|model unavailable|needs human confirmation|quota exceeded|retrieving|tool calling|truncated|\bai\b|ai-|tool|citation|model|confidence|context|prompt/.test(coreText) || (/ai 状态|ai 狀態/.test(text) && /stopped/.test(coreText))) return "command-palette";
     if (/loaded|complete data|partial data|stale data|cached|has more|no more|end of pagination/.test(coreText)) return "status-indicator";
     if (/empty|no results|not found/.test(coreText)) return "empty";
     if (/failed|error|warning|risk|denied|forbidden|unauthorized|timeout/.test(coreText)) return "alert";
     if (/unsaved/.test(coreText)) return "alert";
     if (/refreshed|archived/.test(coreText)) return "toast";
-    if (/success|completed|approved|saved|synced|delivered|done|passed/.test(coreText)) return "toast";
+    if (/success|completed|approved|saved|synced|delivered|done|passed|regenerated/.test(coreText)) return "toast";
     if (/loading|pending|progress|processing|syncing|generating|streaming/.test(coreText)) return "progress";
-    if (/selected|checked/.test(coreText)) return "checkbox";
+    if (/selected|checked/.test(coreText)) return "status-indicator";
     if (/active|expanded|collapsed|enabled|disabled|visible|hidden|open|closed|focused|hover|pressed/.test(coreText)) return "status-indicator";
     if (/empty|no results|not found|空|无结果|不存在/.test(text)) return "empty";
     if (/loading|pending|progress|processing|syncing|generating|streaming|加载|处理中|同步|生成/.test(text)) return "progress";
@@ -372,22 +403,22 @@ function inferPreview(title, english, category, group) {
     if (/unsaved|未保存/.test(text)) return "alert";
     if (/refreshed|archived|已刷新|已归档/.test(text)) return "toast";
     if (/success|completed|approved|saved|synced|delivered|成功|完成|通过|已保存|已同步|已送达/.test(text)) return "toast";
-    if (/selected|checked|active|expanded|collapsed|enabled|disabled|选中|勾选|展开|收起|启用|禁用/.test(text)) return "checkbox";
+    if (/selected|checked|active|expanded|collapsed|enabled|disabled|选中|勾选|展开|收起|启用|禁用/.test(text)) return "status-indicator";
     if (/online|offline|connected|disconnected|health|quality|status|在线|离线|连接|健康|状态/.test(text)) return "status-indicator";
-    if (/playing|paused|muted|camera|recording|live|media|播放|暂停|静音|相机|录音|直播/.test(text)) return "media-player";
+    if (/playing|paused|\bmuted\b|camera|recording|\blive\b|media|播放|暂停|静音|相机|录音|直播/.test(text)) return "media-player";
     if (/payment|\border\b|cart|stock|subscription|交易|支付|订单|库存|订阅/.test(text)) return "shopping-cart";
-    if (/date|time|calendar|today|tomorrow|日期|时间|日历|今天|明天/.test(text)) return "date-picker";
-    if (/ai|tool|citation|model|confidence|context|prompt|模型|引用|置信|上下文/.test(text)) return "command-palette";
+    if (/\bdate\b|\btime\b|calendar|today|tomorrow|日期|时间|日历|今天|明天/.test(text)) return "date-picker";
+    if (/\bai\b|ai-|tool|citation|model|confidence|context|prompt|模型|引用|置信|上下文/.test(text)) return "command-palette";
     return "status-indicator";
   }
 
   if (category === "react") {
-    if (/variantmatrix|variant matrix|statematrix|state matrix|proptable|prop table|api reference table/.test(text)) return "react-matrix";
-    if (/docsnav|docs nav|docstoc|docs toc|keyboardshortcuttable|keyboard shortcut table/.test(text)) return "react-docs";
-    if (/themetoggle|theme toggle|densitytoggle|density toggle|languagetoggle|language toggle/.test(text)) return "react-control";
-    if (/colorswatch|color swatch|spacingscale|spacing scale|typographyscale|typography scale|motiontimeline|motion timeline|statusbadge|status badge|emptystate|empty state|loadingstate|loading state/.test(text)) return "react-ui";
+    if (/variantmatrix|variant matrix|statematrix|state matrix|proptable|prop table|api reference table/.test(text)) return "react-preview";
+    if (/docsnav|docs nav|docstoc|docs toc|keyboardshortcuttable|keyboard shortcut table/.test(text)) return "react-preview";
+    if (/themetoggle|theme toggle|densitytoggle|density toggle|languagetoggle|language toggle/.test(text)) return "react-preview";
+    if (/colorswatch|color swatch|spacingscale|spacing scale|typographyscale|typography scale|motiontimeline|motion timeline|statusbadge|status badge|emptystate|empty state|loadingstate|loading state/.test(text)) return "react-preview";
     if (/preview|canvas|inspector|frame|live|device/.test(text)) return "react-preview";
-    if (/playground|code|docs|prop|matrix|example|copy/.test(text)) return "code-block";
+    if (/playground|code|docs|prop|matrix|example|copy/.test(text)) return "react-preview";
     if (/control|selector|toggle|switcher|slider|inspector|toolbar/.test(text)) return "react-preview";
     if (/provider|context|boundary|layout|shell|container|app|root|page|screen|route|detail|list/.test(text)) return "react-component";
     return "react-component";
@@ -424,13 +455,16 @@ function inferPreview(title, english, category, group) {
     if (/ecommerce layout/.test(coreText)) return "layout-cart";
     if (/responsive layout|fluid layout|fullscreen layout|page container|container layout/.test(coreText)) return "layout-grid";
     if (/fixed width layout|content layout|article layout|listing page layout|page body|section layout/.test(coreText)) return "layout-single";
-    if (/page header|footer layout|page footer|sticky layout/.test(coreText)) return "layout-sticky-header";
+    if (/mobile chat layout/.test(coreText)) return "layout-mobile-chat";
+    if (/footer layout|page footer/.test(coreText)) return "layout-sticky-action-bar";
+    if (/page header|sticky layout/.test(coreText)) return "layout-sticky-header";
     if (/flex layout|row layout|column layout|stack layout|inline layout|cluster layout|centered layout|space-between layout|wrap layout|spacing layout|ratio layout/.test(coreText)) return "layout-two";
     if (/onboarding flow/.test(coreText)) return "layout-wizard";
     if (/data table layout/.test(coreText)) return "layout-dashboard";
     if (/chart detail layout/.test(coreText)) return "layout-detail";
     if (/grouped list layout/.test(coreText)) return "layout-master";
-    if (/keyboard avoiding layout|mobile web layout|mobile tab layout|safe area layout/.test(coreText)) return "layout-mobile-checkout";
+    if (/mobile tab layout/.test(coreText)) return "layout-bottom-nav";
+    if (/keyboard avoiding layout|mobile web layout|safe area layout/.test(coreText)) return "layout-mobile-checkout";
     if (/mobile list detail layout/.test(coreText)) return "layout-mobile-chat";
     if (/documentation layout|docs layout|help center page|faq page|docs page/.test(coreText)) return "layout-docs-help";
     if (/error page/.test(coreText)) return "layout-error-page";
@@ -443,12 +477,12 @@ function inferPreview(title, english, category, group) {
     if (/calendar layout/.test(coreText)) return "layout-calendar";
     if (/timeline layout/.test(coreText)) return "layout-timeline";
     if (/sidebar filter results|filter results/.test(coreText)) return "layout-filter-results";
-    if (/mobile chat layout/.test(coreText)) return "layout-mobile-chat";
     if (/single column|one column/.test(coreText)) return "layout-single";
     if (/two column|two-column/.test(coreText)) return "layout-two";
     if (/three column|three-column/.test(coreText)) return "layout-three";
     if (/masonry/.test(coreText)) return "layout-masonry";
     if (/sticky header/.test(coreText)) return "layout-sticky-header";
+    if (/sticky sidebar/.test(coreText)) return "layout-sticky-sidebar";
     if (/sticky action bar|bottom action bar/.test(coreText)) return "layout-sticky-action-bar";
     if (/bottom sheet layout|mobile bottom sheet/.test(coreText)) return "layout-mobile-bottom-sheet";
     if (/map layout|map page|location layout|spatial layout/.test(coreText)) return "layout-map";
@@ -468,7 +502,7 @@ function inferPreview(title, english, category, group) {
     if (/\bfeed\b|activity feed|information feed/.test(text)) return "layout-feed";
     if (/master detail|master-detail|主从/.test(text)) return "layout-master";
     if (/filter results|search results|results layout|筛选.*结果|搜索.*结果/.test(text)) return "layout-detail";
-    if (/mobile tab|tab layout|标签页布局/.test(text)) return "layout-fullscreen-modal";
+    if (/mobile tab|tab layout|标签页布局/.test(text)) return "layout-bottom-nav";
     if (/dashboard|kanban|board|看板|仪表盘/.test(text)) return "layout-dashboard";
     if (/sidebar|side|rail|drawer|侧边|侧栏/.test(text)) return "layout-sidebar";
     if (/split|panel|resizable|分割|分栏|面板/.test(text)) return "layout-split";
@@ -485,12 +519,14 @@ function inferPreview(title, english, category, group) {
     if (/default style|hover style|pressed style|disabled style|selected style|readonly style|loading style|success style|warning style|error style|active style|visited style|empty state style/.test(coreText)) return "style-state";
     if (/\btokens?\b|variable|design tokens|component token|semantic token|motion token|color token|theme token|typography token|spacing token|size token|radius token|shadow token|z-index token|border token|opacity token/.test(coreText)) return "style-token";
     if (/focus style|focus ring|focus outline/.test(coreText)) return "style-border";
+    if (/logo style|brand logo|logo system|brand illustration|logo/.test(coreText)) return "style-brand";
     if (/icon stroke/.test(coreText)) return "style-icons";
     if (/scrollbar style/.test(coreText)) return "style-platform";
     if (/dragging style|drag style/.test(coreText)) return "style-shadow";
+    if (/touch target size/.test(coreText)) return "style-spacing";
     if (/platform|responsive|breakpoint|container query|safe area|print|cursor|pointer|rtl|touch/.test(coreText)) return "style-platform";
     if (/focus ring|focus outline/.test(coreText)) return "style-border";
-    if (/brand gradient/.test(coreText)) return "style-gradient";
+    if (/brand gradient/.test(coreText)) return "style-brand";
     if (/color token|theme token|primary color|secondary color|accent color|neutral color|background color|foreground color|surface color|border color|divider color|text color|link color|success color|warning color|error color|info color|disabled color|hover color|pressed color|focus color|selected color|overlay color|palette/.test(coreText)) return "style-color";
     if (/typography token|font|typography|heading|body text|caption|line height|letter spacing|text alignment|text truncation|multi-line clamp|text case|readable width|code font|numeric font|link style/.test(coreText)) return "style-type";
     if (/spacing token|size token|spacing|padding|margin|gap|touch target size|grid gap|content width|min width|max width|min height|max height|^width$|^height$|breakpoint|container query|safe area/.test(coreText)) return "style-spacing";
@@ -517,13 +553,22 @@ function inferPreview(title, english, category, group) {
     if (/color|theme|brand|色|主题|品牌/.test(text)) return "style-color";
     if (/type|font|text|heading|字体|文本|标题/.test(text)) return "style-type";
     if (/space|spacing|size|density|间距|尺寸|密度/.test(text)) return "style-spacing";
-    if (/gradient|透明|glass|blur|渐变/.test(text)) return "style-gradient";
+    if (/gradient|渐变/.test(text)) return "style-gradient";
+    if (/透明|glass|blur/.test(text)) return "style-transparency";
     if (/token|variable|semantic|design token|令牌|变量/.test(text)) return "style-token";
     if (/loading|state|feedback|加载|状态|反馈/.test(text)) return "style-color";
     return "style-divider";
   }
 
   if (category === "motion") {
+    if (/scroll snap|snap scroll/.test(coreText)) return "motion-slide";
+    if (/parallax scroll|parallax/.test(coreText)) return "motion-spatial";
+    if (/scroll motion|\bscroll\b/.test(coreText)) return "motion-slide";
+    if (/keyboard motion|keyboard/.test(coreText)) return "motion-slide";
+    if (/back motion|back navigation|back transition/.test(coreText)) return "motion-slide";
+    if (/toast motion|snackbar motion|tooltip delay|tooltip motion/.test(coreText)) return "motion-overlay";
+    if (/duration|timing|easing|delay/.test(coreText)) return "motion-stagger";
+    if (/reduced transparency|announced motion|screen reader motion|announcement motion/.test(coreText)) return "motion-reduced";
     if (/selection motion|selection feedback/.test(coreText)) return "motion-press";
     if (/drawer motion|bottom sheet motion|route transition/.test(coreText)) return "motion-slide";
     if (/skeleton shimmer|progress motion|spin motion|infinite scroll loading/.test(coreText)) return "motion-loading";
@@ -532,6 +577,7 @@ function inferPreview(title, english, category, group) {
     if (/stagger motion|stagger/.test(coreText)) return "motion-stagger";
     if (/spring motion|bounce motion|spring|bounce/.test(coreText)) return "motion-spring";
     if (/dialog motion|popover motion/.test(coreText)) return "motion-overlay";
+    if (/fullscreen overlay motion|overlay motion|modal overlay motion/.test(coreText)) return "motion-overlay";
     if (/menu open motion|menu motion/.test(coreText)) return "motion-menu";
     if (/tabs motion|tab motion/.test(coreText)) return "motion-tabs";
     if (/pull to refresh/.test(coreText)) return "motion-pull-refresh";
@@ -554,9 +600,9 @@ function inferPreview(title, english, category, group) {
     if (/ripple|tap|press|click|水波纹|按下|点击/.test(text)) return "motion-press";
     if (/load|progress|skeleton|加载|进度/.test(text)) return "motion-loading";
     if (/easing|duration|timing|delay|stagger|缓动|时长|延迟/.test(text)) return "motion-fade";
-    if (/reduced|performance|screen reader|announced|可访问|性能|读屏|公告/.test(text)) return "motion-fade";
+    if (/reduced|performance|screen reader|announced|可访问|性能|读屏|公告/.test(text)) return "motion-reduced";
     if (/slide|drawer|sheet|bottom sheet|page|transition|滑入|页面|转场|底部面板/.test(text)) return "motion-slide";
-    if (/scale|缩放/.test(text)) return "motion-press";
+    if (/scale|缩放/.test(text)) return "motion-scale";
     if (/success|complete|成功|完成/.test(text)) return "motion-success";
     if (/error|失败|错误/.test(text)) return "motion-error";
     return "motion-fade";
@@ -565,6 +611,11 @@ function inferPreview(title, english, category, group) {
   if (category === "patterns") {
     if (/leave confirmation|terms acceptance/.test(text)) return "pattern-form";
     if (/delete account/.test(text)) return "pattern-delete";
+    if (/empty project|first load/.test(text)) return "pattern-onboarding";
+    if (/ai generation|stop ai generation|continue generation|regenerate|ai rewrite|ai translation|ai summary|ai q&a|ai classification|ai extraction|ai recommendation|ai autocomplete|ai code suggestion|ai citation|ai tool calling|ai feedback|apply ai suggestion|low confidence|ai safety|ai context/.test(text)) return "pattern-ai";
+    if (/delete file/.test(text)) return "pattern-delete";
+    if (/download invoice/.test(text)) return "pattern-operation";
+    if (/pull to refresh/.test(text)) return "pattern-mobile";
     if (/device management|api key management/.test(text)) return "pattern-operation";
     if (/edit profile/.test(text)) return "pattern-form";
     if (/view product detail|product detail/.test(text)) return "pattern-checkout";
@@ -577,14 +628,14 @@ function inferPreview(title, english, category, group) {
     if (/payment failed|request refund|return item|remove from cart|order confirmation|cancel subscription/.test(text)) return "pattern-checkout";
     if (/permission request/.test(text)) return "pattern-mobile";
     if (/bottom sheet selection|mobile filtering|mobile sorting|sticky bottom action/.test(text)) return "pattern-mobile";
-    if (/submit failure/.test(text)) return "pattern-delete";
+    if (/submit failure/.test(text)) return "pattern-form";
     if (/submit feedback|submit ticket/.test(text)) return "pattern-form";
     if (/error message|success message|warning message|info message|system announcement|notification|reminder|offline notice|reconnect notice|maintenance notice|update prompt|rate experience|feedback/.test(text)) return "pattern-feedback";
     if (/network error|offline mode|timeout|permission denied|unauthenticated|not found|server error|maintenance|version upgrade|resource expired|rate limited|empty project|partial success|degraded experience|first load|retry failed action/.test(text)) return "pattern-feedback";
     if (/empty state guidance/.test(text)) return "pattern-onboarding";
     if (/role permissions/.test(text)) return "pattern-collaboration";
     if (/location permission|push permission/.test(text)) return "pattern-mobile";
-    if (/stop ai generation|continue generation|regenerate|ai tool calling|apply ai suggestion/.test(text)) return "pattern-operation";
+    if (/stop ai generation|continue generation|regenerate|ai tool calling|apply ai suggestion/.test(text)) return "pattern-ai";
     if (/save draft|autosave|submitting|submit success|prevent duplicate submit/.test(text)) return "pattern-operation";
     if (/ai generation|stop ai generation|continue generation|regenerate|ai rewrite|ai translation|ai summary|ai q&a|ai classification|ai extraction|ai recommendation|ai autocomplete|ai code suggestion|ai citation|ai tool calling|ai feedback|apply ai suggestion|low confidence|ai safety|ai context/.test(text)) return "pattern-ai";
     if (/file preview|file playback|media preview|media playback|reading mode|image crop|crop image|rename file|move file|file rename|file move/.test(text)) return "pattern-media";
@@ -599,15 +650,73 @@ function inferPreview(title, english, category, group) {
     if (/delete|remove|confirm|删除|确认/.test(text)) return "pattern-delete";
     if (/checkout|payment|cart|commerce|支付|结算|购物/.test(text)) return "pattern-checkout";
     if (/upload|file|media|文件|上传|媒体/.test(text)) return "pattern-upload";
-    if (/error|not found|network|empty|permission|forbidden|unauthorized|location permission|错误|不存在|权限|授权/.test(text)) return "pattern-form";
-    if (/ai|generation|prompt|model|citation|人工智能|生成|模型|引用/.test(text)) return "pattern-form";
-    if (/view detail|detail|edit|create|duplicate|archive|restore|详情|编辑|创建|复制|归档|恢复/.test(text)) return "pattern-search";
+    if (/error|not found|network|empty|permission|forbidden|unauthorized|location permission|错误|不存在|权限|授权/.test(text)) return "pattern-feedback";
+    if (/\bai\b|ai-|generation|prompt|model|citation|人工智能|生成|模型|引用/.test(text)) return "pattern-ai";
+    if (/view detail|detail|edit|create|duplicate|archive|restore|详情|编辑|创建|复制|归档|恢复/.test(text)) return "pattern-operation";
     if (/form|submit|validation|表单|提交|校验/.test(text)) return "pattern-form";
     return "pattern-onboarding";
   }
 
   if (category === "mobile") return "mobile-preview";
   if (category === "dictionary") return "term-card";
+
+  // Specific component families should keep generated entries anchored to real preview implementations.
+  if (/table of contents|docs navigation|document navigation/.test(coreText)) return "sidebar";
+  if (/date range picker|time range picker|date time picker|date picker|time picker|calendar picker|month picker|year picker|week picker|quarter picker|calendar event|date field|date input|expiry date|expiration date|time field|time input/.test(coreText)) return "date-picker";
+  if (/context attachment|context panel|file context card|web context card/.test(coreText)) return "command-palette";
+  if (/password strength meter/.test(coreText)) return "progress";
+  if (/autosave indicator|save status/.test(coreText)) return "status-indicator";
+  if (/reset password form/.test(coreText)) return "form";
+  if (/saved view settings/.test(coreText)) return "form";
+  if (/saved view/.test(coreText)) return "data-grid";
+  if (/activity feed/.test(coreText)) return "timeline";
+  if (/kanban board/.test(coreText)) return "layout-kanban";
+  if (/cancel subscription confirmation|account deletion confirmation/.test(coreText)) return "modal";
+  if (/feedback buttons|thumbs feedback/.test(coreText)) return "button";
+  if (/inline cell editor|cell editor|spreadsheet editor/.test(coreText)) return "data-grid";
+  if (/editor toolbar|formatting toolbar|floating formatting toolbar/.test(coreText)) return "toolbar";
+  if (/edit preview split/.test(coreText)) return "layout-split";
+  if (/inline edit|editable text/.test(coreText)) return "editor";
+  if (/text editor|rich text editor|markdown editor|code editor|json editor|formula editor|block editor|wysiwyg editor|document editor|diagram editor|flowchart editor|link editor|multilingual content editor/.test(coreText)) return "editor";
+  if (/profile edit form|saved view settings/.test(coreText)) return "form";
+  if (/selectable list/.test(coreText)) return "list";
+  if (/tree view|directory tree|file tree|organization tree|permission tree|checkable tree|draggable tree|\btree$/.test(coreText.trim())) return "list";
+  if (/accordion|disclosure/.test(coreText)) return "accordion";
+  if (/map marker|marker cluster|location pin|polygon selection|street view entry/.test(coreText)) return "map";
+  if (/role badge/.test(coreText)) return "badge";
+  if (/data table|editable table|pricing table|comparison table|api reference table|props table|tree table|table pagination|table toolbar|table search|table sort|table filter|table caption|table selection|table density|table view|table error state|table loading state|empty table state|aggregate row|group row|matrix table/.test(coreText)) return "table";
+  if (/checkout page|checkout layout|checkout flow|checkout steps|checkout bar|sticky checkout/.test(coreText)) return "layout-checkout";
+  if (/cart drawer|cart sheet|cart summary|shopping cart|cart item|saved items|order summary|order detail|order card|product grid|product price|price display|original price|discount price|stock indicator|quantity selector|payment status|order status|refund status|subscription management/.test(coreText)) return "shopping-cart";
+  if (/table pagination|pagination control|pager|page number|previous next navigation/.test(coreText)) return "pagination";
+  if (/breadcrumb/.test(coreText)) return "breadcrumb";
+  if (/tab panel|tab list|\btabs?\b/.test(coreText)) return "tabs";
+  if (/\bback button\b|back navigation|return button/.test(coreText)) return "back-button";
+  if (/bottom navigation|bottom nav|tab bar/.test(coreText)) return "bottom-navigation";
+  if (/top navigation|main navigation|navigation bar|navigation menu|navigation rail|footer navigation|sub navigation|secondary navigation|anchor navigation|pill navigation|section navigation/.test(coreText)) return "top-navigation";
+  if (/table of contents|docs navigation|document navigation/.test(coreText)) return "sidebar";
+
+  if (/dropdown menu|dropdown overlay|dropdown button|dropdown trigger|\bdropdown\b/.test(coreText)) return "dropdown";
+  if (/context menu|action menu|overflow menu|more menu|mega menu|user menu|account menu/.test(coreText)) return "menu";
+  if (/tree select|native select|custom select|multi select|combobox|cascader|transfer|selector|picker/.test(coreText)) return "select";
+
+  if (/alert dialog|confirmation dialog|confirm dialog|modal dialog|non-modal dialog|fullscreen modal|full-screen modal|preview modal|share dialog|permission dialog|session timeout dialog|lightbox|file delete confirmation/.test(coreText)) return "modal";
+  if (/toast|snackbar|success message|info message|system notification|mobile toast/.test(coreText)) return "toast";
+  if (/inline alert|info alert|success alert|warning alert|error alert|alert banner|notification banner|notice|callout|validation message|validation summary/.test(coreText)) return "alert";
+
+  if (/image upload|avatar upload|video upload|audio upload|document upload|file upload|multi file upload|large file upload|resumable upload|dropzone|upload item|upload retry|upload cancel|csv import|excel import/.test(coreText)) return "file-upload";
+  if (/file preview|file thumbnail|file grid|folder tree|\bfolder\b|file path|pdf viewer|document viewer|code file viewer|file version|image preview|image viewer|image grid|image gallery|image cropper|image editor|image annotation|image compare|cover image|background image|placeholder image|broken image state/.test(coreText)) return "file-preview";
+
+  if (/shopping cart|cart drawer|cart item|cart summary|saved items|coupon input|\bcoupon\b|order summary|checkout page|checkout steps|order detail|product grid|product price|price display|original price|discount price|stock indicator|quantity selector|payment status|order status|refund status|subscription management/.test(coreText)) return "shopping-cart";
+
+  if (/floating action button|\bfab\b/.test(coreText)) return "floating-action-button";
+  if (/\bback button\b/.test(coreText)) return "back-button";
+  if (/icon button|(close|more|help|favorite|info|copy|share|pin|settings|search|menu|overflow|kebab|ellipsis) button/.test(coreText)) return "icon-button";
+  if (/button|cta|call to action|submit|reset|cancel|confirm|save|edit|delete|duplicate|download button|upload button|form actions|bulk action/.test(coreText)) return "button";
+
+  if (/otp input|pin input|verification code input|authenticator code input|recovery code input/.test(coreText)) return "otp-input";
+  if (/password field|password input/.test(coreText)) return "password-field";
+  if (/textarea|text area|multi-line input|multiline input/.test(coreText)) return "textarea";
+  if (/form item|form group|fieldset|field set|field group|form label|form hint|form section|form row|form grid|form footer|address form|payment form|card form|login form|signup form|forgot password form|reset password form|profile form|settings form|search form|wizard form|multi step form|return form/.test(coreText)) return "form";
 
   if (/form success/.test(text)) return "toast";
   if (/form warning|validation message/.test(text)) return "alert";
@@ -819,7 +928,7 @@ function inferPreview(title, english, category, group) {
   if (/chat|message|comment|conversation|聊天|消息|评论|会话/.test(text)) return text.includes("comment") || title.includes("评论") ? "comment-box" : "chat-bubble";
   if (/cart|commerce|payment|\border\b|coupon|price|购物|支付|订单|优惠/.test(text)) return "shopping-cart";
   if (/map|location|地图|位置/.test(text)) return "layout-detail";
-  if (/ai|prompt|model|tool|citation|人工智能|生成|模型|引用/.test(text)) return "command-palette";
+  if (/\bai\b|ai-|prompt|model|tool|citation|人工智能|生成|模型|引用/.test(text)) return "command-palette";
   return "taxonomy";
 }
 
@@ -1278,7 +1387,39 @@ function getGeneratedProfile(preview, category) {
 }
 
 function refineGeneratedPreview(entry, preview) {
+  const coreText = `${entry.id} ${entry.title} ${entry.english}`.toLowerCase();
   const text = `${entry.title} ${entry.english} ${entry.group}`.toLowerCase();
+  if (entry.category === "components") {
+    if (/order-card/.test(coreText) || /\border card\b/.test(coreText)) return "card";
+    if (/cart-drawer/.test(coreText) || /\bcart drawer\b/.test(coreText)) return "drawer";
+    if (/checkout-steps/.test(coreText) || /\bcheckout steps\b/.test(coreText)) return "stepper";
+    if (/checkout-bar|sticky-checkout-bar/.test(coreText) || /\bcheckout bar\b|\bsticky checkout bar\b/.test(coreText)) return "shopping-cart";
+    if (/stock-indicator/.test(coreText) || /\bstock indicator\b/.test(coreText)) return "status-indicator";
+    if (/empty-collection-state/.test(coreText) || /\bempty collection state\b/.test(coreText)) return "empty";
+    if (/blockquote/.test(coreText)) return "text-content";
+    if (/board-card/.test(coreText) || /\bboard card\b/.test(coreText)) return "card";
+  }
+  if (entry.category === "states" && preview === "checkbox") {
+    return "status-indicator";
+  }
+  if (entry.category === "react" && preview === "code-block") {
+    return "react-preview";
+  }
+  if (entry.category === "styles" && preview === "style-gradient") {
+    return /brand|logo|illustration/.test(text) ? "style-brand" : "style-gradient";
+  }
+  if (entry.category === "layouts" && /sticky sidebar/.test(text)) {
+    return "layout-sticky-sidebar";
+  }
+  if (entry.category === "layouts" && /mobile tab|tab layout/.test(text)) {
+    return "layout-bottom-nav";
+  }
+  if (entry.category === "patterns" && preview === "pattern-form" && /error|not found|network|empty|permission|forbidden|unauthorized/.test(text)) {
+    return "pattern-feedback";
+  }
+  if (entry.category === "patterns" && preview === "pattern-form" && /\bai\b|ai-|generation|prompt|model|citation/.test(text)) {
+    return "pattern-ai";
+  }
   if (entry.category === "patterns" && /view detail|detail|edit|create|duplicate|archive|restore|详情|编辑|创建|复制|归档|恢复/.test(text)) {
     return "pattern-operation";
   }
@@ -1287,14 +1428,18 @@ function refineGeneratedPreview(entry, preview) {
 
 function buildGeneratedItem(entry, index) {
   const details = generatedCategoryDetails[entry.category] || generatedCategoryDetails.components;
-  const preview = refineGeneratedPreview(entry, inferPreview(entry.title, entry.english, entry.category, entry.group));
-  const profile = getGeneratedProfile(preview, entry.category);
+  const previewBase = refineGeneratedPreview(entry, inferPreview(entry.title, entry.english, entry.category, entry.group));
+  const profile = getGeneratedProfile(previewBase, entry.category);
   const title = entry.title || entry.english;
   const english = entry.english || entry.title;
+  const previewId = buildPreviewId({ ...entry, title, english, previewBase });
   const profileSummary = String(profile.summary || `用于${details.purpose}`).replace(/[。.!！]+$/, "");
 
   return item({
     id: entry.id,
+    isGenerated: true,
+    previewBase,
+    previewId,
     title,
     english,
     category: entry.category,
@@ -1324,8 +1469,8 @@ function buildGeneratedItem(entry, index) {
       "状态变化需要能被辅助技术感知。",
       "动效遵守 reduced motion，并保留触控替代路径。",
     ],
-    related: generatedRelated(preview, entry.category),
-    preview,
+    related: generatedRelated(previewBase, entry.category),
+    preview: previewId,
     comparison: {
       left: title,
       right: entry.group,
@@ -1377,6 +1522,7 @@ function parseExpandedIndex(markdown, curatedItems) {
     usedIds.add(id);
     parsed.push({
       id,
+      isGenerated: true,
       title,
       english,
       category,
@@ -3341,7 +3487,16 @@ function applyDocumentCategory(entry) {
 const curatedItems = [...coreItems, ...additionalItems].map(applyDocumentCategory);
 const generatedIndexItems = parseExpandedIndex(expandedUiIndex, curatedItems);
 
-export const uiItems = [...curatedItems, ...generatedIndexItems];
+export const uiItems = [...curatedItems, ...generatedIndexItems].map((entry) => {
+  const previewBase = normalizePreviewBase(entry);
+  const previewId = entry.previewId || buildPreviewId({ ...entry, previewBase });
+  return {
+    ...entry,
+    previewBase,
+    previewId,
+    preview: entry.isGenerated ? previewId : entry.preview,
+  };
+});
 
 export const uiDocumentSections = documentCategoryIndex.sections;
 export const uiDocumentTabs = documentCategoryIndex.categories;

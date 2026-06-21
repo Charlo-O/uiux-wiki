@@ -15,22 +15,37 @@ import {
   Copy,
   Download,
   Grid2X2,
+  Heart,
   Info,
+  KeyRound,
   LayoutGrid,
   Link2,
+  LogIn,
   MessageCircle,
+  Mic,
   MousePointer2,
   PanelLeft,
+  Pause,
   PenTool,
   Play,
+  Plus,
   RefreshCcw,
   Search,
+  Send,
   Share2,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   SquareCheck,
+  ShoppingCart,
+  Square,
+  ThumbsDown,
+  ThumbsUp,
   Type,
+  UserMinus,
+  UserPlus,
   UserRound,
+  VolumeX,
   X,
 } from "lucide-react";
 import {
@@ -3702,7 +3717,17 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
 
       <div className="home-body">
         <div className="home-entry-grid" aria-label="核心入口">
-          {homeEntryCards.map(({ sectionId, title, description, Icon }, index) => (
+          {homeEntryCards.map((card, index) => {
+            const normalizedCard = card.sectionId === "dictionary"
+              ? {
+                ...card,
+                title: "看词典",
+                description: "Modal、Toast、Tabs、Drawer 等术语与叫法。",
+                Icon: BookOpen,
+              }
+              : card;
+            const { sectionId, title, description, Icon } = normalizedCard;
+            return (
             <button
               key={sectionId}
               type="button"
@@ -3718,7 +3743,8 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
               </span>
               <ChevronRight size={28} strokeWidth={1.8} />
             </button>
-          ))}
+            );
+          })}
         </div>
 
         <section className="home-section" aria-labelledby="home-core-title">
@@ -3849,7 +3875,7 @@ function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "d
   const categoryTabs = useMemo(() => [
     {
       id: "all",
-      label: activeSection?.id === "all" ? "全部子分类" : "本章全部",
+      label: "全部",
       sectionLabel: activeSection?.label || "文档分类",
       items: activeSection?.items || [],
     },
@@ -3891,7 +3917,6 @@ function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "d
             }}
           >
             <span>{tab.label}</span>
-            <small>{tab.id === "all" ? "文档目录" : "一级目录"}</small>
             <b>{tab.items.length}</b>
           </button>
         ))}
@@ -3907,7 +3932,6 @@ function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "d
             onClick={() => setActiveDocGroupId(tab.id)}
           >
             <span>{tab.label}</span>
-            <small>{tab.sectionLabel}</small>
             <b>{tab.items.length}</b>
           </button>
         ))}
@@ -4011,6 +4035,30 @@ function AtlasListPanel({
   onClear,
   query,
 }) {
+  const [activeListTabId, setActiveListTabId] = useState("all");
+  const listTabs = useMemo(() => {
+    const groups = new Map();
+    for (const entry of items) {
+      const id = query
+        ? entry.category
+        : entry.docGroupId || `${entry.category}-${entry.docGroup || entry.group}`;
+      const label = query
+        ? sectionLabelById.get(entry.category) || entry.category
+        : entry.docGroup || entry.group || sectionLabelById.get(entry.category) || entry.category;
+      if (!groups.has(id)) groups.set(id, { id, label, items: [] });
+      groups.get(id).items.push(entry);
+    }
+    return [{ id: "all", label: query ? "全部匹配" : "全部", items }, ...Array.from(groups.values())]
+      .filter((tab) => tab.items.length > 0);
+  }, [items, query]);
+  const activeListTab = listTabs.find((tab) => tab.id === activeListTabId) || listTabs[0];
+  const visibleItems = activeListTab?.items || items;
+
+  useEffect(() => {
+    if (!listTabs.some((tab) => tab.id === activeListTabId)) {
+      setActiveListTabId("all");
+    }
+  }, [activeListTabId, listTabs]);
   const activeLabel = sections.find((section) => section.id === activeSection)?.label || "组件";
 
   return (
@@ -4023,9 +4071,26 @@ function AtlasListPanel({
         </div>
         <span className="list-count">{items.length}</span>
       </div>
-      <div className={`entry-list full-entry-list ${activeSection === "components" ? "scrollable" : ""}`}>
-        {items.length > 0 ? (
-          items.map((entry, index) => (
+      {listTabs.length > 1 && (
+        <div className="list-filter-tabs" role="tablist" aria-label={`${activeLabel}列表筛选`}>
+          {listTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeListTab?.id === tab.id}
+              className={activeListTab?.id === tab.id ? "active" : ""}
+              onClick={() => setActiveListTabId(tab.id)}
+            >
+              <span>{tab.label}</span>
+              <b>{tab.items.length}</b>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="entry-list full-entry-list scrollable">
+        {visibleItems.length > 0 ? (
+          visibleItems.map((entry, index) => (
             <EntryRow
               key={entry.id}
               entry={entry}
@@ -4038,7 +4103,10 @@ function AtlasListPanel({
           <EmptyList activeSection={activeSection} />
         )}
       </div>
-      <button className="clear-button" type="button" onClick={onClear}>
+      <button className="clear-button" type="button" onClick={() => {
+        setActiveListTabId("all");
+        onClear();
+      }}>
         <RefreshCcw size={16} />
         重置列表
       </button>
@@ -4251,7 +4319,8 @@ function LivePreview({ selected, playground, variant, deviceMode = "desktop" }) 
   const variantIndex = getVariantIndex(selected, variant);
   let preview;
 
-  if (selected.category === "layouts") preview = <LayoutLivePreview selected={selected} variant={variant} />;
+  if (selected.isGenerated) preview = <GeneratedEntryLivePreview selected={selected} variant={variant} />;
+  else if (selected.category === "layouts") preview = <LayoutLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "styles") preview = <StyleLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "motion") preview = <MotionLivePreview selected={selected} variant={variant} />;
   else if (selected.category === "patterns") preview = <PatternLivePreview selected={selected} variant={variant} />;
@@ -4339,6 +4408,192 @@ function getSemanticAction(selected) {
   return { kind: "default", label, icon: MousePointer2, helper: selected?.summary || "Trigger the primary action for this component." };
 }
 
+function hashString(value = "") {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function pickFrom(values, seed, offset = 0) {
+  return values[(seed + offset) % values.length];
+}
+
+function getEntryBlueprint(entry) {
+  const text = getPreviewSearchText(entry);
+  const seed = hashString(`${entry.id}|${entry.title}|${entry.english}|${entry.category}`);
+  const lower = text.toLowerCase();
+  const isButton = /button|cta|action|submit|cancel|confirm|back|next|save|delete|download|upload|share|copy|retry|refresh|按钮/.test(lower);
+  const isInput = /input|field|form|textarea|search|password|输入|表单/.test(lower);
+  const isOverlay = /modal|dialog|drawer|sheet|popover|tooltip|overlay|弹窗|抽屉|浮层/.test(lower);
+  const isData = /table|grid|list|card|timeline|feed|chart|stat|metric|表格|列表|卡片|图表/.test(lower);
+  const isCommerce = /cart|checkout|payment|order|coupon|price|invoice|shipment|商品|订单|支付|结算/.test(lower);
+  const isMedia = /image|video|audio|media|file|upload|camera|photo|avatar|文件|图片|媒体/.test(lower);
+  const isState = entry.category === "states" || /state|status|loading|empty|error|success|warning|disabled|selected|状态|加载|错误|成功/.test(lower);
+  const isNav = /nav|tab|breadcrumb|pagination|menu|sidebar|back|next|导航|菜单/.test(lower);
+  const family = isCommerce ? "commerce"
+    : isMedia ? "media"
+    : isOverlay ? "overlay"
+    : isInput ? "input"
+    : isData ? "data"
+    : isState ? "state"
+    : isNav ? "navigation"
+    : isButton ? "action"
+    : pickFrom(["action", "input", "data", "state", "navigation", "overlay"], seed);
+  const tones = [
+    { ink: "#111827", accent: "#2563eb", soft: "#dbeafe", line: "#93c5fd" },
+    { ink: "#1f2937", accent: "#16a34a", soft: "#dcfce7", line: "#86efac" },
+    { ink: "#18181b", accent: "#f59e0b", soft: "#fef3c7", line: "#fcd34d" },
+    { ink: "#111827", accent: "#dc2626", soft: "#fee2e2", line: "#fca5a5" },
+    { ink: "#0f172a", accent: "#0891b2", soft: "#cffafe", line: "#67e8f9" },
+    { ink: "#27272a", accent: "#7c3aed", soft: "#ede9fe", line: "#c4b5fd" },
+  ];
+  const density = pickFrom(["compact", "balanced", "spacious"], seed, 3);
+  const shape = pickFrom(["pill", "square", "soft", "split", "stack"], seed, 7);
+  const tone = tones[seed % tones.length];
+  return { seed, text, family, tone, density, shape };
+}
+
+function getEntryIcon(blueprint) {
+  const icons = {
+    action: MousePointer2,
+    input: PenTool,
+    data: LayoutGrid,
+    state: Info,
+    navigation: ChevronRight,
+    overlay: PanelLeft,
+    commerce: Bookmark,
+    media: Download,
+  };
+  return icons[blueprint.family] || MousePointer2;
+}
+
+function getGeneratedPreviewBase(entry) {
+  if (!entry) return "generic";
+  if (entry.previewBase) return entry.previewBase;
+  if (entry.previewId && String(entry.previewId).includes(":")) {
+    const parts = String(entry.previewId).split(":").filter(Boolean);
+    return parts[parts.length - 1] || "generic";
+  }
+  if (entry.preview && String(entry.preview).includes(":")) {
+    const parts = String(entry.preview).split(":").filter(Boolean);
+    return parts[parts.length - 1] || "generic";
+  }
+  return entry.preview || "generic";
+}
+
+function getStandardPreviewEntry(entry) {
+  const previewBase = getGeneratedPreviewBase(entry);
+  return {
+    ...entry,
+    isGenerated: false,
+    preview: previewBase,
+    previewBase,
+  };
+}
+
+function getGeneratedPreviewVars(entry) {
+  const blueprint = getEntryBlueprint(entry);
+  return {
+    "--entry-accent": blueprint.tone.accent,
+    "--entry-soft": blueprint.tone.soft,
+    "--entry-line": blueprint.tone.line,
+    "--entry-ink": blueprint.tone.ink,
+  };
+}
+
+function GeneratedEntryMiniPreview({ entry, large = false }) {
+  const standardEntry = getStandardPreviewEntry(entry);
+  const previewBase = standardEntry.preview || "generic";
+  const safeBase = String(previewBase).replace(/[^a-z0-9_-]/gi, "-");
+  const label = entry.english || entry.title || previewBase;
+  return (
+    <span
+      className={`generated-standard-mini generated-preview-${safeBase} ${large ? "large" : ""}`}
+      data-preview-id={entry.previewId || entry.preview}
+      data-preview-base={previewBase}
+      style={getGeneratedPreviewVars(entry)}
+    >
+      <MiniPreview type={previewBase} entry={standardEntry} large={large} />
+      <span className="generated-standard-mini-label">{label}</span>
+    </span>
+  );
+}
+
+function GeneratedEntryLivePreview({ selected, variant = "" }) {
+  const standardEntry = getStandardPreviewEntry(selected);
+  const previewBase = standardEntry.preview || "generic";
+  const safeBase = String(previewBase).replace(/[^a-z0-9_-]/gi, "-");
+  let preview;
+
+  if (standardEntry.category === "layouts" || previewBase.includes("layout")) {
+    preview = <LayoutLivePreview selected={standardEntry} variant={variant} />;
+  } else if (standardEntry.category === "styles" || previewBase.includes("style")) {
+    preview = <StyleLivePreview selected={standardEntry} variant={variant} />;
+  } else if (standardEntry.category === "motion" || previewBase.includes("motion")) {
+    preview = <MotionLivePreview selected={standardEntry} variant={variant} />;
+  } else if (standardEntry.category === "patterns" || previewBase.includes("pattern")) {
+    preview = <PatternLivePreview selected={standardEntry} variant={variant} />;
+  } else {
+    preview = <ComponentLivePreview selected={standardEntry} variant={variant} />;
+  }
+
+  return (
+    <div
+      className={`generated-standard-live generated-preview-${safeBase}`}
+      data-preview-id={selected.previewId || selected.preview}
+      data-preview-base={previewBase}
+      style={getGeneratedPreviewVars(selected)}
+    >
+      {preview}
+    </div>
+  );
+}
+
+function getMiniButtonVisual(entry, action) {
+  const text = getPreviewSearchText(entry);
+  const source = [entry?.id, entry?.title, entry?.english].filter(Boolean).join(" ").toLowerCase();
+  let role = "primary";
+
+  if (/\bcancel\b|dismiss|close|abort/.test(source)) role = "cancel";
+  else if (/destructive|danger|delete|remove|discard|stop/.test(source) || action.kind === "danger") role = "destructive";
+  else if (/\bsubmit\b|send|apply/.test(source) || action.kind === "submit") role = "submit";
+  else if (/\bconfirm\b|approve|accept|\bok\b/.test(source)) role = "confirm";
+  else if (/\bback\b|\bprevious\b|go back/.test(source) || (action.kind === "nav" && /\bback\b|\bprevious\b/.test(text))) role = "back";
+  else if (/\bnext\b|continue|forward/.test(source) || (action.kind === "nav" && /\bnext\b/.test(text))) role = "next";
+  else if (/\bsecondary\b/.test(source)) role = "secondary";
+  else if (/\btertiary\b/.test(source)) role = "tertiary";
+  else if (/\boutline\b|outlined/.test(source)) role = "outline";
+  else if (/\bghost\b|text button|link button/.test(source)) role = "ghost";
+  else if (/\bprimary\b|\bcta\b|call to action/.test(source)) role = "primary";
+  else if (["download", "upload", "save", "add", "publish"].includes(action.kind)) role = "submit";
+  else if (action.kind === "nav") role = "next";
+
+  const tokens = {
+    primary: { bg: "#111827", fg: "#ffffff", border: "#111827", iconBg: "#ffffff", iconFg: "#111827", line: "#ffffff", shadow: "0 8px 18px rgba(17, 24, 39, 0.18)" },
+    secondary: { bg: "#eef2ff", fg: "#312e81", border: "#c7d2fe", iconBg: "#4338ca", iconFg: "#ffffff", line: "#818cf8", shadow: "none" },
+    tertiary: { bg: "#f8fafc", fg: "#334155", border: "#cbd5e1", iconBg: "#e2e8f0", iconFg: "#334155", line: "#94a3b8", shadow: "none" },
+    outline: { bg: "#ffffff", fg: "#0f172a", border: "#0f172a", iconBg: "#ffffff", iconFg: "#0f172a", line: "#64748b", shadow: "inset 0 0 0 1px #0f172a" },
+    ghost: { bg: "transparent", fg: "#475569", border: "transparent", iconBg: "#f1f5f9", iconFg: "#475569", line: "#cbd5e1", shadow: "none" },
+    destructive: { bg: "#fee2e2", fg: "#991b1b", border: "#fca5a5", iconBg: "#dc2626", iconFg: "#ffffff", line: "#ef4444", shadow: "0 8px 18px rgba(220, 38, 38, 0.12)" },
+    submit: { bg: "#dcfce7", fg: "#166534", border: "#86efac", iconBg: "#16a34a", iconFg: "#ffffff", line: "#22c55e", shadow: "0 8px 18px rgba(22, 163, 74, 0.12)" },
+    cancel: { bg: "#f8fafc", fg: "#64748b", border: "#cbd5e1", iconBg: "#e2e8f0", iconFg: "#64748b", line: "#cbd5e1", shadow: "none" },
+    confirm: { bg: "#ecfdf5", fg: "#047857", border: "#6ee7b7", iconBg: "#059669", iconFg: "#ffffff", line: "#10b981", shadow: "0 8px 18px rgba(5, 150, 105, 0.12)" },
+    back: { bg: "#eff6ff", fg: "#1d4ed8", border: "#bfdbfe", iconBg: "#2563eb", iconFg: "#ffffff", line: "#60a5fa", shadow: "none" },
+    next: { bg: "#fef3c7", fg: "#92400e", border: "#fcd34d", iconBg: "#f59e0b", iconFg: "#ffffff", line: "#f59e0b", shadow: "0 8px 18px rgba(245, 158, 11, 0.12)" },
+  };
+
+  const Icon =
+    role === "cancel" || role === "destructive" ? X :
+    role === "confirm" || role === "submit" ? Check :
+    role === "back" || role === "next" ? ChevronRight :
+    action.icon || MousePointer2;
+
+  return { role, Icon, ...tokens[role] };
+}
+
 function getMenuOptions(selected, isDropdown = false) {
   const text = getPreviewSearchText(selected);
   if (/filter/.test(text)) return ["Status", "Owner", "Date range"];
@@ -4420,10 +4675,431 @@ function OtpPreviewCard({ selected, variantClass }) {
   );
 }
 
+const buttonSpecificRules = [
+  [/social-login-button|social login button/, "social-login"],
+  [/sso-button|sso button|single sign-on/, "sso"],
+  [/feedback-buttons|feedback buttons/, "feedback"],
+  [/thumbs-feedback|thumbs feedback/, "thumbs-feedback"],
+  [/dislike-button|dislike button/, "dislike"],
+  [/like-button|like button/, "like"],
+  [/unfollow-button|unfollow button/, "unfollow"],
+  [/follow-button|follow button/, "follow"],
+  [/add-to-cart-button|add to cart button/, "add-cart"],
+  [/buy-now-button|buy now button/, "buy-now"],
+  [/upgrade-button|upgrade button/, "upgrade"],
+  [/stop-generating-button|stop generating button|stop-generating|stop generating/, "stop-generating"],
+  [/regenerate-button|regenerate button/, "regenerate"],
+  [/continue-button|continue button/, "continue"],
+  [/apply-suggestion-button|apply suggestion button/, "apply-suggestion"],
+  [/insert-result-button|insert result button/, "insert-result"],
+  [/replace-text-button|replace text button/, "replace-text"],
+  [/copy-result-button|copy result button/, "copy-result"],
+  [/play-button|play button/, "play"],
+  [/pause-button|pause button/, "pause"],
+  [/mute-button|mute button/, "mute"],
+  [/record-button|record button|recording button/, "record"],
+  [/send-button|send button/, "send"],
+  [/report-button|report button/, "report"],
+  [/block-button|block button/, "block"],
+  [/social-share-button|social share button/, "social-share"],
+  [/current-location-button|current location button|locate me button/, "current-location"],
+  [/load-more-button|load more button/, "load-more"],
+  [/close-button|close button/, "close"],
+  [/more-button|more button/, "more"],
+  [/help-button|help button/, "help"],
+  [/info-button|info button/, "info"],
+  [/copy-button|copy button|duplicate-button|duplicate button/, "copy"],
+  [/share-button|share button/, "share"],
+  [/favorite-button|favorite button/, "favorite"],
+  [/pin-button|pin button/, "pin"],
+  [/sticky-form-actions|sticky form actions/, "sticky-actions"],
+  [/form-actions|form actions/, "form-actions"],
+  [/bulk-action-bar|bulk-actions|bulk actions|bulk-action/, "bulk-actions"],
+  [/row-actions|row actions/, "row-actions"],
+  [/card-actions|card actions/, "card-actions"],
+  [/button-group|button group/, "group"],
+  [/split-button|split button/, "split"],
+  [/toggle-button|toggle button/, "toggle"],
+  [/quick-action|quick action/, "quick"],
+  [/cta-button|\bcta\b/, "cta"],
+  [/sidebar-collapse-button|sidebar collapse button/, "sidebar-collapse"],
+  [/previous-button|previous button|back-button|back button/, "previous"],
+  [/next-button|next button/, "next"],
+  [/forward-button|forward button/, "forward"],
+  [/loading-button|loading button/, "loading"],
+  [/submit-button|submit button/, "submit"],
+  [/reset-button|reset button/, "reset"],
+  [/cancel-button|cancel button/, "cancel"],
+  [/confirm-button|confirm button/, "confirm"],
+  [/done-button|done button/, "done"],
+  [/save-button|save button/, "save"],
+  [/edit-button|edit button/, "edit"],
+  [/destructive-button|destructive button|delete-button|delete button/, "delete"],
+  [/download-button|download button/, "download"],
+  [/upload-button|upload button/, "upload"],
+  [/refresh-button|refresh button/, "refresh"],
+  [/retry-button|retry button/, "retry"],
+  [/clear-button|clear button/, "clear"],
+  [/round-button|round button/, "round"],
+  [/square-button|square button/, "square"],
+  [/primary-button|primary button/, "primary"],
+  [/secondary-button|secondary button/, "secondary"],
+  [/tertiary-button|tertiary button/, "tertiary"],
+  [/outline-button|outline button/, "outline"],
+  [/ghost-button|ghost button/, "ghost"],
+  [/text-button|text button/, "text"],
+  [/link-button|link button/, "link"],
+  [/components-button\b/, "base"],
+];
+
+function getButtonSpecificKind(selected) {
+  const previewBase = getGeneratedPreviewBase(selected);
+  const source = [selected?.id, selected?.title, selected?.english, selected?.previewId, selected?.previewBase]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const isButtonSurface = previewBase === "button" || previewBase === "icon-button" || /button|buttons|action-bar|actions/.test(source);
+  if (!isButtonSurface) return "";
+  const match = buttonSpecificRules.find(([pattern]) => pattern.test(source));
+  return match ? `button-${match[1]}` : "";
+}
+
+const buttonSpecificBlueprints = {
+  base: { label: "Button", mini: "Btn", badge: "Base", icon: MousePointer2, tone: "neutral", layout: "single", helper: "A button exposes one clear action with a visible target." },
+  primary: { label: "Primary action", mini: "Primary", badge: "Primary", icon: Check, tone: "primary", layout: "single", helper: "The strongest button on the surface, used once per decision area." },
+  secondary: { label: "Secondary action", mini: "Second", badge: "Secondary", icon: ChevronRight, tone: "secondary", layout: "single", helper: "A lower-emphasis companion action that stays visually separate from primary." },
+  tertiary: { label: "Tertiary action", mini: "Third", badge: "Tertiary", icon: MousePointer2, tone: "muted", layout: "single", helper: "A quiet action for low-risk choices inside dense UI." },
+  text: { label: "Text action", mini: "Text", badge: "Text", icon: Type, tone: "link", layout: "single", helper: "Looks like text but preserves button behavior and focus affordance." },
+  link: { label: "Open details", mini: "Link", badge: "Link", icon: Link2, tone: "link", layout: "single", helper: "Navigates or reveals destination-like content with link styling." },
+  outline: { label: "Outline action", mini: "Outline", badge: "Outline", icon: MousePointer2, tone: "outline", layout: "single", helper: "Keeps the shape visible without filling the control." },
+  ghost: { label: "Ghost action", mini: "Ghost", badge: "Ghost", icon: MousePointer2, tone: "ghost", layout: "single", helper: "Appears on low-emphasis surfaces and becomes stronger on hover or focus." },
+  delete: { label: "Delete item", mini: "Delete", badge: "Destructive", icon: X, tone: "danger", layout: "single", helper: "Danger buttons make the destructive consequence unmistakable." },
+  round: { label: "Round", mini: "Round", badge: "Round", icon: Plus, tone: "primary", layout: "shape", helper: "Circular buttons use a compact icon target for repeated actions." },
+  square: { label: "Square", mini: "Square", badge: "Square", icon: Square, tone: "neutral", layout: "shape", helper: "Square buttons align with grid-like toolbars and dense control rows." },
+  loading: { label: "Saving...", mini: "Load", badge: "Loading", icon: RefreshCcw, tone: "muted", layout: "state", helper: "The label, spinner, and disabled state show that the request is running." },
+  submit: { label: "Submit form", mini: "Submit", badge: "Submit", icon: Check, tone: "success", layout: "state", helper: "Submit buttons confirm form intent and reserve room for progress feedback." },
+  reset: { label: "Reset fields", mini: "Reset", badge: "Reset", icon: RefreshCcw, tone: "warning", layout: "state", helper: "Reset buttons need a low-emphasis style because they discard local edits." },
+  cancel: { label: "Cancel", mini: "Cancel", badge: "Cancel", icon: X, tone: "muted", layout: "state", helper: "Cancel returns the user to the previous state without committing changes." },
+  confirm: { label: "Confirm", mini: "OK", badge: "Confirm", icon: Check, tone: "success", layout: "state", helper: "Confirmation buttons use explicit copy and pair with a reversible secondary action." },
+  done: { label: "Done", mini: "Done", badge: "Done", icon: Check, tone: "success", layout: "state", helper: "Done closes the flow after the current step has been completed." },
+  save: { label: "Save changes", mini: "Save", badge: "Save", icon: Check, tone: "success", layout: "state", helper: "Save buttons show persistence rather than navigation or submission." },
+  edit: { label: "Edit profile", mini: "Edit", badge: "Edit", icon: PenTool, tone: "primary", layout: "single", helper: "Edit opens the object in an editable state while keeping context visible." },
+  copy: { label: "Copy value", mini: "Copy", badge: "Copy", icon: Copy, tone: "neutral", layout: "icon", helper: "Copy actions should show immediate copied feedback near the trigger." },
+  download: { label: "Download CSV", mini: "Down", badge: "Download", icon: Download, tone: "primary", layout: "single", helper: "Download buttons name the file or format that will be produced." },
+  upload: { label: "Upload file", mini: "Up", badge: "Upload", icon: ArrowUp, tone: "primary", layout: "single", helper: "Upload buttons should sit beside accepted file hints and progress feedback." },
+  refresh: { label: "Refresh data", mini: "Refresh", badge: "Refresh", icon: RefreshCcw, tone: "neutral", layout: "single", helper: "Refresh keeps the user in place and communicates the updated timestamp." },
+  retry: { label: "Retry request", mini: "Retry", badge: "Retry", icon: RefreshCcw, tone: "warning", layout: "state", helper: "Retry buttons stay close to the failure message they recover from." },
+  clear: { label: "Clear all", mini: "Clear", badge: "Clear", icon: X, tone: "muted", layout: "state", helper: "Clear removes local filters or input and should be reversible when possible." },
+  next: { label: "Next step", mini: "Next", badge: "Next", icon: ChevronRight, tone: "primary", layout: "nav", helper: "Next advances the sequence and pairs with a visible previous action." },
+  previous: { label: "Previous", mini: "Prev", badge: "Previous", icon: ChevronRight, tone: "muted", layout: "nav", helper: "Previous moves backward without losing the current state." },
+  forward: { label: "Forward", mini: "Forward", badge: "Forward", icon: ChevronRight, tone: "neutral", layout: "nav", helper: "Forward buttons restore a later navigation point." },
+  "sidebar-collapse": { label: "Collapse sidebar", mini: "Panel", badge: "Sidebar", icon: PanelLeft, tone: "neutral", layout: "nav", helper: "Sidebar controls show the panel edge and keep the content width stable." },
+  group: { label: "Button group", mini: "Group", badge: "Group", icon: LayoutGrid, tone: "neutral", layout: "group", helper: "Groups hold related actions with shared spacing and a single alignment line." },
+  split: { label: "Export", mini: "Split", badge: "Split", icon: Download, tone: "primary", layout: "group", helper: "Split buttons combine a default action with a menu of alternate actions." },
+  toggle: { label: "On", mini: "Toggle", badge: "Toggle", icon: Check, tone: "success", layout: "group", helper: "Toggle buttons expose pressed state and behave like a binary control." },
+  quick: { label: "Quick action", mini: "Quick", badge: "Quick", icon: Plus, tone: "primary", layout: "bar", helper: "Quick actions keep the most frequent task one tap away." },
+  "bulk-actions": { label: "Bulk actions", mini: "Bulk", badge: "Bulk", icon: SquareCheck, tone: "primary", layout: "bar", helper: "Bulk action bars show selection count and the available operations together." },
+  "row-actions": { label: "Row actions", mini: "Rows", badge: "Rows", icon: SlidersHorizontal, tone: "neutral", layout: "bar", helper: "Row actions stay scoped to one table row and avoid stealing table focus." },
+  "card-actions": { label: "Card actions", mini: "Cards", badge: "Cards", icon: Bookmark, tone: "neutral", layout: "bar", helper: "Card actions sit in a predictable footer or top-right action area." },
+  "form-actions": { label: "Form actions", mini: "Form", badge: "Form", icon: Check, tone: "success", layout: "bar", helper: "Form action bars pair submit, cancel, and save-as-draft in a stable order." },
+  "sticky-actions": { label: "Sticky actions", mini: "Sticky", badge: "Sticky", icon: Check, tone: "primary", layout: "bar", helper: "Sticky bars keep the final action visible while long forms scroll." },
+  cta: { label: "Start free trial", mini: "CTA", badge: "CTA", icon: Sparkles, tone: "primary", layout: "single", helper: "CTA buttons use concrete offer copy and one dominant visual weight." },
+  "social-login": { label: "Continue with Google", mini: "G", badge: "Social login", icon: LogIn, tone: "social", layout: "social", helper: "Provider login buttons show provider identity and equal visual weight." },
+  sso: { label: "Continue with SSO", mini: "SSO", badge: "SSO", icon: KeyRound, tone: "social", layout: "sso", helper: "SSO buttons name the organization flow and reinforce secure identity." },
+  "social-share": { label: "Share post", mini: "Share", badge: "Social", icon: Share2, tone: "primary", layout: "share", helper: "Social share buttons expose target channels and copy-link feedback." },
+  like: { label: "Like", mini: "Like", badge: "Reaction", icon: ThumbsUp, tone: "success", layout: "reaction", helper: "Like buttons show pressed state and nearby count feedback." },
+  dislike: { label: "Dislike", mini: "Bad", badge: "Reaction", icon: ThumbsDown, tone: "danger", layout: "reaction", helper: "Dislike buttons mirror the like control and invite optional feedback." },
+  feedback: { label: "Helpful?", mini: "Up/Down", badge: "Feedback", icon: ThumbsUp, tone: "neutral", layout: "reaction", helper: "Feedback button groups present positive and negative choices as a pair." },
+  "thumbs-feedback": { label: "Was this helpful?", mini: "Thumbs", badge: "Thumbs", icon: ThumbsUp, tone: "neutral", layout: "reaction", helper: "Thumbs feedback keeps the rating compact and can open a reason field." },
+  follow: { label: "Follow", mini: "Follow", badge: "Follow", icon: UserPlus, tone: "primary", layout: "follow", helper: "Follow buttons show account context and a clear post-click state." },
+  unfollow: { label: "Following", mini: "Unfollow", badge: "Following", icon: UserMinus, tone: "muted", layout: "follow", helper: "Unfollow states should make the active relationship visible before removal." },
+  play: { label: "Play", mini: "Play", badge: "Media", icon: Play, tone: "media", layout: "media", helper: "Media buttons align with playback state and timeline position." },
+  pause: { label: "Pause", mini: "Pause", badge: "Media", icon: Pause, tone: "media", layout: "media", helper: "Pause replaces play while playback is active." },
+  mute: { label: "Muted", mini: "Mute", badge: "Media", icon: VolumeX, tone: "media", layout: "media", helper: "Mute buttons reflect current audio state and provide quick reversal." },
+  record: { label: "Record", mini: "REC", badge: "Recorder", icon: Mic, tone: "danger", layout: "media", helper: "Record buttons reserve space for elapsed time and recording state." },
+  send: { label: "Send message", mini: "Send", badge: "Send", icon: Send, tone: "primary", layout: "single", helper: "Send buttons sit at the end of an input and become active only with content." },
+  report: { label: "Report", mini: "Report", badge: "Report", icon: Info, tone: "warning", layout: "moderation", helper: "Report buttons disclose the reason flow before submission." },
+  block: { label: "Block user", mini: "Block", badge: "Block", icon: X, tone: "danger", layout: "moderation", helper: "Block buttons clearly state who or what will be blocked." },
+  "add-cart": { label: "Add to cart", mini: "Cart", badge: "Cart", icon: ShoppingCart, tone: "commerce", layout: "commerce", helper: "Cart buttons show quantity or cart feedback after activation." },
+  "buy-now": { label: "Buy now", mini: "Buy", badge: "Checkout", icon: ShoppingCart, tone: "commerce", layout: "commerce", helper: "Buy-now buttons skip collection and go directly to checkout." },
+  upgrade: { label: "Upgrade plan", mini: "Pro", badge: "Upgrade", icon: Sparkles, tone: "commerce", layout: "commerce", helper: "Upgrade buttons pair the plan value with a clear billing action." },
+  "stop-generating": { label: "Stop generating", mini: "Stop", badge: "AI", icon: Square, tone: "danger", layout: "ai", helper: "Generation controls must interrupt streaming output immediately." },
+  regenerate: { label: "Regenerate", mini: "Again", badge: "AI", icon: RefreshCcw, tone: "ai", layout: "ai", helper: "Regenerate restarts the result while keeping prior output reachable." },
+  continue: { label: "Continue", mini: "Cont.", badge: "AI", icon: Play, tone: "ai", layout: "ai", helper: "Continue resumes an interrupted generation or workflow step." },
+  "apply-suggestion": { label: "Apply suggestion", mini: "Apply", badge: "AI", icon: Check, tone: "ai", layout: "ai", helper: "Apply buttons show the exact suggested change before committing it." },
+  "insert-result": { label: "Insert result", mini: "Insert", badge: "AI", icon: CornerDownRight, tone: "ai", layout: "ai", helper: "Insert places generated content at the cursor without replacing source text." },
+  "replace-text": { label: "Replace text", mini: "Replace", badge: "AI", icon: RefreshCcw, tone: "ai", layout: "ai", helper: "Replace actions need a preview because they overwrite existing content." },
+  "copy-result": { label: "Copy result", mini: "Copy", badge: "AI", icon: Copy, tone: "ai", layout: "ai", helper: "Copy-result buttons keep generated output unchanged and show copied feedback." },
+  "current-location": { label: "Use current location", mini: "Locate", badge: "Location", icon: MousePointer2, tone: "primary", layout: "location", helper: "Location buttons show permission, accuracy, and the selected pin." },
+  "load-more": { label: "Load more", mini: "More", badge: "Pagination", icon: Plus, tone: "neutral", layout: "state", helper: "Load-more buttons reserve list space and show progress below existing items." },
+  close: { label: "Close", mini: "Close", badge: "Icon", icon: X, tone: "muted", layout: "icon", helper: "Close buttons need an accessible label and a consistent corner position." },
+  more: { label: "More actions", mini: "More", badge: "Icon", icon: SlidersHorizontal, tone: "neutral", layout: "icon", helper: "More buttons open a scoped menu of secondary actions." },
+  help: { label: "Open help", mini: "Help", badge: "Icon", icon: CircleHelp, tone: "neutral", layout: "icon", helper: "Help buttons reveal guidance without changing the current data." },
+  info: { label: "View info", mini: "Info", badge: "Icon", icon: Info, tone: "neutral", layout: "icon", helper: "Info buttons expose metadata or explanatory copy close to the trigger." },
+  share: { label: "Share", mini: "Share", badge: "Icon", icon: Share2, tone: "primary", layout: "icon", helper: "Share buttons make the target channel or copy-link result visible." },
+  favorite: { label: "Saved", mini: "Fav", badge: "Icon", icon: Heart, tone: "danger", layout: "icon", helper: "Favorite buttons show pressed state and preserve the saved item count." },
+  pin: { label: "Pinned", mini: "Pin", badge: "Icon", icon: BookmarkCheck, tone: "primary", layout: "icon", helper: "Pin buttons keep important content at the top of a list or board." },
+};
+
+function getButtonSpecificData(kind, selected) {
+  const role = kind.replace(/^button-/, "");
+  const preset = buttonSpecificBlueprints[role] || buttonSpecificBlueprints.base;
+  return {
+    role,
+    title: selected?.english || selected?.title || preset.label,
+    mini: preset.mini || preset.label,
+    badge: preset.badge || "Button",
+    label: preset.label,
+    helper: preset.helper,
+    Icon: preset.icon || MousePointer2,
+    tone: preset.tone || "neutral",
+    layout: preset.layout || "single",
+  };
+}
+
+function ButtonSpecificMiniPreview({ kind, className }) {
+  const data = getButtonSpecificData(kind);
+  const Icon = data.Icon;
+  const ButtonIcon = data.role === "previous" ? ChevronRight : Icon;
+  const miniButton = (label = data.label, modifier = "primary", MiniIcon = ButtonIcon) => (
+    <span className={`button-mini-control ${modifier}`}>
+      {MiniIcon && <MiniIcon size={13} style={data.role === "previous" ? { transform: "rotate(180deg)" } : undefined} />}
+      <span>{label}</span>
+    </span>
+  );
+  const iconButton = (label, MiniIcon, modifier = "") => (
+    <span className={`button-mini-icon ${modifier}`} aria-label={label}>
+      <MiniIcon size={14} />
+    </span>
+  );
+
+  return (
+    <span className={className}>
+      <span className={`mini-button-specific tone-${data.tone} layout-${data.layout} ${kind}`}>
+        {["social", "share"].includes(data.layout) && (
+          <span className="button-mini-stack">
+            {miniButton(data.layout === "social" ? "Google" : "Share", "outline", data.layout === "social" ? LogIn : Share2)}
+            {miniButton(data.layout === "social" ? "GitHub" : "Copy link", "outline", data.layout === "social" ? LogIn : Copy)}
+          </span>
+        )}
+        {data.layout === "sso" && (
+          miniButton("Continue with SSO", "outline", KeyRound)
+        )}
+        {data.layout === "reaction" && (
+          <span className="button-mini-group">
+            {iconButton("Like", ThumbsUp, data.role === "like" ? "active" : "")}
+            {iconButton("Dislike", ThumbsDown, data.role === "dislike" ? "active danger" : "")}
+            <span className="button-mini-count">{data.role === "feedback" || data.role === "thumbs-feedback" ? "?" : data.role === "dislike" ? "12" : "128"}</span>
+          </span>
+        )}
+        {data.layout === "follow" && (
+          miniButton(data.role === "unfollow" ? "Following" : "Follow", data.role === "unfollow" ? "secondary" : "primary", data.role === "unfollow" ? UserMinus : UserPlus)
+        )}
+        {data.layout === "media" && (
+          miniButton(data.label, data.role === "record" ? "danger" : "secondary", Icon)
+        )}
+        {data.layout === "commerce" && (
+          miniButton(data.label, "primary", ShoppingCart)
+        )}
+        {data.layout === "ai" && (
+          miniButton(data.label, data.role === "stop-generating" ? "danger" : "primary", Icon)
+        )}
+        {data.layout === "bar" && (
+          <span className="button-mini-toolbar">
+            <span className="button-mini-count">3</span>
+            {miniButton("Save", "primary", Check)}
+            {miniButton("Cancel", "secondary", X)}
+          </span>
+        )}
+        {data.layout === "group" && (
+          <span className="button-mini-segmented">
+            <span className="active">{data.role === "split" ? "Export" : "A"}</span>
+            <span>{data.role === "split" ? "More" : "B"}</span>
+            <span>C</span>
+          </span>
+        )}
+        {data.layout === "nav" && (
+          miniButton(data.label, data.role === "previous" ? "secondary" : "primary", ButtonIcon)
+        )}
+        {data.layout === "icon" && (
+          <span className="button-mini-group icon-row">
+            {iconButton(data.label, Icon, data.role === "favorite" || data.role === "pin" ? "active" : "")}
+            {iconButton("More", SlidersHorizontal)}
+            {iconButton("Close", X)}
+          </span>
+        )}
+        {data.layout === "state" && (
+          miniButton(data.label, ["cancel", "clear", "reset", "load-more"].includes(data.role) ? "secondary" : "primary", Icon)
+        )}
+        {data.layout === "moderation" && (
+          miniButton(data.label, data.role === "block" ? "danger" : "secondary", Icon)
+        )}
+        {data.layout === "location" && (
+          miniButton("Use location", "secondary", MousePointer2)
+        )}
+        {data.layout === "shape" && (
+          <span className="button-mini-group shape-row">
+            <span className={`button-mini-icon ${data.role}`}>{data.role === "round" ? <Plus size={14} /> : <Square size={14} />}</span>
+            {miniButton(data.role === "round" ? "Round" : "Square", "secondary", null)}
+          </span>
+        )}
+        {data.layout === "single" && (
+          miniButton(data.label, ["secondary", "tertiary", "outline", "ghost", "text", "link"].includes(data.role) ? data.role : "primary", Icon)
+        )}
+      </span>
+    </span>
+  );
+}
+
+function ButtonSpecificLivePreview({ selected, kind, variantClass }) {
+  const data = getButtonSpecificData(kind, selected);
+  const Icon = data.Icon;
+  const isPrevious = data.role === "previous";
+  return (
+    <div className={`live-specific-card specific-button-action tone-${data.tone} layout-${data.layout} ${kind} ${variantClass}`}>
+      <header><strong>{selected.title}</strong><span>{data.badge}</span></header>
+      {data.layout === "social" && (
+        <section className="button-provider-stack">
+          <button type="button"><b>G</b> Continue with Google</button>
+          <button type="button"><b>GH</b> Continue with GitHub</button>
+          <button type="button"><b>A</b> Continue with Apple</button>
+        </section>
+      )}
+      {data.layout === "sso" && (
+        <section className="button-sso-panel">
+          <label>Workspace domain<input readOnly value="company.example.com" /></label>
+          <button type="button"><KeyRound size={17} /> Continue with SSO</button>
+          <small><ShieldCheck size={14} /> SAML verified</small>
+        </section>
+      )}
+      {data.layout === "share" && (
+        <section className="button-share-panel">
+          <button type="button"><Share2 size={17} /> Share post</button>
+          <div><span>X</span><span>in</span><span>@</span><span>Link copied</span></div>
+        </section>
+      )}
+      {data.layout === "reaction" && (
+        <section className="button-reaction-panel">
+          <div>
+            <button type="button" className={data.role === "like" ? "active" : ""}><ThumbsUp size={18} /> Like</button>
+            <button type="button" className={data.role === "dislike" ? "active danger" : ""}><ThumbsDown size={18} /> Dislike</button>
+          </div>
+          <strong>{data.role === "dislike" ? "12 not useful" : data.role === "feedback" || data.role === "thumbs-feedback" ? "Was this helpful?" : "128 likes"}</strong>
+          {(data.role === "dislike" || data.role === "feedback" || data.role === "thumbs-feedback") && <textarea readOnly value="Tell us what was missing..." />}
+        </section>
+      )}
+      {data.layout === "follow" && (
+        <section className="button-follow-panel">
+          <b>AL</b>
+          <div><strong>Alex Lee</strong><span>{data.role === "unfollow" ? "Following - 12.4k followers" : "12.4k followers"}</span></div>
+          <button type="button" className={data.role === "unfollow" ? "muted" : ""}>{data.role === "unfollow" ? <UserMinus size={17} /> : <UserPlus size={17} />}{data.label}</button>
+        </section>
+      )}
+      {data.layout === "media" && (
+        <section className="button-media-panel">
+          <button type="button" className={data.role === "record" ? "danger" : ""}><Icon size={20} /> {data.label}</button>
+          <div>{Array.from({ length: 12 }).map((_, index) => <i key={index} style={{ height: `${12 + (index % 4) * 7}px` }} />)}</div>
+          <span>{data.role === "record" ? "REC 00:12" : data.role === "mute" ? "Audio muted" : "01:24 / 03:40"}</span>
+        </section>
+      )}
+      {data.layout === "commerce" && (
+        <section className="button-commerce-panel">
+          <i />
+          <div><strong>Wireless Kit</strong><span>{data.role === "upgrade" ? "Pro plan - $19 / seat" : "$69 - in stock"}</span></div>
+          <button type="button"><Icon size={17} /> {data.label}</button>
+        </section>
+      )}
+      {data.layout === "ai" && (
+        <section className="button-ai-panel">
+          <p>Generated result is ready to review before applying.</p>
+          <div><button type="button"><Icon size={17} /> {data.label}</button><button type="button">Dismiss</button></div>
+        </section>
+      )}
+      {data.layout === "bar" && (
+        <section className="button-action-bar-panel">
+          <span>3 selected</span>
+          <button type="button"><Check size={16} /> Save</button>
+          <button type="button">Cancel</button>
+          <button type="button"><SlidersHorizontal size={16} /> More</button>
+        </section>
+      )}
+      {data.layout === "group" && (
+        <section className="button-group-panel">
+          <button type="button" className="active">{data.role === "split" ? data.label : "Day"}</button>
+          <button type="button">{data.role === "split" ? "More" : "Week"}</button>
+          <button type="button">{data.role === "split" ? "CSV" : "Month"}</button>
+        </section>
+      )}
+      {data.layout === "nav" && (
+        <section className="button-nav-panel">
+          <button type="button">{isPrevious ? <ChevronRight size={17} style={{ transform: "rotate(180deg)" }} /> : <ChevronRight size={17} />} {data.label}</button>
+          <span>Step 2 of 4</span>
+        </section>
+      )}
+      {data.layout === "icon" && (
+        <section className="button-icon-panel">
+          <button type="button" aria-label={data.label}><Icon size={22} /></button>
+          <div><strong>{data.label}</strong><span>{data.role === "copy" ? "Copied to clipboard" : data.role === "favorite" ? "Saved to favorites" : data.helper}</span></div>
+        </section>
+      )}
+      {data.layout === "state" && (
+        <section className="button-state-panel">
+          <button type="button"><Icon size={17} /> {data.label}</button>
+          <div><i /><span>{data.role === "loading" ? "Request running" : data.role === "retry" ? "Recover from failed request" : data.badge}</span></div>
+        </section>
+      )}
+      {data.layout === "moderation" && (
+        <section className="button-moderation-panel">
+          <button type="button"><Icon size={17} /> {data.label}</button>
+          <div><label><input type="radio" defaultChecked /> Spam</label><label><input type="radio" /> Harassment</label></div>
+        </section>
+      )}
+      {data.layout === "location" && (
+        <section className="button-location-panel">
+          <i />
+          <button type="button"><MousePointer2 size={17} /> Use current location</button>
+          <span>Accuracy 12 m</span>
+        </section>
+      )}
+      {data.layout === "shape" && (
+        <section className="button-shape-panel">
+          <button type="button" className={data.role}>{data.role === "round" ? <Plus size={20} /> : <Square size={20} />}</button>
+          <span>{data.helper}</span>
+        </section>
+      )}
+      {data.layout === "single" && (
+        <section className="button-single-panel">
+          <button type="button"><Icon size={17} /> {data.label}</button>
+          <span>{data.badge}</span>
+        </section>
+      )}
+      <p>{data.helper}</p>
+    </div>
+  );
+}
+
 function getSpecificPreviewKind(selected) {
   const text = getPreviewSearchText(selected);
   if (!text.trim()) return "";
   if (["accessibility", "styles", "layouts", "comparisons"].includes(selected?.category)) return "";
+
+  const buttonKind = getButtonSpecificKind(selected);
+  if (buttonKind) return buttonKind;
+
+  if (/font-size-selector|font size selector|font-selector|font selector/.test(text)) return "font-selector-specific";
+  if (/payment-method-selector|payment method selector/.test(text)) return "commerce-selector-specific";
+  if (/color-selector|color selector/.test(text)) return "color-swatch-specific";
+  if (/time-range-picker|time range picker/.test(text)) return "date-time-picker";
+  if (/avatar-picker|avatar picker/.test(text)) return "image-picker";
+  if (/checkout-steps|checkout steps|checkout stepper/.test(text)) return "checkout-stepper";
+  if (/session-timeout-dialog|session timeout dialog/.test(text)) return "session-timeout";
+  if (/map-error-state|map error state/.test(text)) return "map-error-state";
+  if (!/mobile-map-view|mobile map view/.test(text) && (/map-view|\bmap view\b/.test(text))) return "";
+  if (/location-pin|location pin/.test(text)) return "map-marker";
+  if (/stock-indicator|stock indicator/.test(text)) return "stock-state";
+  if (/safety-notice|safety notice|content-filter-notice|content filter notice|content-filtered|content filtered/.test(text)) return "ai-safety-status";
+  if (/inline-cell-editor|inline cell editor|cell-editor|cell editor/.test(text)) return "grid-state";
+  if (/empty-collection-state|empty collection state/.test(text)) return "empty-result";
 
   if (/drag-sort|drag sort/.test(text)) return "drag-sort-specific";
   if (/dictionary-pagination|dictionary pagination/.test(text)) return "dictionary-pagination-specific";
@@ -4434,7 +5110,15 @@ function getSpecificPreviewKind(selected) {
   if (/captions-on|captions-off|captions on|captions off/.test(text)) return "caption-state";
   if (/awaiting-confirmation|awaiting confirmation/.test(text)) return "awaiting-confirmation-state";
   if (/awaiting-shipment|awaiting shipment/.test(text)) return "shipment-state";
-  if (selected?.category === "states" && /retrieving|available|unavailable/.test(text)) return "availability-state";
+  if (/citations-available|citations-missing|citation|citations|grounded|ungrounded/.test(text)) return "ai-grounding-indicator";
+  if (/model-unavailable|content-filtered|model unavailable|content filtered/.test(text)) return "ai-safety-status";
+  if (/context-too-long|quota-exceeded|context too long|quota exceeded|truncated/.test(text)) return "ai-usage";
+  if (/high-confidence|low-confidence|needs-human-confirmation|human confirmation|confidence indicator/.test(text)) return "ai-confidence-indicator";
+  if (/states-stopped|continuable/.test(text) || (/\bstopped\b/.test(text) && /\bai\b|generation|prompt|model|tool/.test(text))) return "ai-generation-control";
+  if (/tool-call-failed|tool call failed|tool failed/.test(text)) return "pattern-error-state";
+  if (/tool-calling|tool calling|retrieving/.test(text)) return "ai-tool-call-status";
+  if (selected?.category === "states" && /service-unavailable|service unavailable/.test(text)) return "error-state-specific";
+  if (selected?.category === "states" && !/service-unavailable|service unavailable|model-unavailable|model unavailable/.test(text) && /retrieving availability|\bavailable\b|\bunavailable\b/.test(text)) return "availability-state";
   if (selected?.category === "states" && /\bbusy\b|\baway\b|skipped|unassigned|assigned|low-priority|low priority/.test(text)) return "task-status-state";
 
   if (/success-message|success message/.test(text)) return "pattern-success-message";
@@ -4456,7 +5140,6 @@ function getSpecificPreviewKind(selected) {
   if (/timezone-selector|timezone selector/.test(text)) return "timezone-selector-specific";
   if (/city-selector|region-selector|city selector|region selector/.test(text)) return "geo-selector-specific";
   if (/sku-selector|size-selector|shipping-method-selector|sku selector|size selector|shipping method selector/.test(text)) return "commerce-selector-specific";
-  if (/font-size-selector|font-selector|font size selector|font selector/.test(text)) return "font-selector-specific";
   if (/variable-picker|variable picker/.test(text)) return "variable-picker-specific";
   if (/mention-picker|mention picker/.test(text)) return "mention-picker-specific";
   if (/combobox/.test(text)) return "combobox-specific";
@@ -4472,6 +5155,7 @@ function getSpecificPreviewKind(selected) {
 
   if (/props-table|props table/.test(text)) return "props-table-specific";
   if (/table-filter|table filter/.test(text)) return "table-filter-specific";
+  if (/saved-view-settings|saved view settings/.test(text)) return "";
   if (/saved-view|saved view/.test(text)) return "saved-view-specific";
   if (/empty-table-state|empty table state/.test(text)) return "empty-table-specific";
   if (/aggregate-row|aggregate row/.test(text)) return "aggregate-row-specific";
@@ -4548,7 +5232,7 @@ function getSpecificPreviewKind(selected) {
   if (/loadingstate|loading state/.test(text)) return "loading-state-specific";
   if (/media-list-item|media list item/.test(text)) return "media-list-item";
   if (/stop-ai-generation|stop ai generation|stop-generating|stop generating|continue generation|regenerate/.test(text)) return "ai-generation-control";
-  if (/states-stopped|\bstopped\b|continuable|tool-calling|tool calling/.test(text)) return /tool/.test(text) ? "ai-tool-call-status" : "ai-generation-control";
+  if (/states-stopped|continuable|tool-calling|tool calling/.test(text) || (/\bstopped\b/.test(text) && /\bai\b|generation|prompt|model|tool/.test(text))) return /tool/.test(text) ? "ai-tool-call-status" : "ai-generation-control";
   if (/prompt-composer|prompt composer/.test(text)) return "ai-prompt-composer";
   if (/context-attachment|context attachment/.test(text)) return "ai-context-attachment";
   if (/context-panel|context panel|file-context-card|file context card|web-context-card|web context card/.test(text)) return "ai-context-panel";
@@ -4682,6 +5366,7 @@ function getSpecificPreviewKind(selected) {
   if (/login-panel|signup-panel|login form|signup form|forgot-password|reset-password|components-login-form|components-signup-form/.test(text)) return "auth-form";
   if (/user-menu|account-menu|user menu|account menu/.test(text)) return "account-menu";
   if (/session-management|session management/.test(text)) return "session-management";
+  if (/cancel-subscription-confirmation|cancel subscription confirmation|account-deletion-confirmation|account deletion confirmation/.test(text)) return "";
   if (/account-deletion|account deletion/.test(text)) return "account-deletion";
   if (/token-meter|quota-meter|usage-meter/.test(text)) return "usage-meter";
   if (/backup-codes|backup codes/.test(text)) return "backup-codes";
@@ -4723,7 +5408,7 @@ function getSpecificPreviewKind(selected) {
   if (/nfc-scan|nfc scan/.test(text)) return "nfc-scan";
   if (/bluetooth-connection|bluetooth connection/.test(text)) return "bluetooth-connection";
   if (/orientation-notice|orientation notice/.test(text)) return "orientation-notice";
-  if (/mobile-map-view|map view/.test(text)) return "mobile-map-view";
+  if (/mobile-map-view|mobile map view/.test(text)) return "mobile-map-view";
   if (/locate-me-button|locate me/.test(text)) return "locate-me";
   if (/sku-bottom-sheet|sku bottom sheet/.test(text)) return "sku-sheet";
   if (/address-sheet|address sheet/.test(text)) return "address-sheet-specific";
@@ -4892,6 +5577,10 @@ function getStatePreviewData(kind, selected) {
 function SpecificLivePreview({ selected, kind, variantClass }) {
   const title = selected.title;
   const previewText = getPreviewSearchText(selected);
+
+  if (kind.startsWith("button-")) {
+    return <ButtonSpecificLivePreview selected={selected} kind={kind} variantClass={variantClass} />;
+  }
 
   if (kind === "external-link" || kind === "skip-link") {
     return (
@@ -5393,7 +6082,67 @@ function SpecificLivePreview({ selected, kind, variantClass }) {
   return null;
 }
 
-function SpecificMiniPreview({ kind, className }) {
+const resultMiniKinds = new Set([
+  ...feedbackPreviewKinds,
+  ...statePreviewKinds,
+  "connection-state",
+  "data-state",
+  "operation-success-state",
+  "pattern-error-state",
+  "partial-success-state",
+  "error-state-specific",
+  "offline-banner",
+  "warning-result",
+  "loading-state-specific",
+  "loading-overlay-specific",
+]);
+
+function getResultMiniData(kind, selected) {
+  const text = getPreviewSearchText(selected);
+  if (statePreviewKinds.includes(kind)) {
+    const data = getStatePreviewData(kind, selected);
+    return { ...data, Icon: data.tone === "danger" ? X : data.tone === "warning" ? Info : data.tone === "empty" ? CircleHelp : Check };
+  }
+  if (feedbackPreviewKinds.includes(kind)) {
+    const data = getFeedbackPreviewData(kind, selected);
+    return { tone: data.tone, title: data.title, body: data.body, meta: "Feedback", action: data.action, Icon: data.icon || Info };
+  }
+  if (kind === "connection-state") {
+    const offline = /offline|disconnected|undelivered|unsynced|unpublished/.test(text);
+    return { tone: offline ? "warning" : "success", title: offline ? "Needs sync" : "Connected", body: offline ? "Queued until connection returns." : "Realtime updates are active.", meta: offline ? "Offline" : "Online", action: offline ? "Retry" : "Status", Icon: offline ? RefreshCcw : Check };
+  }
+  if (kind === "data-state") {
+    const partial = /partial/.test(text);
+    const stale = /cached|stale/.test(text);
+    return { tone: partial || stale ? "warning" : "info", title: partial ? "Partial data" : stale ? "Cached data" : "Data loaded", body: partial ? "Some rows still need refresh." : stale ? "Showing last saved data." : "Rows are ready.", meta: "Data", action: "Refresh", Icon: partial || stale ? Info : Check };
+  }
+  if (kind === "operation-success-state") return { tone: "success", title: /filters/.test(text) ? "Filters cleared" : "Completed", body: "The next step is ready.", meta: "Success", action: "Continue", Icon: Check };
+  if (kind === "partial-success-state") return { tone: "warning", title: "Partial success", body: "Some items need review.", meta: "Mixed", action: "Review", Icon: Info };
+  if (kind === "loading-state-specific" || kind === "loading-overlay-specific") return { tone: "info", title: "Loading", body: "Layout is reserved while data arrives.", meta: "Busy", action: "Wait", Icon: RefreshCcw };
+  if (kind === "offline-banner") return { tone: "warning", title: "Offline mode", body: "Local edits wait for reconnect.", meta: "Network", action: "Retry", Icon: RefreshCcw };
+  if (kind === "warning-result") return { tone: "warning", title: "Needs attention", body: "Review the affected items.", meta: "Warning", action: "Review", Icon: Info };
+  return { tone: "danger", title: /rate/.test(text) ? "Rate limit" : /timeout/.test(text) ? "Timeout" : "Error", body: "The user needs a recovery path.", meta: "Error", action: "Retry", Icon: X };
+}
+
+function SpecificMiniPreview({ kind, className, selected = null }) {
+  if (kind.startsWith("button-")) {
+    return <ButtonSpecificMiniPreview kind={kind} className={className} />;
+  }
+
+  if (resultMiniKinds.has(kind)) {
+    const data = getResultMiniData(kind, selected);
+    const Icon = data.Icon || Info;
+    return (
+      <span className={className}>
+        <span className={`mini-result-specific tone-${data.tone} ${kind}`}>
+          <span className="mini-result-icon"><Icon size={13} /></span>
+          <span className="mini-result-copy"><b>{data.title}</b><i>{data.meta}</i></span>
+          <span className="mini-result-action">{data.action}</span>
+        </span>
+      </span>
+    );
+  }
+
   const group =
     kind.includes("chart") || kind.startsWith("map-") ? "chart" :
     kind.includes("editor") || kind.includes("diff") || kind.includes("formula") ? "editor" :
@@ -6306,6 +7055,7 @@ function getStatusPreviewKind(selected, type = "status-indicator") {
   if (/transcoding|saving|autosaving|reviewing|in-review|sending|bulk action running/.test(text)) return "progress";
   if (/media states/.test(text) && /\bended\b/.test(text)) return "media-player";
   if (/(date|calendar)/.test(text) && /\bended\b/.test(text)) return "date-picker";
+  if (/通知、消息与社交状态|notification|social/.test(text) && /\b(delivered|muted|unmuted)\b/.test(text)) return "status-indicator";
   if (/stopped|buffering|fullscreen|picture-in-picture|replay|seeking|captions|muted|unmuted/.test(text)) return "media-player";
   if (/yesterday|past|future|has-events|no-events|all-day|recurring event|scheduled|upcoming|booked/.test(text)) return "date-picker";
   if (/unsorted|ascending|descending/.test(text)) return "sort-control";
@@ -6313,8 +7063,9 @@ function getStatusPreviewKind(selected, type = "status-indicator") {
   if (/column frozen|column pinned|resizing column|cell editing|row editing/.test(text)) return "data-grid";
   if (/bulk selecting/.test(text)) return "checkbox";
   if (/unsaved/.test(text)) return "editor";
+  if (/\bunlocked\b/.test(text)) return "status-indicator";
   if (/conflict resolved|published|restored|copied|shipped|returned|archived|refreshed/.test(text)) return "toast";
-  if (/conflict|rejected|deleted|soft-deleted|locked|blocked|overdue|high-priority|discontinued|not-purchasable/.test(text)) return "alert";
+  if (/conflict|rejected|deleted|soft-deleted|\blocked\b|\bblocked\b|overdue|high-priority|discontinued|not-purchasable/.test(text)) return "alert";
   if (/checking-out|in-transit|returning|trialing/.test(text)) return "shopping-cart";
   if (/read receipt/.test(text)) return "status-indicator";
   if (/\bunread\b|\bread\b|\bmentioned\b/.test(text)) return "notification";
@@ -6325,15 +7076,18 @@ function getStatusPreviewKind(selected, type = "status-indicator") {
   if (/autosave|draft/.test(text)) return "editor";
   if (/account settings|configuration summary/.test(text)) return "form";
   if (/unsupported format/.test(text)) return "alert";
+  if (/\bincomplete\b|未完成/.test(text)) return "status-indicator";
+  if (/\bcanceled\b|\bcancelled\b|\bretried\b|\bretryable\b/.test(text)) return "status-indicator";
   if (/loading|pending|progress|processing|syncing|generating|streaming|uploading|downloading|validating|submitting|requesting|reconnecting|queued|sorting|dragging/.test(text)) return "progress";
   if (/failed|error|warning|risk|denied|forbidden|unauthorized|unauthenticated|timeout|expired|rate limit|server|invalid|over limit|offline|disconnected|canceled|too large|selection limit|not-droppable|degraded|broken/.test(text)) return "alert";
   if (/success|completed|approved|saved|synced|delivered|done|passed|sent|valid\b|under limit|resumed|connected|online/.test(text)) return "toast";
-  if (/selected|checked|partially selected|select all|single select|multi select/.test(text)) return "checkbox";
+  if (/\bunselected\b|\binactive\b|\bnon-clickable\b|\bnon clickable\b/.test(text)) return "status-indicator";
+  if (/\bselected\b|checked|partially selected|select all|single select|multi select/.test(text)) return "checkbox";
   if (/expanded|collapsed|accordion|row expanded|row collapsed/.test(text)) return "accordion";
   if (/focus|keyboard focus|focus visible/.test(text)) return "a11y-focus";
   if (/readonly|editable|non-editable|filled|filling|typing|touched|untouched|dirty|pristine|original value|autofilled|password visible|password hidden|required|optional/.test(text)) return "text";
-  if (/disabled|enabled|active|hover|pressed|default|clickable|non-clickable|visited|highlighted|current|open|closed|visible|hidden|resettable|previous item|next item|creatable|droppable|grouped|ungrouped/.test(text)) return "button";
-  if (/playing|paused|muted|camera|recording|live|media|audio|video/.test(text)) return "media-player";
+  if (/disabled|enabled|\bactive\b|hover|pressed|default|\bclickable\b|visited|highlighted|current|open|closed|visible|hidden|resettable|previous item|next item|creatable|droppable|grouped|ungrouped/.test(text)) return "button";
+  if (/playing|paused|\bmuted\b|camera|recording|\blive\b|media|audio|video/.test(text)) return "media-player";
   if (/payment|order|cart|stock|subscription|invoice|refund/.test(text)) return "shopping-cart";
   if (/date|time|calendar|today|tomorrow/.test(text)) return "date-picker";
   if (/ai|tool|citation|model|confidence|context|prompt/.test(text)) return "command-palette";
@@ -6364,7 +7118,7 @@ function getTermPreviewKind(selected, type = "term-card") {
   if (/navigation|nav bar|side navigation|rail/.test(text)) return "top-navigation";
   if (/command|menu|dropdown|context menu|mega menu/.test(text)) return "menu";
   if (/text field|input|textarea|password|search box|combobox|autocomplete/.test(text)) return "text";
-  if (/^dictionary-form\\b|form item/.test(text)) return "form";
+  if (/^dictionary-form\b|\bform item\b/.test(text)) return "form";
   if (/select|picker|cascader|tree select/.test(text)) return "select";
   if (/slider|stepper|range/.test(text)) return "slider";
   if (/checkbox/.test(text)) return "checkbox";
@@ -8482,11 +9236,16 @@ function ReactMiniPreview({ entry }) {
 }
 
 function MiniPreview({ type, large = false, entry = null }) {
-  const className = `mini-preview preview-${type} ${large ? "large" : ""}`;
+  if (entry?.isGenerated) {
+    return <GeneratedEntryMiniPreview entry={entry} large={large} />;
+  }
+
+  const safeTypeClass = String(type || "generic").replace(/[^a-z0-9_-]/gi, "-");
+  const className = `mini-preview preview-${safeTypeClass} ${large ? "large" : ""}`;
   const specificKind = entry ? getSpecificPreviewKind(entry) : "";
 
   if (specificKind) {
-    return <SpecificMiniPreview kind={specificKind} className={className} />;
+    return <SpecificMiniPreview kind={specificKind} className={className} selected={entry} />;
   }
 
   if (type === "a11y" || type === "a11y-focus" || type.startsWith("a11y-")) {
@@ -8531,17 +9290,24 @@ function MiniPreview({ type, large = false, entry = null }) {
 
   if (entry && type === "button") {
     const action = getSemanticAction(entry);
-    const ActionIcon = action.icon;
+    const visual = getMiniButtonVisual(entry, action);
+    const ActionIcon = visual.Icon;
+    const buttonTone = (
+      visual.role === "destructive" ? "danger" :
+      visual.role === "submit" || visual.role === "confirm" ? "success" :
+      visual.role === "outline" ? "outline" :
+      visual.role === "ghost" ? "ghost" :
+      visual.role === "tertiary" ? "tertiary" :
+      visual.role === "secondary" || visual.role === "cancel" || visual.role === "back" ? "secondary" :
+      "primary"
+    );
     return (
       <span className={className}>
-        <span className={`mini-semantic-button ${action.kind}`}>
-          <ActionIcon size={13} />
-          {action.kind === "filter" && <em><i /><i /><i /></em>}
-          {action.kind === "sort" && <em><b /><b /></em>}
-          {action.kind === "copy" && <code>URL</code>}
-          {action.kind === "share" && <em><i /><i /></em>}
-          {action.kind === "danger" && <strong>!</strong>}
-          {!["filter", "sort", "copy", "share", "danger"].includes(action.kind) && <b />}
+        <span className={`mini-standard-button mini-button-${visual.role} ${action.kind}`}>
+          <span className={`button-mini-control ${buttonTone}`}>
+            <ActionIcon size={13} style={visual.role === "back" ? { transform: "rotate(180deg)" } : undefined} />
+            <span>{action.label}</span>
+          </span>
         </span>
       </span>
     );
@@ -9103,31 +9869,158 @@ function MiniPreview({ type, large = false, entry = null }) {
   }
 }
 
+function getLayoutMiniTemplate(type = "") {
+  const value = String(type);
+  if (/dashboard|pricing|billing|permission|settings|admin|portal|workspace/.test(value)) return "dashboard";
+  if (/sidebar|sticky-sidebar|master|inbox|docs-help|ide/.test(value)) return "sidebar";
+  if (/chat|mobile-chat/.test(value)) return "chat";
+  if (/kanban/.test(value)) return "kanban";
+  if (/calendar/.test(value)) return "calendar";
+  if (/timeline/.test(value)) return "timeline";
+  if (/map/.test(value)) return "map";
+  if (/sticky-action-bar|footer/.test(value)) return "footer";
+  if (/checkout|cart|order|payment|subscription/.test(value)) return "commerce";
+  if (/bottom-nav|mobile-bottom/.test(value)) return "mobileNav";
+  if (/bottom-sheet|modal|fullscreen/.test(value)) return "overlay";
+  if (/auth|login|signup/.test(value)) return "auth";
+  if (/search|filter-results/.test(value)) return "search";
+  if (/grid|masonry|card/.test(value)) return "grid";
+  if (/feed/.test(value)) return "feed";
+  if (/three/.test(value)) return "three";
+  if (/two|split/.test(value)) return "split";
+  if (/sticky-header|landing|profile|detail|single/.test(value)) return "article";
+  return "article";
+}
+
 function LayoutPreview({ type, large }) {
+  const template = getLayoutMiniTemplate(type);
   return (
     <span className={`mini-preview ${large ? "large" : ""}`}>
-      <span className={`layout-preview ${type}`}>
-        <i /><i /><i /><i /><i /><i />
+      <span className={`layout-preview semantic-layout-preview ${type} layout-mini-${template}`}>
+        {template === "dashboard" && <><nav><b /><b /><b /></nav><main><strong /><i /><i /><i /></main></>}
+        {template === "sidebar" && <><aside><b /><b /><b /></aside><main><strong /><i /><i /><i /></main></>}
+        {template === "chat" && <><aside><b /><b /></aside><main><i /><i className="out" /><footer /></main></>}
+        {template === "kanban" && <>{["Todo", "Doing", "Done"].map((column) => <section key={column}><b>{column}</b><i /><i /></section>)}</>}
+        {template === "calendar" && <><header /><main>{Array.from({ length: 12 }).map((_, index) => <i key={index} className={index === 4 || index === 8 ? "active" : ""} />)}</main></>}
+        {template === "timeline" && <>{["Draft", "Review", "Done"].map((step) => <article key={step}><em /><div><b>{step}</b><i /></div></article>)}</>}
+        {template === "map" && <><main><i className="pin" /><i className="pin alt" /></main><aside><b /><b /></aside></>}
+        {template === "footer" && <><main><b /><i /><i /></main><footer><span>3 edits</span><span className="layout-mini-action">Save</span></footer></>}
+        {template === "commerce" && <><main><article><i /><b /></article><article><i /><b /></article></main><aside><strong>$168</strong><span className="layout-mini-action">Pay</span></aside></>}
+        {template === "mobileNav" && <><main><i /><i /></main><footer><b /><b className="active" /><b /></footer></>}
+        {template === "overlay" && <><main><i /><i /><i /></main><section><b /><span className="layout-mini-action">Done</span></section></>}
+        {template === "auth" && <><aside><strong /></aside><main><b /><i /><span className="layout-mini-action">Sign in</span></main></>}
+        {template === "search" && <><header><Search size={12} /><b /></header><aside><i /><i /></aside><main><article /><article /></main></>}
+        {template === "grid" && <>{Array.from({ length: 6 }).map((_, index) => <article key={index} className={index === 1 ? "tall" : ""}><i /><b /></article>)}</>}
+        {template === "feed" && <>{Array.from({ length: 3 }).map((_, index) => <article key={index}><i /><div><b /><span /></div></article>)}</>}
+        {template === "three" && <><aside /><main><b /><i /><i /></main><section><b /><i /></section></>}
+        {template === "split" && <><main><b /><i /><i /></main><aside><b /><i /></aside></>}
+        {template === "article" && <><article><span /><strong /><i /><i /><span className="layout-mini-action">Read</span></article></>}
       </span>
     </span>
   );
+}
+
+function getStyleMiniKind(type = "") {
+  const value = String(type);
+  if (/token/.test(value)) return "token";
+  if (/gradient/.test(value)) return "gradient";
+  if (/color/.test(value)) return "color";
+  if (/type|typography/.test(value)) return "type";
+  if (/spacing/.test(value)) return "spacing";
+  if (/radius/.test(value)) return "radius";
+  if (/border|divider/.test(value)) return "border";
+  if (/shadow/.test(value)) return "shadow";
+  if (/transparency|opacity|blur/.test(value)) return "transparency";
+  if (/icon/.test(value)) return "icons";
+  if (/density/.test(value)) return "density";
+  if (/dark|theme/.test(value)) return "theme";
+  if (/brand/.test(value)) return "brand";
+  if (/platform/.test(value)) return "platform";
+  if (/state/.test(value)) return "state";
+  if (/emphasis/.test(value)) return "emphasis";
+  return "surface";
 }
 
 function StylePreview({ type, large }) {
+  const kind = getStyleMiniKind(type);
   return (
     <span className={`mini-preview ${large ? "large" : ""}`}>
-      <span className={`style-preview ${type}`}>
-        <i /><b /><b />
+      <span className={`style-preview semantic-style-preview ${type} style-mini-${kind}`}>
+        {kind === "token" && <><code>color.action</code><b /><b /><b /></>}
+        {kind === "color" && <><i className="swatch a" /><i className="swatch b" /><i className="swatch c" /><i className="swatch d" /></>}
+        {kind === "gradient" && <><i className="gradient-strip main" /><i className="gradient-strip warm" /><i className="gradient-chip" /></>}
+        {kind === "type" && <><strong>Ag</strong><b /><b className="short" /></>}
+        {kind === "spacing" && <><span /><i /><span className="wide" /></>}
+        {kind === "radius" && <><i className="r0" /><i className="r1" /><i className="r2" /></>}
+        {kind === "border" && <><i className="solid" /><i className="dashed" /><i className="focus" /></>}
+        {kind === "shadow" && <><i className="low" /><i className="mid" /><i className="high" /></>}
+        {kind === "transparency" && <><main /><section /><b /></>}
+        {kind === "icons" && <><Info size={15} /><Check size={15} /><Search size={15} /><X size={15} /></>}
+        {kind === "density" && <><article /><article className="dense" /></>}
+        {kind === "theme" && <><main className="light" /><main className="dark" /></>}
+        {kind === "brand" && <><strong>UI</strong><b /><i /></>}
+        {kind === "platform" && <><main /><footer /></>}
+        {kind === "state" && <><span className="style-mini-state-control">Default</span><span className="style-mini-state-control active">Pressed</span><span className="style-mini-state-control disabled">Disabled</span></>}
+        {kind === "emphasis" && <><article /><article className="strong" /></>}
+        {kind === "surface" && <><i /><b /><b /></>}
       </span>
     </span>
   );
 }
 
+function getMotionMiniKind(type = "") {
+  const value = String(type);
+  if (/haptic/.test(value)) return "haptic";
+  if (/hover/.test(value)) return "hover";
+  if (/number/.test(value)) return "number";
+  if (/stagger/.test(value)) return "stagger";
+  if (/spring|bounce/.test(value)) return "spring";
+  if (/overlay|dialog|popover/.test(value)) return "overlay";
+  if (/menu/.test(value)) return "menu";
+  if (/tabs?/.test(value)) return "tabs";
+  if (/pull-refresh|refresh/.test(value)) return "refresh";
+  if (/chart/.test(value)) return "chart";
+  if (/loading|spinner|skeleton|progress/.test(value)) return "loading";
+  if (/success|confetti|celebration/.test(value)) return "success";
+  if (/error|shake/.test(value)) return "error";
+  if (/attention|warning/.test(value)) return "attention";
+  if (/slide|page|route|drawer|sheet/.test(value)) return "slide";
+  if (/scale/.test(value)) return "scale";
+  if (/press|tap/.test(value)) return "press";
+  if (/expand|collapse/.test(value)) return "expand";
+  if (/list|row|sort|reorder/.test(value)) return "list";
+  if (/drag|swipe|gesture/.test(value)) return "drag";
+  if (/spatial/.test(value)) return "spatial";
+  if (/reduced|performance|a11y/.test(value)) return "reduced";
+  return "fade";
+}
+
 function MotionPreview({ type, large }) {
+  const kind = getMotionMiniKind(type);
   return (
     <span className={`mini-preview ${large ? "large" : ""}`}>
-      <span className={`motion-preview ${type}`}>
-        <i />
+      <span className={`motion-preview semantic-motion-preview ${type} motion-mini-${kind}`}>
+        {kind === "haptic" && <><span className="motion-mini-action">Tap</span><i /><i /><i /></>}
+        {kind === "hover" && <><span className="motion-mini-action">Hover</span><i /></>}
+        {kind === "number" && <><strong>12,480</strong><span>+18%</span></>}
+        {kind === "stagger" && <>{Array.from({ length: 4 }).map((_, index) => <i key={index} style={{ "--delay": `${index * 90}ms` }} />)}</>}
+        {kind === "spring" && <><b /><b className="target" /><span>spring</span></>}
+        {kind === "overlay" && <><main /><section><b /><span className="motion-mini-action">Done</span></section></>}
+        {kind === "menu" && <><span className="motion-mini-action">Open</span><nav><b /><b /><b /></nav></>}
+        {kind === "tabs" && <><nav><b /><b /><b /></nav><i /></>}
+        {kind === "refresh" && <><strong>Pull</strong><i /><span>Release</span></>}
+        {kind === "chart" && <>{[32, 58, 42, 72, 50].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</>}
+        {kind === "loading" && <><i className="spinner" /><b /><b /></>}
+        {["success", "error", "attention"].includes(kind) && <><strong>{kind === "error" ? "!" : kind === "attention" ? "i" : "OK"}</strong><span>{kind}</span></>}
+        {kind === "slide" && <><aside /><main><b /><i /></main></>}
+        {kind === "scale" && <><span className="motion-mini-action">Scale</span><i /></>}
+        {kind === "press" && <><span className="motion-mini-action">Press</span><i /></>}
+        {kind === "expand" && <><header /><p /><p className="open" /></>}
+        {kind === "list" && <><i /><i className="active" /><i /></>}
+        {kind === "drag" && <><main /><b /></>}
+        {kind === "spatial" && <><i /><b /><i /></>}
+        {kind === "reduced" && <><strong>Reduced</strong><span /></>}
+        {kind === "fade" && <><section /><section className="next" /></>}
       </span>
     </span>
   );
