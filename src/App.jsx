@@ -75,7 +75,8 @@ const headerSections = [
   { id: "mobile", label: "移动端" },
   { id: "comparisons", label: "常见对比" },
   { id: "patterns", label: "交互" },
-  { id: "dictionary", label: "状态" },
+  { id: "states", label: "状态" },
+  { id: "dictionary", label: "词典" },
   { id: "layouts", label: "布局" },
   { id: "styles", label: "样式" },
   { id: "motion", label: "动效" },
@@ -497,6 +498,7 @@ function itemMatchesQuery(entry, query) {
   const needle = normalize(query);
   if (!needle) return true;
   return [
+    entry.id,
     entry.title,
     entry.english,
     entry.summary,
@@ -1350,8 +1352,18 @@ export function App() {
   }
 
   useEffect(() => {
-    const id = window.location.hash.replace("#", "");
-    if (id && uiItems.some((entry) => entry.id === id)) chooseItem(findItem(id));
+    function openHashItem() {
+      const id = window.location.hash.replace("#", "");
+      const entry = uiItems.find((item) => item.id === id);
+      if (!entry) return;
+      setSelectedId(entry.id);
+      setActiveSection(entry.category);
+      setPreviewModalId(entry.id);
+    }
+
+    openHashItem();
+    window.addEventListener("hashchange", openHashItem);
+    return () => window.removeEventListener("hashchange", openHashItem);
   }, []);
 
   const isHomePage = activeSection === "home";
