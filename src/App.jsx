@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUp,
   Bookmark,
@@ -1455,6 +1455,7 @@ export function App() {
               onChoose={chooseItem}
               onClear={clearDialog}
               query={query}
+              deviceMode={deviceMode}
             />
             <DetailPanel
               selected={selected}
@@ -3401,6 +3402,19 @@ function MobilePreview({ type }) {
             <i /><i /><i />
           </>
         )}
+        {type === "button" && (
+          <>
+            <i className="mobile-hero-block" />
+            <i /><i />
+            <div className="mobile-primary-action-preview">继续</div>
+          </>
+        )}
+        {type === "card" && (
+          <>
+            <div className="mobile-content-card-preview"><b /><span /><span /></div>
+            <div className="mobile-content-card-preview compact"><b /><span /></div>
+          </>
+        )}
         {type === "otp" && (
           <>
             <i className="mobile-hero-block" />
@@ -3520,25 +3534,27 @@ function getMobilePreviewType(selected) {
   const text = getPreviewSearchText(selected);
   if (!text.trim()) return "navbar";
   if (/otp|\bpin\b|verification code|one-time code|passcode/.test(text)) return "otp";
+  if (/modal|dialog|drawer|sheet|popover|overlay|\u5f39\u7a97|\u62bd\u5c49|\u6d6e\u5c42/.test(text)) return "sheet";
+  if (/button|cta|submit|confirm|save|delete|cancel|back button|next button|primary button|secondary button|\u6309\u94ae/.test(text)) return "button";
   if (/image picker|photo picker|camera picker|file picker/.test(text)) return "picker";
   if (/haptic/.test(text)) return "toast";
   if (/permission|biometric|face id|touch id|bluetooth/.test(text)) return "permission";
   if (/safe area|splash screen|web view|in-app browser|mini program/.test(text)) return "browser";
   if (/loading overlay|skeleton|load more|infinite scroll/.test(text)) return "loading";
   if (/notification banner|offline banner|install banner|app update prompt|banner/.test(text)) return "banner";
-  if (/numeric keyboard|number keyboard|keyboard accessory|form row|text field|textarea|input/.test(text)) return "input";
-  if (/map view|locate|map/.test(text)) return "map";
+  if (/numeric keyboard|number keyboard|keyboard accessory|form row|text field|textarea|input|\b\w+ field\b|\u8f93\u5165|\u5b57\u6bb5|\u8868\u5355/.test(text)) return "input";
+  if (/\bmap view\b|\blocate\b|\bmap\b|\u5730\u56fe/.test(text)) return "map";
   if (/carousel|page indicator/.test(text)) return "carousel";
   if (/list item|mobile card|share card|timeline/.test(text)) return "list";
   if (/command entry/.test(text)) return "search";
-  if (/bottom app bar|long press menu/.test(text)) return "actions";
-  if (/barcode|qr|scanner|\bscan\b/.test(text)) return "scanner";
-  if (/date picker|calendar|time picker|month picker|year picker|range picker|picker/.test(text)) return "picker";
+  if (/bottom app bar|long press menu|\b(menu|dropdown|context menu|command menu)\b|\u83dc\u5355|\u4e0b\u62c9/.test(text)) return "actions";
+  if (/barcode|qr|scanner|\b(scan code|scan qr|scan barcode|document scan)\b|\u626b\u7801/.test(text)) return "scanner";
+  if (/date picker|calendar|time picker|month picker|year picker|range picker|picker|\u65e5\u671f|\u65f6\u95f4|\u9009\u62e9\u5668/.test(text)) return "picker";
   if (/recorder|recording|\bvoice\b|audio|video|camera|microphone|media|image|photo|gallery|viewer|player/.test(text)) return "media";
   if (/stepper|quantity|counter/.test(text)) return "stepper";
   if (/empty|no results|not found/.test(text)) return "empty";
-  if (/tab|tabbar|bottom navigation|bottom nav/.test(text)) return "tabbar";
-  if (/nav|navigation|app bar|navbar|header/.test(text)) return "navbar";
+  if (/\btabs?\b|\btabbar\b|bottom navigation|bottom nav|\u6807\u7b7e\u9875|\u6807\u7b7e\u680f/.test(text)) return "tabbar";
+  if (/\bnav\b|navigation|app bar|navbar|header|\u5bfc\u822a|\u9876\u680f|\u5934\u90e8/.test(text)) return "navbar";
   if (/action sheet|actions|share sheet/.test(text)) return "actions";
   if (/sheet|drawer|bottom sheet/.test(text)) return "sheet";
   if (/search|filter/.test(text)) return "search";
@@ -3546,6 +3562,7 @@ function getMobilePreviewType(selected) {
   if (/swipe|gesture|drag/.test(text)) return "swipe";
   if (/toast|snackbar|notice|alert/.test(text)) return "toast";
   if (/\bproduct\b|\bcart\b|\bcheckout\b|\border\b|commerce|payment|coupon/.test(text)) return "product";
+  if (/card|badge|tag|chip|text|heading|paragraph|caption|label|link|icon|divider|surface|panel|content|\u5361\u7247|\u6587\u672c|\u6807\u9898|\u94fe\u63a5|\u6807\u7b7e|\u5fbd\u6807/.test(text)) return "card";
   return "navbar";
 }
 
@@ -3819,6 +3836,134 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
   );
 }
 
+function DocumentTabRail({ className, ariaLabel, tabs, activeId, onSelect }) {
+  const railRef = useRef(null);
+  const [scrollState, setScrollState] = useState({ overflow: false, start: true, end: true });
+
+  const updateScrollState = () => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
+    setScrollState({
+      overflow: maxScroll > 2,
+      start: rail.scrollLeft <= 2,
+      end: rail.scrollLeft >= maxScroll - 2,
+    });
+  };
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return undefined;
+    updateScrollState();
+    const handleScroll = () => updateScrollState();
+    rail.addEventListener("scroll", handleScroll, { passive: true });
+
+    let observer;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(updateScrollState);
+      observer.observe(rail);
+      [...rail.children].forEach((child) => observer.observe(child));
+    } else {
+      window.addEventListener("resize", handleScroll);
+    }
+
+    return () => {
+      rail.removeEventListener("scroll", handleScroll);
+      if (observer) observer.disconnect();
+      else window.removeEventListener("resize", handleScroll);
+    };
+  }, [tabs]);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    const activeTab = rail?.querySelector('[aria-selected="true"]');
+    activeTab?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    const measureTimer = window.setTimeout(updateScrollState, 180);
+    return () => window.clearTimeout(measureTimer);
+  }, [activeId]);
+
+  const scrollByPage = (direction) => {
+    const rail = railRef.current;
+    if (!rail) return;
+    rail.scrollBy({
+      left: direction * Math.max(220, rail.clientWidth * 0.7),
+      behavior: "smooth",
+    });
+  };
+
+  const handleKeyDown = (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.id === activeId));
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : event.key === "ArrowRight"
+          ? Math.min(tabs.length - 1, activeIndex + 1)
+          : Math.max(0, activeIndex - 1);
+    if (tabs[nextIndex]) {
+      event.preventDefault();
+      onSelect(tabs[nextIndex]);
+    }
+  };
+
+  return (
+    <div
+      className={[
+        "document-tab-rail",
+        `${className}-rail`,
+        scrollState.overflow ? "can-scroll" : "",
+        scrollState.start ? "at-start" : "",
+        scrollState.end ? "at-end" : "",
+      ].filter(Boolean).join(" ")}
+    >
+      <button
+        type="button"
+        className="document-tab-rail-nav prev"
+        aria-label="向左浏览分类"
+        disabled={!scrollState.overflow || scrollState.start}
+        onClick={() => scrollByPage(-1)}
+      >
+        <ChevronRight size={16} strokeWidth={2} />
+      </button>
+      <div
+        ref={railRef}
+        className={className}
+        role="tablist"
+        aria-label={ariaLabel}
+        onKeyDown={handleKeyDown}
+      >
+        {tabs.map((tab) => {
+          const active = activeId === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={active ? "active" : ""}
+              title={tab.label}
+              onClick={() => onSelect(tab)}
+            >
+              <span>{tab.label}</span>
+              <b>{tab.items.length}</b>
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        className="document-tab-rail-nav next"
+        aria-label="向右浏览分类"
+        disabled={!scrollState.overflow || scrollState.end}
+        onClick={() => scrollByPage(1)}
+      >
+        <ChevronRight size={16} strokeWidth={2} />
+      </button>
+    </div>
+  );
+}
+
 function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "desktop" }) {
   const [activeDocSectionId, setActiveDocSectionId] = useState("all");
   const [activeDocGroupId, setActiveDocGroupId] = useState("all");
@@ -3903,39 +4048,23 @@ function AllComponentsPage({ items, query, selectedId, onChoose, deviceMode = "d
         <span className="panel-kicker">全部展示</span>
         <h1 id="all-components-title">全部组件</h1>
       </div>
-      <div className="document-section-tabs" role="tablist" aria-label="按文档一级目录筛选全部 UI 条目">
-        {sectionTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeSection?.id === tab.id}
-            className={activeSection?.id === tab.id ? "active" : ""}
-            onClick={() => {
-              setActiveDocSectionId(tab.id);
-              setActiveDocGroupId("all");
-            }}
-          >
-            <span>{tab.label}</span>
-            <b>{tab.items.length}</b>
-          </button>
-        ))}
-      </div>
-      <div className="document-category-tabs" role="tablist" aria-label="按文档二级目录筛选全部 UI 条目">
-        {categoryTabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeGroup?.id === tab.id}
-            className={activeGroup?.id === tab.id ? "active" : ""}
-            onClick={() => setActiveDocGroupId(tab.id)}
-          >
-            <span>{tab.label}</span>
-            <b>{tab.items.length}</b>
-          </button>
-        ))}
-      </div>
+      <DocumentTabRail
+        className="document-section-tabs"
+        ariaLabel="按文档一级目录筛选全部 UI 条目"
+        tabs={sectionTabs}
+        activeId={activeSection?.id}
+        onSelect={(tab) => {
+          setActiveDocSectionId(tab.id);
+          setActiveDocGroupId("all");
+        }}
+      />
+      <DocumentTabRail
+        className="document-category-tabs"
+        ariaLabel="按文档二级目录筛选全部 UI 条目"
+        tabs={categoryTabs}
+        activeId={activeGroup?.id}
+        onSelect={(tab) => setActiveDocGroupId(tab.id)}
+      />
       <div className="all-component-groups">
         {visibleGroups.length > 0 ? visibleGroups.map((section) => (
           <section key={section.id} className="all-component-group" aria-labelledby={`${section.id}-showcase-title`}>
@@ -4034,6 +4163,7 @@ function AtlasListPanel({
   onChoose,
   onClear,
   query,
+  deviceMode = "desktop",
 }) {
   const [activeListTabId, setActiveListTabId] = useState("all");
   const listTabs = useMemo(() => {
@@ -4097,6 +4227,7 @@ function AtlasListPanel({
               index={index}
               active={entry.id === selectedId}
               onChoose={() => onChoose(entry)}
+              deviceMode={deviceMode}
             />
           ))
         ) : (
@@ -4115,9 +4246,10 @@ function AtlasListPanel({
 }
 
 function ComponentTile({ entry, index, active, onChoose, deviceMode = "desktop" }) {
+  const isMobileMode = deviceMode === "mobile";
   return (
     <button
-      className={`component-tile ${active ? "active" : ""} ${deviceMode === "mobile" ? "mobile-mode" : ""}`}
+      className={`component-tile ${active ? "active" : ""} ${isMobileMode ? "mobile-mode" : ""}`}
       type="button"
       aria-label={`预览 ${entry.title} ${entry.english}`}
       aria-current={active ? "true" : undefined}
@@ -4128,10 +4260,8 @@ function ComponentTile({ entry, index, active, onChoose, deviceMode = "desktop" 
         <small>{sectionLabelById.get(entry.category) || entry.group}</small>
       </span>
       <span className="component-tile-preview">
-        {deviceMode === "mobile" ? (
-          <span className="tile-phone-preview">
-            <MiniPreview type={entry.preview} entry={entry} />
-          </span>
+        {isMobileMode ? (
+          <MobilePreview type={getMobilePreviewType(entry)} />
         ) : (
           <MiniPreview type={entry.preview} entry={entry} />
         )}
@@ -4145,17 +4275,22 @@ function ComponentTile({ entry, index, active, onChoose, deviceMode = "desktop" 
   );
 }
 
-function EntryRow({ entry, index, active, onChoose }) {
+function EntryRow({ entry, index, active, onChoose, deviceMode = "desktop" }) {
+  const isMobileMode = deviceMode === "mobile";
   return (
     <button
-      className={`entry-row ${active ? "active" : ""}`}
+      className={`entry-row ${active ? "active" : ""} ${isMobileMode ? "mobile-row" : ""}`}
       type="button"
       aria-label={`预览 ${entry.title} ${entry.english}`}
       aria-current={active ? "true" : undefined}
       onClick={onChoose}
     >
       <span className="entry-index">{String(index + 1).padStart(2, "0")}</span>
-      <MiniPreview type={entry.preview} entry={entry} />
+      {isMobileMode ? (
+        <MobilePreview type={getMobilePreviewType(entry)} />
+      ) : (
+        <MiniPreview type={entry.preview} entry={entry} />
+      )}
       <span className="entry-copy">
         <strong>
           {entry.title}
@@ -4317,6 +4452,15 @@ function PreviewModal({ selected, playground, setPlayground, activeVariant, onVa
 
 function LivePreview({ selected, playground, variant, deviceMode = "desktop" }) {
   const variantIndex = getVariantIndex(selected, variant);
+
+  if (deviceMode === "mobile") {
+    return (
+      <MobileLiveFrame selected={selected}>
+        <MobileExperiencePreview selected={selected} variant={variant} />
+      </MobileLiveFrame>
+    );
+  }
+
   let preview;
 
   if (selected.isGenerated) preview = <GeneratedEntryLivePreview selected={selected} variant={variant} />;
@@ -4366,6 +4510,180 @@ function MobileLiveFrame({ selected, children }) {
         {children}
       </div>
       <div className="mobile-live-home" />
+    </div>
+  );
+}
+
+function MobileExperiencePreview({ selected, variant = "" }) {
+  const type = getMobilePreviewType(selected);
+  const title = selected.title || selected.english || "页面";
+  const summary = selected.summary || selected.plain || "移动端界面";
+  const action = getSemanticAction(selected);
+  const meta = variant || selected.group || sectionLabelById.get(selected.category) || "Mobile";
+  const chips = [selected.group, selected.docGroup, selected.english].filter(Boolean).slice(0, 3);
+
+  return (
+    <div className={`mobile-ui-preview mobile-ui-${type}`}>
+      <div className="mobile-ui-status">
+        <span>9:41</span>
+        <b />
+        <span>5G</span>
+      </div>
+      <div className="mobile-ui-appbar">
+        <span className="mobile-ui-icon">‹</span>
+        <strong>{title}</strong>
+        <span className="mobile-ui-icon">•••</span>
+      </div>
+
+      {type === "tabbar" && (
+        <>
+          <main className="mobile-ui-content mobile-ui-feed">
+            <section className="mobile-ui-hero">
+              <b>{title}</b>
+              <span>{summary}</span>
+            </section>
+            <article><i /><div><b /><span /></div></article>
+            <article><i /><div><b /><span /></div></article>
+          </main>
+          <nav className="mobile-ui-tabbar">
+            <b className="active" /><b /><b /><b />
+          </nav>
+        </>
+      )}
+
+      {type === "search" && (
+        <main className="mobile-ui-content mobile-ui-search">
+          <label><Search size={14} /><span>搜索 {title}</span></label>
+          <div className="mobile-ui-chip-row">{chips.map((chip) => <b key={chip}>{chip}</b>)}</div>
+          <article><i /><span /><em /></article>
+          <article><i /><span /><em /></article>
+          <article><i /><span /><em /></article>
+        </main>
+      )}
+
+      {type === "button" && (
+        <>
+          <main className="mobile-ui-content mobile-ui-action-screen">
+            <section className="mobile-ui-hero">
+              <b>{title}</b>
+              <span>{summary}</span>
+            </section>
+            <article><i /><span /><em /></article>
+            <article><i /><span /><em /></article>
+          </main>
+          <footer className="mobile-ui-buybar"><span>{meta}</span><b>{action.label}</b></footer>
+        </>
+      )}
+
+      {type === "card" && (
+        <main className="mobile-ui-content mobile-ui-card-screen">
+          <section><i /><b>{title}</b><span>{summary}</span></section>
+          <article><i /><div><b /><span /></div></article>
+          <article><i /><div><b /><span /></div></article>
+        </main>
+      )}
+
+      {type === "input" && (
+        <main className="mobile-ui-content mobile-ui-form">
+          <section>
+            <span>表单字段</span>
+            <b>{title}</b>
+          </section>
+          <label><span>名称</span><i /></label>
+          <label><span>说明</span><i /></label>
+          <div className="mobile-ui-primary">{action.label}</div>
+        </main>
+      )}
+
+      {type === "otp" && (
+        <main className="mobile-ui-content mobile-ui-otp-screen">
+          <section><b>输入验证码</b><span>{summary}</span></section>
+          <div>{[0, 1, 2, 3].map((item) => <i key={item}>{item === 0 ? "6" : ""}</i>)}</div>
+          <div className="mobile-ui-primary">继续</div>
+        </main>
+      )}
+
+      {["sheet", "actions"].includes(type) && (
+        <>
+          <main className="mobile-ui-content mobile-ui-list-screen">
+            <article><i /><span /><em /></article>
+            <article><i /><span /><em /></article>
+            <article><i /><span /><em /></article>
+          </main>
+          <section className={`mobile-ui-bottom-panel ${type === "actions" ? "actions" : ""}`}>
+            <b />
+            <strong>{title}</strong>
+            <span>{summary}</span>
+            <div className="mobile-ui-panel-actions"><i /><i /><i /></div>
+          </section>
+        </>
+      )}
+
+      {["toast", "banner", "permission"].includes(type) && (
+        <main className="mobile-ui-content mobile-ui-feedback-screen">
+          <article><b>{title}</b><span>{summary}</span></article>
+          <article><b>{meta}</b><span /></article>
+          {type === "permission" ? (
+            <section className="mobile-ui-permission">
+              <strong>允许访问？</strong>
+              <span>{title}</span>
+              <div><i /><i /></div>
+            </section>
+          ) : (
+            <div className={`mobile-ui-floating-message ${type}`}>{type === "banner" ? title : "已完成"}</div>
+          )}
+        </main>
+      )}
+
+      {["product", "stepper"].includes(type) && (
+        <>
+          <main className="mobile-ui-content mobile-ui-product">
+            <section />
+            <b>{title}</b>
+            <span>{summary}</span>
+            <div className="mobile-ui-price-row"><strong>$168</strong><i>-</i><em>1</em><i>+</i></div>
+          </main>
+          <footer className="mobile-ui-buybar"><span>Total $168</span><b>{action.label}</b></footer>
+        </>
+      )}
+
+      {["media", "scanner"].includes(type) && (
+        <main className={`mobile-ui-content mobile-ui-camera ${type}`}>
+          <section>{type === "scanner" ? <><i /><i /><i /><i /></> : <Play size={28} fill="currentColor" />}</section>
+          <div><b /><span /></div>
+          <footer><i /><b /><i /></footer>
+        </main>
+      )}
+
+      {type === "picker" && (
+        <main className="mobile-ui-content mobile-ui-picker-screen">
+          <section>{Array.from({ length: 12 }).map((_, index) => <i key={index} className={index === 5 ? "active" : ""} />)}</section>
+          <div className="mobile-ui-primary">完成</div>
+        </main>
+      )}
+
+      {type === "map" && (
+        <main className="mobile-ui-content mobile-ui-map-screen">
+          <section><i /><b /></section>
+          <article><strong>{title}</strong><span>{summary}</span></article>
+        </main>
+      )}
+
+      {["refresh", "loading", "list", "swipe", "carousel", "empty", "browser", "navbar"].includes(type) && (
+        <main className={`mobile-ui-content mobile-ui-list-screen mobile-ui-${type}-screen`}>
+          {type === "refresh" && <div className="mobile-ui-refresh-dot" />}
+          {type === "empty" ? (
+            <section className="mobile-ui-empty-state"><CircleHelp size={28} /><b>暂无内容</b><span>{summary}</span></section>
+          ) : (
+            <>
+              <article className={type === "swipe" ? "revealed" : ""}><i /><span /><em /></article>
+              <article><i /><span /><em /></article>
+              <article><i /><span /><em /></article>
+              {type === "carousel" && <div className="mobile-ui-carousel-dots"><b /><b /><b /></div>}
+            </>
+          )}
+        </main>
+      )}
     </div>
   );
 }
