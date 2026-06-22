@@ -49,6 +49,14 @@ import {
   X,
 } from "lucide-react";
 import {
+  BookOpen as ParkBookOpen,
+  Click as ParkClick,
+  Components as ParkComponents,
+  GraphicDesign as ParkGraphicDesign,
+  LayoutFour as ParkLayoutFour,
+  PlayTwo as ParkPlayTwo,
+} from "@icon-park/react";
+import {
   categoryDescriptions,
   findItem,
   quickQuestions,
@@ -99,37 +107,49 @@ const homeEntryCards = [
     sectionId: "components",
     title: "看组件",
     description: "按钮、输入框、弹窗、表格...",
-    Icon: Grid2X2,
+    Icon: ParkComponents,
+    iconVariant: "components",
+    iconFill: ["#172554", "#dbeafe", "#ffffff", "#60a5fa"],
   },
   {
     sectionId: "patterns",
     title: "看交互",
     description: "点击、悬停、拖拽、展开...",
-    Icon: MousePointer2,
+    Icon: ParkClick,
+    iconVariant: "patterns",
+    iconFill: ["#134e4a", "#ccfbf1", "#ffffff", "#2dd4bf"],
   },
   {
     sectionId: "dictionary",
     title: "看状态",
     description: "默认、加载、成功、错误...",
-    Icon: ChartPie,
+    Icon: ParkBookOpen,
+    iconVariant: "dictionary",
+    iconFill: ["#4c1d95", "#ede9fe", "#ffffff", "#a78bfa"],
   },
   {
     sectionId: "layouts",
     title: "看布局",
     description: "栅格、容器、间距、对齐...",
-    Icon: LayoutGrid,
+    Icon: ParkLayoutFour,
+    iconVariant: "layouts",
+    iconFill: ["#92400e", "#fef3c7", "#ffffff", "#fbbf24"],
   },
   {
     sectionId: "styles",
     title: "看样式",
     description: "颜色、字体、圆角、阴影...",
-    Icon: Type,
+    Icon: ParkGraphicDesign,
+    iconVariant: "styles",
+    iconFill: ["#9f1239", "#ffe4e6", "#ffffff", "#fb7185"],
   },
   {
     sectionId: "motion",
     title: "看动效",
     description: "过渡、微动效、页面动效...",
-    Icon: Sparkles,
+    Icon: ParkPlayTwo,
+    iconVariant: "motion",
+    iconFill: ["#075985", "#e0f2fe", "#ffffff", "#38bdf8"],
   },
 ];
 
@@ -3730,10 +3750,10 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
                 ...card,
                 title: "看词典",
                 description: "Modal、Toast、Tabs、Drawer 等术语与叫法。",
-                Icon: BookOpen,
+                Icon: ParkBookOpen,
               }
               : card;
-            const { sectionId, title, description, Icon } = normalizedCard;
+            const { sectionId, title, description, Icon, iconVariant = sectionId, iconFill } = normalizedCard;
             return (
             <button
               key={sectionId}
@@ -3741,14 +3761,22 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
               className={`home-entry-card tone-${index + 1}`}
               onClick={() => onSection(sectionId)}
             >
-              <span className="home-entry-icon">
-                <Icon size={34} strokeWidth={1.8} />
+              <span className={`home-entry-icon home-entry-icon-${iconVariant}`} aria-hidden="true">
+                <span className="home-entry-icon-mark">
+                  <Icon
+                    aria-hidden="true"
+                    fill={iconFill}
+                    size={32}
+                    strokeWidth={3.2}
+                    theme="multi-color"
+                  />
+                </span>
               </span>
               <span>
                 <strong>{title}</strong>
                 <small>{description}</small>
               </span>
-              <ChevronRight size={28} strokeWidth={1.8} />
+              <ChevronRight className="home-entry-arrow" size={22} strokeWidth={1.7} aria-hidden="true" />
             </button>
             );
           })}
