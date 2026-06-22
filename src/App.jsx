@@ -3692,18 +3692,10 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
 
   return (
     <section className="home-canvas" aria-labelledby="home-title">
-      <div className="home-annotations" aria-hidden="true">
-        <span className="home-annotation search-note"><b>俗称搜索</b><i /></span>
-        <span className="home-annotation entry-note"><b>核心入口</b><i /></span>
-        <span className="home-annotation core-note"><b>P0优先内容</b><i /></span>
-        <span className="home-annotation path-note"><b>新手路径</b><i /></span>
-        <span className="home-annotation compare-note"><b>常见对比</b><i /></span>
-      </div>
-
       <div className="home-hero">
         <div className="home-hero-copy">
           <h1 id="home-title">看懂每一个 UI 元素</h1>
-          <p>组件、交互、状态、布局、样式、动效，一站式 UI 图鉴</p>
+          <p>用预览、术语和对比快速确认组件叫法与使用边界。</p>
         </div>
 
         <form className="home-search" onSubmit={onSubmit} role="search">
@@ -3729,8 +3721,6 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
           ))}
         </div>
       </div>
-
-      <AiInlineTranslator config={aiConfig} onAiOpen={onAiOpen} onNotice={onNotice} />
 
       <div className="home-body">
         <div className="home-entry-grid" aria-label="核心入口">
@@ -3765,7 +3755,7 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
         </div>
 
         <section className="home-section" aria-labelledby="home-core-title">
-          <h2 id="home-core-title">{query ? "搜索结果" : "P0 核心内容"}</h2>
+          <h2 id="home-core-title">{query ? "搜索结果" : "常用 UI 条目"}</h2>
           <div className="home-core-grid">
             {coreItems.length > 0 ? (
               coreItems.map((entry) => (
