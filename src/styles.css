@@ -105,7 +105,7 @@ select:focus-visible {
   max-width: none;
   height: 55px;
   display: grid;
-  grid-template-columns: minmax(275px, 330px) minmax(0, 1fr) minmax(390px, auto);
+  grid-template-columns: minmax(275px, 330px) minmax(0, 1fr) minmax(330px, auto);
   align-items: center;
   margin: 0;
   padding: 0 clamp(20px, 7.8vw, 120px);
@@ -202,6 +202,10 @@ select:focus-visible {
 
 .main-nav button {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0;
   color: #161616;
   white-space: nowrap;
@@ -220,7 +224,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 20px;
+  gap: clamp(12px, 1.2vw, 20px);
   min-width: 0;
 }
 
@@ -231,6 +235,7 @@ select:focus-visible {
   gap: 7px;
   padding: 0;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .header-tool:hover {
@@ -242,22 +247,17 @@ select:focus-visible {
   font-weight: 850;
 }
 
-.ai-trigger {
-  min-height: 31px;
-  padding: 0 13px;
-  border: 1px solid #111111;
-  border-radius: 999px;
-  background: #111111;
-  color: #ffffff;
+.nav-effect-link {
+  color: #075985;
 }
 
-.ai-trigger:hover {
-  background: #000000;
-  color: #ffffff;
+.nav-effect-link:hover {
+  color: #0369a1;
 }
 
-.ai-trigger.ready {
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+.github-icon {
+  flex: none;
+  color: #0891b2;
 }
 
 .motion-toggle {

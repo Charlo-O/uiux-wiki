@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LUMEN 使用文档，生成式着色器工作室</title>
+<meta name="description" content="LUMEN 使用指南：样式、合成样式、颜色、动态、分享码、渐变套图，以及 PNG、视频或 GIF 导出。" />
+<link rel="canonical" href="https://lumenshaders.vercel.app/docs.html" />
+<meta property="og:url" content="https://lumenshaders.vercel.app/docs.html" />
+<meta property="og:image" content="https://lumenshaders.vercel.app/assets/og.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<link rel="icon" type="image/png" sizes="64x64" href="assets/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  body { overflow: auto; }
+  .docs-wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 110px;
+  }
+  .docs-hero {
+    margin-bottom: 44px;
+  }
+  .docs-hero h1 {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin-bottom: 10px;
+  }
+  .docs-hero p { color: var(--text-mid); font-size: 14px; line-height: 1.65; max-width: 56ch; }
+  .docs-hero .btn { margin-top: 18px; }
+  .docs-section { margin-bottom: 38px; }
+  .docs-section h2 {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .docs-section p, .docs-section li {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text-mid);
+  }
+  .docs-section p + p { margin-top: 8px; }
+  .docs-section ul { padding-left: 18px; margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .docs-section strong { color: var(--text); font-weight: 600; }
+  .docs-section code {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    background: var(--bg-raised);
+    border: 1px solid var(--line-soft);
+    padding: 1.5px 6px;
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+    border: 1px solid var(--line);
+    box-shadow: inset 0 -1.5px 0 rgba(0,0,0,0.4);
+    padding: 2px 7px;
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .docs-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .docs-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13px;
+    color: var(--text-mid);
+    vertical-align: top;
+  }
+  .docs-table td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; width: 140px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M10 1 L19 10 L10 19 L1 10 Z" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M10 5.5 L14.5 10 L10 14.5 L5.5 10 Z" fill="currentColor"/>
+    </svg>
+    <span class="brand-name">LUMEN</span>
+    <span class="brand-sub">使用文档</span>
+  </div>
+  <div class="topbar-actions">
+    <a class="btn btn-primary" href="index.html">打开工作室</a>
+  </div>
+</header>
+
+<div class="docs-wrap">
+  <div class="docs-hero">
+    <h1>LUMEN 如何工作</h1>
+    <p>LUMEN 会在浏览器里生成可循环的抽象 shader 视觉：液态金属、丝绸光带、柔和渐变、半调网点等。所有画面都通过 WebGL2 实时渲染，每段动画都是无缝循环，也可以导出或用设计码分享。</p>
+  </div>
+
+  <div class="docs-section">
+    <h2>样式</h2>
+    <p>在 <strong>样式</strong> 分区里可以选择 9 个基础风格：液态金属、丝带、柔光、光环、光束、半调、字符、竖纹和马赛克。每个风格都有独立的渲染方式和视觉气质。</p>
+    <p><strong>生成样式</strong> 会在基础风格之外继续扩展：<code>新样式</code> 会运行一个 12 基因的样式合成器，覆盖场域类型、几何空间、颜色映射、光照模型和表面叠加。每组基因都是一个独立样式，命名会沿用 FLUX、RIDGE、WAVE、RING、CELL 或 FLOW 等场域原型。主按钮 <strong>随机生成</strong> 也会偶尔发现新样式。</p>
+    <p>遇到喜欢的效果，可以点 <code>保存样式</code>。样式会存到浏览器里，并以 chip 的形式出现在侧栏，刷新页面后依然可用。</p>
+  </div>
+
+  <div class="docs-section">
+    <h2>颜色</h2>
+    <ul>
+      <li><strong>预设：</strong>16 组为渲染器调过的配色。</li>
+      <li><strong>A 到 D 色块：</strong>每个样式会从四个主色中取色，<strong>背景</strong> 用于画布底色。</li>
+      <li><strong>色相偏移、饱和度、曝光：</strong>可以在不改原始色板的情况下完成整体调色。</li>
+      <li>分区标题右侧的骰子会为当前样式重新生成一组协调配色。</li>
+    </ul>
+  </div>
+
+  <div class="docs-section">
+    <h2>形态、光照、质感、动态</h2>
+    <table class="docs-table">
+      <tr><td>种子</td><td>每个设计都是确定性的。同样的种子会得到同样的画面，也可以手动输入或随机生成。</td></tr>
+      <tr><td>缩放 / 细节</td><td>控制形态尺寸和噪声层数。</td></tr>
+      <tr><td>扭曲 / 湍流</td><td>控制场域向内折叠的程度，以及运动时的翻涌程度。</td></tr>
+      <tr><td>拉伸</td><td>控制各向异性。正值横向拉伸，负值纵向拉伸。</td></tr>
+      <tr><td>光照</td><td>控制强度、光泽、角度、虹彩和辉光。</td></tr>
+      <tr><td>质感</td><td>控制颗粒、半调或字符密度、脊线数量、色差、暗角和柔和度。</td></tr>
+      <tr><td>循环时长</td><td>一次无缝循环的时长，可设为 2 到 12 秒。</td></tr>
+      <tr><td>位移</td><td>控制场域在一次循环里移动的距离。</td></tr>
+    </table>
+  </div>
+
+  <div class="docs-section">
+    <h2>分享码</h2>
+    <p>每个设计都会序列化成一个以 <code>LMN1.</code> 开头的短码，里面包含样式、五个颜色、种子和全部参数。</p>
+    <ul>
+      <li><strong>复制设计码</strong> 会把短码放进剪贴板。任何人把它粘贴到分享框里，都能还原同一个设计。</li>
+      <li><strong>复制链接</strong> 会生成带 hash 的 URL，打开后直接载入对应设计。</li>
+    </ul>
+  </div>
+
+  <div class="docs-section">
+    <h2>渐变套图</h2>
+    <p><strong>套图</strong> 按钮会为当前设计生成 4 到 12 个变体。它们共享样式、配色和参数，只更换种子，因此看起来像同一个视觉家族。适合网站首屏、卡片和分区背景成组使用。</p>
+    <p>点击某个缩略图可以把对应种子应用到编辑器，也可以一键下载整组 PNG 的 ZIP。</p>
+  </div>
+
+  <div class="docs-section">
+    <h2>导出</h2>
+    <p>每个导出按钮都会打开带实时预览和参数设置的弹窗，确认后开始下载。</p>
+    <table class="docs-table">
+      <tr><td>PNG</td><td>静态图最高可到 3840 x 2160，会离屏按完整质量渲染。</td></tr>
+      <tr><td>WebM 视频</td><td>使用 WebCodecs 离线编码 VP9 或 VP8，并通过内置 WebM 写入器封装。支持 24、30、60 fps，可按循环次数或秒数设置精确时长。</td></tr>
+      <tr><td>GIF</td><td>逐帧确定性渲染的无缝循环 GIF，页面内编码。可选择抖动、永久循环或播放一次。</td></tr>
+    </table>
+    <p>循环本身是无缝构造的：噪声场沿闭合圆采样，因此最后一帧会自然接回第一帧。</p>
+  </div>
+
+  <div class="docs-section">
+    <h2>快捷键</h2>
+    <table class="docs-table">
+      <tr><td><span class="kbd">R</span></td><td>随机生成全部参数</td></tr>
+      <tr><td><span class="kbd">Space</span></td><td>播放或暂停</td></tr>
+      <tr><td><span class="kbd">S</span></td><td>按当前设置保存 PNG</td></tr>
+    </table>
+  </div>
+
+  <div class="docs-section">
+    <h2>技术说明</h2>
+    <p>LUMEN 是零依赖静态页面：一个 WebGL2 uber-shader、手写 GIF 编码器、WebM muxer，以及 store-only ZIP 写入器。源码在 <a href="https://github.com/Leonxlnx/lumenshaders" style="color: var(--text);">GitHub</a>，采用 MIT license。</p>
+  </div>
+</div>
+
+</body>
+</html>

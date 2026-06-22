@@ -14,10 +14,12 @@ import {
   CornerDownRight,
   Copy,
   Download,
+  FunnelX,
   Grid2X2,
   Heart,
   Info,
   KeyRound,
+  LayoutDashboard,
   LayoutGrid,
   Link2,
   LogIn,
@@ -1416,10 +1418,7 @@ export function App() {
         onSection={chooseSection}
         deviceMode={deviceMode}
         onDeviceMode={(mode) => setDeviceMode(deviceModes.some((item) => item.id === mode) ? mode : "desktop")}
-        aiReady={Boolean(aiConfig.apiKey && aiConfig.model)}
         onAiOpen={() => setAiPanelOpen(true)}
-        onSearchFocus={() => document.getElementById("atlas-search")?.focus()}
-        onAbout={() => setNotice("uiux.wiki 是一站式 UI 图鉴参考平台")}
         currentUser={currentUser}
         onAuthOpen={() => setAuthPanelOpen(true)}
       />
@@ -3637,7 +3636,18 @@ function SearchComposer({ query, setQuery, onSubmit, showQuickQuestions = true }
   );
 }
 
-function Header({ activeSection, onSection, deviceMode, onDeviceMode, aiReady, onAiOpen, onSearchFocus, onAbout, currentUser, onAuthOpen }) {
+function GitHubIcon({ size = 18 }) {
+  return (
+    <svg className="github-icon" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.14c-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.17 1.18A10.9 10.9 0 0 1 12 6.01c.98 0 1.96.13 2.88.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.15c0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
+      />
+    </svg>
+  );
+}
+
+function Header({ activeSection, onSection, deviceMode, onDeviceMode, onAiOpen, currentUser, onAuthOpen }) {
   return (
     <header className="topbar">
       <div className="brand-zone">
@@ -3669,6 +3679,9 @@ function Header({ activeSection, onSection, deviceMode, onDeviceMode, aiReady, o
             {section.label}
           </button>
         ))}
+        <button type="button" className="nav-effect-link" onClick={() => { window.location.href = "/lumen/index.html"; }}>
+          特效
+        </button>
       </nav>
       <div className="top-actions">
         <button
@@ -3676,25 +3689,21 @@ function Header({ activeSection, onSection, deviceMode, onDeviceMode, aiReady, o
           className={`header-tool ${activeSection === "workspace" ? "active" : ""}`}
           onClick={() => onSection("workspace")}
         >
-          <Sparkles size={18} strokeWidth={2.1} />
+          <LayoutDashboard size={18} strokeWidth={2.1} />
           工作台
         </button>
-        <button type="button" className={`header-tool ai-trigger ${aiReady ? "ready" : ""}`} onClick={onAiOpen}>
-          <Sparkles size={19} strokeWidth={2.1} />
+        <button type="button" className="header-tool" onClick={onAiOpen}>
+          <Sparkles size={18} strokeWidth={2.1} />
           AI 增强
         </button>
         <button type="button" className="header-tool account-trigger" onClick={onAuthOpen}>
           <UserRound size={18} strokeWidth={2.1} />
           {currentUser ? currentUser.name : "登录"}
         </button>
-        <button type="button" className="header-tool" onClick={onSearchFocus}>
-          <Search size={20} strokeWidth={2.1} />
-          搜索
-        </button>
-        <button type="button" className="header-tool" onClick={onAbout}>
-          <Info size={19} strokeWidth={2.1} />
-          关于
-        </button>
+        <a className="header-tool github-link" href="https://github.com/Charlo-O/uiux-wiki" target="_blank" rel="noreferrer" aria-label="打开 GitHub 项目">
+          <GitHubIcon size={18} />
+          GitHub
+        </a>
       </div>
     </header>
   );
@@ -4339,6 +4348,15 @@ function EmptyList({ activeSection }) {
   );
 }
 
+function getDetailHeadingIcon(selected) {
+  const text = [selected?.id, selected?.title, selected?.english, selected?.plain]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (/clear filters|filters cleared|清空筛选/.test(text)) return FunnelX;
+  return Sparkles;
+}
+
 function DetailPanel({
   selected,
   playground,
@@ -4354,12 +4372,13 @@ function DetailPanel({
   onNotice,
 }) {
   const hasCustomPlayground = false;
+  const HeadingIcon = getDetailHeadingIcon(selected);
 
   return (
     <section className="detail-panel" aria-live="polite">
       <div className="answer-heading">
         <span className="answer-icon" aria-hidden="true">
-          <Sparkles size={19} fill="currentColor" strokeWidth={1.8} />
+          <HeadingIcon size={19} strokeWidth={2.1} />
         </span>
         <div>
           <h2>
