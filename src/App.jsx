@@ -3702,7 +3702,6 @@ function Header({ activeSection, onSection, deviceMode, onDeviceMode, onAiOpen, 
         </button>
         <a className="header-tool github-link" href="https://github.com/Charlo-O/uiux-wiki" target="_blank" rel="noreferrer" aria-label="打开 GitHub 项目">
           <GitHubIcon size={18} />
-          GitHub
         </a>
       </div>
     </header>
