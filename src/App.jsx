@@ -3779,12 +3779,12 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
         <section className="home-section" aria-labelledby="home-path-title">
           <h2 id="home-path-title">新手路径</h2>
           <div className="home-path-grid">
-            {learnerPaths.map(({ title, Icon, points }, index) => (
-              <article key={title} className={`home-path-card path-${index + 1}`}>
+            {learnerPaths.map(({ title, Icon, points }) => (
+              <article key={title} className="home-path-card">
                 <span className="home-path-icon">
-                  <Icon size={34} strokeWidth={1.8} />
+                  <Icon size={28} strokeWidth={1.8} />
                 </span>
-                <div>
+                <div className="home-path-content">
                   <h3>{title}</h3>
                   <ul>
                     {points.map((point) => (
@@ -3792,6 +3792,7 @@ function HomePage({ items, query, setQuery, onSubmit, selectedId, onChoose, onSe
                     ))}
                   </ul>
                 </div>
+                <ChevronRight size={20} strokeWidth={1.8} />
               </article>
             ))}
           </div>
