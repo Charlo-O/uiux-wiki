@@ -1,0 +1,393 @@
+.gallery {
+  width: 100%;
+  color: #18212f;
+  background: #fff;
+  box-sizing: border-box;
+  padding: 42px 32px 72px;
+}
+.galleryInner {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  text-align: center;
+  padding: 28px 0 42px;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -1.6px;
+}
+
+.hero p {
+  margin: 0;
+  max-width: 540px;
+  color: #657184;
+  font-size: 15px;
+}
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 46px;
+}
+
+.filterButton {
+  border: 1px solid #dfe4ea;
+  border-radius: 999px;
+  background: #fff;
+  color: #657184;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 32px;
+  padding: 6px 13px;
+}
+
+.filterButton[data-active="true"] {
+  background: #18212f;
+  border-color: #18212f;
+  color: #fff;
+}
+
+.group {
+  border-top: 1px solid #dfe4ea;
+  padding-top: 22px;
+  margin-top: 34px;
+}
+
+.groupHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.groupHeading h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.3px;
+}
+
+.groupHeading span {
+  color: #8792a2;
+  font-size: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px 16px;
+}
+
+.card {
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.card:focus-visible {
+  outline: 3px solid #91b0ff;
+  outline-offset: 4px;
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 2px 0;
+}
+
+.cardTitle {
+  color: #315efb;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.cardDescription {
+  color: #8792a2;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cardOverlay {
+  align-items: flex-start;
+  background: linear-gradient(180deg, rgba(24, 33, 47, 0.03), rgba(24, 33, 47, 0.88));
+  border-radius: 14px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: flex-end;
+  opacity: 0;
+  padding: 16px;
+  position: absolute;
+  transform: translateY(5px);
+  transition: opacity 170ms ease, transform 170ms ease;
+}
+
+.card:hover .cardOverlay,
+.card:focus-within .cardOverlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cardOverlay h3 {
+  font-size: 18px;
+  margin: 0 0 5px;
+}
+
+.cardOverlay p {
+  font-size: 12px;
+  margin: 0;
+  opacity: 0.86;
+}
+
+.thumbnail {
+  aspect-ratio: 16 / 10;
+  background: #f4f6f8;
+  border: 1px solid #e3e8ef;
+  border-radius: 14px;
+  contain: layout paint style;
+  content-visibility: auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.thumbnailScaler {
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transform-origin: top left;
+  width: 100%;
+}
+
+.thumbnailSkeleton {
+  animation: templateShimmer 1.2s linear infinite;
+  background: linear-gradient(90deg, #eff2f5, #f8fafc, #eff2f5);
+  background-size: 200% 100%;
+  height: 100%;
+  width: 100%;
+}
+
+@keyframes templateShimmer {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.surface {
+  background: #f4f6f8;
+  border: 1px solid #dfe4ea;
+  border-radius: 16px;
+  height: 100%;
+  min-height: 520px;
+  overflow: auto;
+  padding: 16px;
+}
+
+.dialogBackdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.46);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 500;
+}
+
+.dialog {
+  background: #fff;
+  border: 1px solid #dfe4ea;
+  border-radius: 18px;
+  box-shadow: 0 28px 90px rgba(13, 23, 40, 0.24);
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  max-width: 1400px;
+  overflow: hidden;
+  width: min(1400px, 100%);
+}
+
+.dialogFullscreen {
+  border-radius: 0;
+  height: 100%;
+  max-height: none;
+  width: 100%;
+}
+
+.dialogHeader {
+  align-items: flex-start;
+  border-bottom: 1px solid #dfe4ea;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.dialogMeta {
+  min-width: 0;
+}
+
+.dialogMeta h2 {
+  font-size: 22px;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+
+.dialogMeta p {
+  color: #657184;
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+
+.dialogActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.dialogBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+}
+
+.dialogSurface {
+  flex: 1;
+  min-height: 0;
+}
+
+.dialogNavButton {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #dfe4ea;
+  border-radius: 999px;
+  box-shadow: 0 8px 26px rgba(13, 23, 40, 0.13);
+  cursor: pointer;
+  display: grid;
+  font-size: 18px;
+  height: 42px;
+  place-items: center;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  z-index: 3;
+}
+
+.dialogNavButton[data-direction="prev"] {
+  left: 8px;
+}
+
+.dialogNavButton[data-direction="next"] {
+  right: 8px;
+}
+
+.dialogNavButton:focus-visible,
+.closeButton:focus-visible,
+.actionButton:focus-visible {
+  outline: 3px solid #91b0ff;
+  outline-offset: 2px;
+}
+
+.closeButton,
+.actionButton {
+  border: 1px solid #dfe4ea;
+  border-radius: 9px;
+  background: #fff;
+  color: #18212f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.actionButton[data-primary="true"] {
+  background: #18212f;
+  border-color: #18212f;
+  color: #fff;
+}
+
+.empty {
+  color: #657184;
+  display: grid;
+  min-height: 300px;
+  place-items: center;
+  text-align: center;
+}
+
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gallery {
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 620px) {
+  .gallery {
+    padding: 22px 14px 48px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .cardOverlay {
+    display: none;
+  }
+
+  .dialogBackdrop {
+    padding: 0;
+  }
+
+  .dialogHeader {
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .dialogActions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .dialogBody {
+    padding: 10px;
+  }
+
+  .dialogNavButton {
+    display: none;
+  }
+}

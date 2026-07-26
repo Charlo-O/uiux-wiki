@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Link2,
   LogIn,
+  Menu,
   MessageCircle,
   Mic,
   MousePointer2,
@@ -94,6 +95,23 @@ import {
 } from "./features/ai/aiWorkspace.js";
 import { findRelatedItemsForAi, homePriorityIds } from "./features/glossary/glossaryRelated.js";
 import { itemMatchesQuery, normalize } from "./features/glossary/glossarySearch.js";
+import {
+  UiuxDetailPage,
+  UiuxGalleryPage,
+} from "./features/uiux/index.js";
+import { TemplatesPage } from "./features/templates/index.js";
+import {
+  ThemeGalleryPage,
+  UIUX_THEME_STORAGE_KEY,
+  getThemeById,
+  readStoredTheme,
+  themeToCssVars,
+} from "./features/themes/index.js";
+import {
+  readAppRoute,
+  subscribeToRoute,
+  writeAppRoute,
+} from "./features/routing/index.js";
 
 const initialPlayground = {
   style: "solid",
@@ -130,6 +148,42 @@ const headerSections = [
   { id: "motion", label: "动效" },
 ];
 const sectionLabelById = new Map(sections.map((section) => [section.id, section.label]));
+
+const uiuxSidebarGroups = [];
+const sidebarPrimarySectionIds = [
+  ...headerSections
+    .filter((section) => section.id !== "all" && section.id !== "comparisons")
+    .map((section) => section.id),
+  ...sections
+    .filter((section) => !headerSections.some((headerSection) => headerSection.id === section.id))
+    .map((section) => section.id),
+];
+const uiuxNavigationRoots = [
+  {
+    id: "comparisons",
+    label: headerSections.find((section) => section.id === "comparisons")?.label || "常见对比",
+    count: 0,
+    children: [],
+  },
+  ...sidebarPrimarySectionIds.map((sectionId) => {
+    const headerSection = headerSections.find((section) => section.id === sectionId);
+    const section = sections.find((entry) => entry.id === sectionId);
+    const children = uiDocumentTabs
+      .filter((tab) => tab.categoryId === sectionId)
+      .map((tab) => ({
+        id: tab.id,
+        label: tab.group,
+        count: uiItems.filter((entry) => entry.docGroupId === tab.id).length,
+      }))
+      .filter((item) => item.count > 0);
+    return {
+      id: sectionId,
+      label: headerSection?.label || section?.label || sectionId,
+      count: uiItems.filter((entry) => entry.category === sectionId).length,
+      children,
+    };
+  }),
+];
 
 const homeEntryCards = [
   {
@@ -560,9 +614,23 @@ async function hashCredential(email, password) {
   return window.btoa(unescape(encodeURIComponent(source)));
 }
 
+function routeToSection(route) {
+  if (route?.view === "templates") return "templates";
+  if (route?.view === "themes") return "themes";
+  if (route?.view === "uiux") return route.category || "uiux";
+  if (route?.view === "effects") return "effects";
+  if (route?.view === "all" && typeof window !== "undefined" && window.location.search) return "all";
+  return "home";
+}
+
 export function App() {
-  const [activeSection, setActiveSection] = useState("home");
-  const [selectedId, setSelectedId] = useState("button");
+  const initialRoute = readAppRoute();
+  const [appRoute, setAppRoute] = useState(initialRoute);
+  const [activeSection, setActiveSection] = useState(() => routeToSection(initialRoute));
+  const [activeSecondaryGroupId, setActiveSecondaryGroupId] = useState("");
+  const [expandedSidebarRoots, setExpandedSidebarRoots] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(initialRoute.itemId || "button");
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useStoredList("uiux.wiki:favorites", []);
   const [reducedMotion, setReducedMotion] = useStoredList("uiux.wiki:reduced-motion", false);
@@ -576,16 +644,36 @@ export function App() {
   const [authPanelOpen, setAuthPanelOpen] = useState(false);
   const [activeVariantById, setActiveVariantById] = useState({});
   const [notice, setNotice] = useState("");
+  const [uiuxThemeId, setUiuxThemeId] = useState(() => readStoredTheme().id);
 
   const selected = findItem(selectedId);
   const currentUser = authUsers.find((user) => user.id === sessionUserId) || null;
   const previewModalItem = previewModalId ? findItem(previewModalId) : null;
   const activeVariant = getActiveVariant(selected, activeVariantById);
   const previewModalVariant = previewModalItem ? getActiveVariant(previewModalItem, activeVariantById) : "";
+  const activeUiuxTheme = getThemeById(uiuxThemeId);
 
   useEffect(() => {
     document.documentElement.dataset.reducedMotion = reducedMotion ? "true" : "false";
   }, [reducedMotion]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRoute((route) => {
+      setAppRoute(route);
+      setActiveSection(routeToSection(route));
+      if (route.view === "themes" && route.themeId) {
+        setUiuxThemeId(getThemeById(route.themeId).id);
+      }
+      if (route.itemId) {
+        const entry = uiItems.find((item) => item.id === route.itemId);
+        if (entry) setSelectedId(entry.id);
+      }
+      if (route.category && uiDocumentTabs.some((tab) => tab.id === route.category)) {
+        setActiveSecondaryGroupId(route.category);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -596,32 +684,90 @@ export function App() {
   const visibleItems = useMemo(() => {
     const base = query
       ? uiItems
-      : activeSection === "home" || activeSection === "all" || activeSection === "workspace" || activeSection === "comparisons"
+      : activeSection === "home" || activeSection === "all" || activeSection === "uiux" || activeSection === "workspace" || activeSection === "comparisons"
         ? uiItems
-      : uiItems.filter((entry) => entry.category === activeSection);
+      : uiItems
+        .filter((entry) => entry.category === activeSection)
+        .filter((entry) => !activeSecondaryGroupId || entry.docGroupId === activeSecondaryGroupId);
     return base.filter((entry) => itemMatchesQuery(entry, query));
-  }, [activeSection, query]);
+  }, [activeSection, activeSecondaryGroupId, query]);
 
   const listLabel = query
     ? `找到 ${visibleItems.length} 个相关 UI`
-    : activeSection === "all"
+    : activeSection === "all" || activeSection === "uiux"
       ? `全部 ${uiItems.length} 个 UI 条目都在这里。`
     : categoryDescriptions[activeSection] || "选择一个条目查看说明、预览和规范。";
 
   function chooseSection(sectionId) {
     setActiveSection(sectionId);
+    setActiveSecondaryGroupId("");
+    setSidebarOpen(false);
     setQuery("");
     setPreviewModalId("");
+    if (sectionId === "templates") {
+      writeAppRoute({ view: "templates" });
+      return;
+    }
+    if (sectionId === "themes") {
+      writeAppRoute({ view: "themes", themeId: uiuxThemeId || appRoute.themeId || "neutral" });
+      return;
+    }
+    if (sectionId === "uiux" || sections.some((section) => section.id === sectionId)) {
+      writeAppRoute({
+        view: "uiux",
+        ...(sectionId !== "uiux" ? { category: sectionId } : {}),
+      });
+    } else if (sectionId === "all") {
+      writeAppRoute({ view: "all" });
+    }
     if (sectionId === "workspace" || sectionId === "comparisons") return;
     const first =
-      sectionId === "home" || sectionId === "all"
+      sectionId === "home" || sectionId === "all" || sectionId === "uiux"
         ? uiItems[0]
         : uiItems.find((entry) => entry.category === sectionId);
     if (first) setSelectedId(first.id);
   }
 
+  function chooseDocumentGroup(groupId) {
+    const group = uiDocumentTabs.find((tab) => tab.id === groupId);
+    const first = uiItems.find((entry) => entry.docGroupId === groupId);
+    setActiveSection(group?.categoryId || "components");
+    setActiveSecondaryGroupId(groupId);
+    setSidebarOpen(false);
+    setQuery("");
+    setPreviewModalId("");
+    writeAppRoute({
+      view: "uiux",
+      category: group?.categoryId || "components",
+      itemId: first?.id,
+    });
+    if (first) setSelectedId(first.id);
+  }
+
+  function toggleSidebarRoot(rootId) {
+    setExpandedSidebarRoots((current) => {
+      const isExpanded = current[rootId] ?? activeSection === rootId;
+      return {
+        ...current,
+        [rootId]: !isExpanded,
+      };
+    });
+  }
+
   function chooseItem(entry) {
     setSelectedId(entry.id);
+  }
+
+  function openUiuxDetail(entry) {
+    if (!entry) return;
+    setSelectedId(entry.id);
+    setActiveSection("uiux");
+    setActiveSecondaryGroupId(entry.docGroupId || "");
+    writeAppRoute({
+      view: "uiux",
+      category: entry.category || "components",
+      itemId: entry.id,
+    });
   }
 
   function openHomePreview(entry) {
@@ -644,6 +790,7 @@ export function App() {
   function clearDialog() {
     setQuery("");
     setActiveSection("home");
+    setActiveSecondaryGroupId("");
     setSelectedId("button");
     setPlayground(initialPlayground);
     setActiveVariantById({});
@@ -677,6 +824,7 @@ export function App() {
       if (!entry) return;
       setSelectedId(entry.id);
       setActiveSection(entry.category);
+      setActiveSecondaryGroupId(entry.docGroupId || "");
       setPreviewModalId(entry.id);
     }
 
@@ -687,8 +835,15 @@ export function App() {
 
   const isHomePage = activeSection === "home";
   const isAllPage = activeSection === "all";
+  const isUiuxPage = activeSection === "uiux";
+  const isTemplatesPage = activeSection === "templates";
+  const isThemesPage = activeSection === "themes";
   const isWorkspacePage = activeSection === "workspace";
   const isComparisonsPage = activeSection === "comparisons";
+  const isUiuxCategoryPage = sections.some((section) => section.id === activeSection);
+  const uiuxDetailItem = appRoute.view === "uiux" && appRoute.itemId
+    ? findItem(appRoute.itemId)
+    : null;
 
   return (
     <main className={`app-shell device-mode-${deviceMode}`}>
@@ -700,6 +855,8 @@ export function App() {
         onAiOpen={() => setAiPanelOpen(true)}
         currentUser={currentUser}
         onAuthOpen={() => setAuthPanelOpen(true)}
+        showSidebarToggle={isUiuxPage || isUiuxCategoryPage || isComparisonsPage}
+        onSidebarOpen={() => setSidebarOpen(true)}
       />
 
       {isHomePage ? (
@@ -731,6 +888,41 @@ export function App() {
             deviceMode={deviceMode}
           />
         </>
+      ) : isTemplatesPage ? (
+        <TemplatesPage
+          onOpenPlayground={({ href }) => {
+            if (href) {
+              window.history.pushState({}, "", href);
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }
+          }}
+          onCopy={({ template }) => setNotice(`已复制「${template?.name || "模板"}」的本地使用入口`)}
+        />
+      ) : isThemesPage ? (
+        <ThemeGalleryPage
+          activeThemeId={appRoute.themeId || uiuxThemeId || "neutral"}
+          onThemeSelect={(theme) => {
+            setUiuxThemeId(theme.id);
+            try {
+              window.localStorage.setItem(UIUX_THEME_STORAGE_KEY, theme.id);
+            } catch {
+              // Storage restrictions should not block in-memory switching.
+            }
+            writeAppRoute({ view: "themes", themeId: theme.id });
+            setNotice(`已切换到 ${theme.label}`);
+          }}
+          onUseTheme={(theme) => {
+            setUiuxThemeId(theme.id);
+            try {
+              window.localStorage.setItem(UIUX_THEME_STORAGE_KEY, theme.id);
+            } catch {
+              // Storage restrictions should not block navigation.
+            }
+            chooseSection("uiux");
+            setNotice(`已将 ${theme.label} 应用于 UI/UX 预览`);
+          }}
+          onTryPlayground={() => chooseSection("workspace")}
+        />
       ) : isWorkspacePage ? (
         <AiWorkspacePage
           config={{ ...aiConfigDefaults, ...aiConfig }}
@@ -738,39 +930,59 @@ export function App() {
           onAiOpen={() => setAiPanelOpen(true)}
           onNotice={setNotice}
         />
-      ) : isComparisonsPage ? (
-        <CommonComparisonsPage deviceMode={deviceMode} onChoose={openHomePreview} />
       ) : (
-        <>
-          <SearchComposer query={query} setQuery={setQuery} onSubmit={submitSearch} />
-
-          <section className="atlas-grid" aria-label="UI 图鉴">
-            <AtlasListPanel
-              activeSection={activeSection}
-              listLabel={listLabel}
-              items={visibleItems}
-              selectedId={selectedId}
-              onChoose={chooseItem}
-              onClear={clearDialog}
-              query={query}
-              deviceMode={deviceMode}
+        <div
+          className={`uiux-workspace-layout ${sidebarOpen ? "sidebar-is-open" : ""}`}
+          data-uiux-theme={activeUiuxTheme.id}
+          style={themeToCssVars(activeUiuxTheme)}
+        >
+          <UiuxSidebar
+            activeSection={activeSection}
+            activeSecondaryGroupId={activeSecondaryGroupId}
+            expandedRootIds={expandedSidebarRoots}
+            onSection={chooseSection}
+            onDocumentGroup={chooseDocumentGroup}
+            onToggleRoot={toggleSidebarRoot}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+          {sidebarOpen && (
+            <button
+              type="button"
+              className="uiux-sidebar-scrim"
+              aria-label="关闭分类导航"
+              onClick={() => setSidebarOpen(false)}
             />
-            <DetailPanel
-              selected={selected}
-              playground={playground}
-              setPlayground={setPlayground}
-              activeVariant={activeVariant}
-              onVariantChange={(variant) => chooseVariant(selected.id, variant)}
-              deviceMode={deviceMode}
-              isFavorite={favorites.includes(selected.id)}
-              onFavorite={() => toggleFavorite(selected.id)}
-              onShare={shareCurrent}
-              aiConfig={{ ...aiConfigDefaults, ...aiConfig }}
-              onAiOpen={() => setAiPanelOpen(true)}
-              onNotice={setNotice}
-            />
-          </section>
-        </>
+          )}
+          <div className="uiux-workspace-main">
+            {isComparisonsPage ? (
+              <CommonComparisonsPage deviceMode={deviceMode} onChoose={openHomePreview} />
+            ) : uiuxDetailItem ? (
+              <UiuxDetailPage
+                item={uiuxDetailItem}
+                onBack={() => {
+                  writeAppRoute({
+                    view: "uiux",
+                    category: uiuxDetailItem.category || appRoute.category || "components",
+                  });
+                }}
+                onOpenItem={openUiuxDetail}
+                onTheme={() => chooseSection("themes")}
+              />
+            ) : (
+              <>
+                <SearchComposer query={query} setQuery={setQuery} onSubmit={submitSearch} />
+                <UiuxGalleryPage
+                  items={visibleItems}
+                  query=""
+                  title={isUiuxPage ? "Browse the library" : sectionLabelById.get(activeSection) || "UI/UX"}
+                  description={isUiuxPage ? "Every UI/UX entry with a semantic, copy-ready preview." : listLabel}
+                  onOpenItem={openUiuxDetail}
+                />
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {!isHomePage && (
@@ -2926,7 +3138,205 @@ function GitHubIcon({ size = 18 }) {
   );
 }
 
-function Header({ activeSection, onSection, deviceMode, onDeviceMode, onAiOpen, currentUser, onAuthOpen }) {
+function LegacyUiuxSidebar({ activeSection, activeDocumentGroupId, onSection, onDocumentGroup, open, onClose }) {
+  function countFor(sectionId) {
+    if (sectionId === "all" || sectionId === "uiux") return uiItems.length;
+    if (sectionId === "comparisons") return comparisonPairs.length;
+    return uiItems.filter((entry) => entry.category === sectionId).length;
+  }
+
+  return (
+    <aside className={`uiux-sidebar ${open ? "open" : ""}`} aria-label="UI/UX 分类导航">
+      <div className="uiux-sidebar-head">
+        <div>
+          <span className="uiux-sidebar-kicker">UI/UX</span>
+          <strong>分类导航</strong>
+        </div>
+        <button type="button" className="uiux-sidebar-close" onClick={onClose} aria-label="关闭分类导航">
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="uiux-sidebar-groups">
+        {uiuxSidebarGroups.map((group) => (
+          <div className="uiux-sidebar-group" key={group.id}>
+            <p className="uiux-sidebar-group-title">{group.label}</p>
+            <div className="uiux-sidebar-links">
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`uiux-sidebar-link ${activeSection === item.id && activeDocumentGroupId === "all" ? "active" : ""}`}
+                  aria-current={activeSection === item.id && activeDocumentGroupId === "all" ? "page" : undefined}
+                  onClick={() => onSection(item.id)}
+                >
+                  <span>{item.label}</span>
+                  <small>{countFor(item.id)}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="uiux-sidebar-group uiux-sidebar-secondary">
+          <p className="uiux-sidebar-group-title">二级分类</p>
+          <div className="uiux-sidebar-secondary-groups">
+            {uiuxSecondarySidebarGroups.map((group) => (
+              <div className="uiux-sidebar-secondary-group" key={group.id}>
+                <p>{group.label}</p>
+                <div className="uiux-sidebar-links">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`uiux-sidebar-link ${activeDocumentGroupId === item.id ? "active" : ""}`}
+                      aria-current={activeDocumentGroupId === item.id ? "page" : undefined}
+                      onClick={() => onDocumentGroup(item.id)}
+                    >
+                      <span>{item.label}</span>
+                      <small>{item.count}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function UiuxSidebar({
+  activeSection,
+  activeSecondaryGroupId,
+  expandedRootIds,
+  onSection,
+  onDocumentGroup,
+  onToggleRoot,
+  open,
+  onClose,
+}) {
+  function countFor(sectionId) {
+    if (sectionId === "all" || sectionId === "uiux") return uiItems.length;
+    if (sectionId === "comparisons") return comparisonPairs.length;
+    return uiItems.filter((entry) => entry.category === sectionId).length;
+  }
+
+  return (
+    <aside className={`uiux-sidebar ${open ? "open" : ""}`} aria-label="UI/UX 分类导航">
+      <div className="uiux-sidebar-head">
+        <div>
+          <span className="uiux-sidebar-kicker">UI/UX</span>
+          <strong>分类导航</strong>
+        </div>
+        <button type="button" className="uiux-sidebar-close" onClick={onClose} aria-label="关闭分类导航">
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="uiux-sidebar-groups">
+        {uiuxSidebarGroups.map((group) => (
+          <div className="uiux-sidebar-group" key={group.id}>
+            <p className="uiux-sidebar-group-title">{group.label}</p>
+            <div className="uiux-sidebar-links">
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`uiux-sidebar-link ${activeSection === item.id && !activeSecondaryGroupId ? "active" : ""}`}
+                  aria-current={activeSection === item.id && !activeSecondaryGroupId ? "page" : undefined}
+                  onClick={() => onSection(item.id)}
+                >
+                  <span>{item.label}</span>
+                  <small>{countFor(item.id)}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div className="uiux-sidebar-group uiux-sidebar-navigation">
+          <p className="uiux-sidebar-group-title">UI/UX 分类</p>
+          <div className="uiux-sidebar-root-list">
+            {uiuxNavigationRoots.map((root) => {
+              const hasChildren = root.children.length > 0;
+              const expanded = expandedRootIds[root.id] ?? activeSection === root.id;
+              const active = activeSection === root.id;
+              const rootCount = root.id === "comparisons" ? comparisonPairs.length : root.count;
+              return (
+                <div className="uiux-sidebar-root" key={root.id}>
+                  <div className={`uiux-sidebar-root-link ${active ? "active" : ""}`}>
+                    <button
+                      type="button"
+                      className="uiux-sidebar-root-action"
+                      aria-current={active && !activeSecondaryGroupId ? "page" : undefined}
+                      onClick={() => onSection(root.id)}
+                    >
+                      <span className="uiux-sidebar-root-label">
+                        <span>{root.label}</span>
+                      </span>
+                    </button>
+                    {hasChildren && (
+                      <button
+                        type="button"
+                        className="uiux-sidebar-root-toggle"
+                        aria-expanded={expanded}
+                        aria-controls={`uiux-sidebar-children-${root.id}`}
+                        aria-label={`${expanded ? "收起" : "展开"}${root.label}`}
+                        onClick={() => onToggleRoot(root.id)}
+                      >
+                        <ChevronRight
+                          className={`uiux-sidebar-chevron ${expanded ? "expanded" : ""}`}
+                          size={15}
+                          strokeWidth={2}
+                        />
+                      </button>
+                    )}
+                    <small>{rootCount}</small>
+                  </div>
+                  {hasChildren && (
+                    <div
+                      id={`uiux-sidebar-children-${root.id}`}
+                      className={`uiux-sidebar-child-wrap ${expanded ? "expanded" : ""}`}
+                      aria-hidden={!expanded}
+                    >
+                      <div className="uiux-sidebar-child-list">
+                        {root.children.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`uiux-sidebar-link uiux-sidebar-child-link ${activeSecondaryGroupId === item.id ? "active" : ""}`}
+                            aria-current={activeSecondaryGroupId === item.id ? "page" : undefined}
+                            onClick={() => onDocumentGroup(item.id)}
+                          >
+                            <span>{item.label}</span>
+                            <small>{item.count}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function Header({
+  activeSection,
+  onSection,
+  deviceMode,
+  onDeviceMode,
+  onAiOpen,
+  currentUser,
+  onAuthOpen,
+  showSidebarToggle,
+  onSidebarOpen,
+}) {
   return (
     <header className="topbar">
       <div className="brand-zone">
@@ -2948,21 +3358,45 @@ function Header({ activeSection, onSection, deviceMode, onDeviceMode, onAiOpen, 
         </div>
       </div>
       <nav className="main-nav" aria-label="主导航">
-        {headerSections.map((section) => (
-          <button
-            key={section.id}
-            type="button"
-            className={activeSection === section.id ? "active" : ""}
-            onClick={() => onSection(section.id)}
-          >
-            {section.label}
-          </button>
-        ))}
+        <button
+          type="button"
+          className={activeSection === "all" ? "active" : ""}
+          onClick={() => onSection("all")}
+        >
+          全部
+        </button>
+        <button
+          type="button"
+          className={`main-nav-root ${activeSection === "uiux" || sections.some((section) => section.id === activeSection) || activeSection === "comparisons" ? "active" : ""}`}
+          onClick={() => onSection("uiux")}
+        >
+          UI/UX
+        </button>
+        <button
+          type="button"
+          className={activeSection === "templates" ? "active" : ""}
+          onClick={() => onSection("templates")}
+        >
+          模板
+        </button>
+        <button
+          type="button"
+          className={activeSection === "themes" ? "active" : ""}
+          onClick={() => onSection("themes")}
+        >
+          主题
+        </button>
         <button type="button" className="nav-effect-link" onClick={() => { window.location.href = "/lumen/index.html"; }}>
           特效
         </button>
       </nav>
       <div className="top-actions">
+        {showSidebarToggle && (
+          <button type="button" className="header-tool sidebar-toggle" onClick={onSidebarOpen} aria-label="打开分类导航">
+            <Menu size={18} strokeWidth={2.1} />
+            分类
+          </button>
+        )}
         <button
           type="button"
           className={`header-tool ${activeSection === "workspace" ? "active" : ""}`}
@@ -3470,6 +3904,7 @@ function AtlasListPanel({
   onClear,
   query,
   deviceMode = "desktop",
+  panelTitle,
 }) {
   const [activeListTabId, setActiveListTabId] = useState("all");
   const listTabs = useMemo(() => {
@@ -3495,7 +3930,7 @@ function AtlasListPanel({
       setActiveListTabId("all");
     }
   }, [activeListTabId, listTabs]);
-  const activeLabel = sections.find((section) => section.id === activeSection)?.label || "组件";
+  const activeLabel = panelTitle || sections.find((section) => section.id === activeSection)?.label || "组件";
 
   return (
     <section className="conversation-panel atlas-list-panel">
